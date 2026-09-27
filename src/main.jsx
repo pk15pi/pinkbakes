@@ -9,6 +9,7 @@ import {
 import {
   adminLogin,
   checkoutOrder,
+  createPaymentSession,
   createProduct,
   deleteProduct,
   fetchCurrentUser,
@@ -20,6 +21,7 @@ import {
   requestLoginOtp,
   sendVerification,
   signIn,
+  verifyPayment,
   signUp,
   submitReview,
   updateProduct,
@@ -27,6 +29,7 @@ import {
   verifyLoginOtp,
   verifyOtp
 } from "./services/authService";
+import { appConfig, getMapsUrl } from "./config";
 import "./styles.css";
 
 const fallbackProducts = [
@@ -231,6 +234,42 @@ function App() {
       text: "Hi! I can help with cake suggestions, pricing, custom orders, and delivery questions."
     }
   ]);
+  const [trackingOrder, setTrackingOrder] = useState(null);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [trackingError, setTrackingError] = useState("");
+
+  async function fetchTracking(orderId) {
+    const token = localStorage.getItem("pinkbakes_token");
+    if (!token) {
+      setTrackingError("Please sign in to view live delivery tracking.");
+      setAuthOpen(true);
+      setAuthMode("signin");
+      return;
+    }
+
+    setTrackingLoading(true);
+    setTrackingError("");
+
+    try {
+      const response = await fetch(`${appConfig.apiBaseUrl}/api/orders/${orderId}/tracking/`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Token ${token}`,
+        },
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.detail || "Unable to load tracking details.");
+      }
+      setTrackingOrder(data);
+    } catch (error) {
+      setTrackingError(error.message || "Unable to load tracking details.");
+    } finally {
+      setTrackingLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (user) {
@@ -762,16 +801,103 @@ function App() {
     setCheckoutLoading(true);
     setCheckoutMessage("");
 
-    checkoutOrder(payload, token)
-      .then((order) => {
-        setCart([]);
-        setCheckoutOpen(false);
-        setSelectedOrder(order);
-        setOrders(prev => [order, ...prev]);
-        setOrderHistoryOpen(true);
-        notify(`Order ${order.order_number} placed successfully`);
+    const loadRazorpay = () => new Promise((resolve, reject) => {
+      if (window.Razorpay) {
+        resolve(window.Razorpay);
+        return;
+      }
+
+      const existing = document.getElementById("razorpay-sdk");
+      if (existing) {
+        existing.addEventListener("load", () => resolve(window.Razorpay), { once: true });
+        existing.addEventListener("error", () => reject(new Error("Unable to load Razorpay checkout.")), { once: true });
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.id = "razorpay-sdk";
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.onload = () => resolve(window.Razorpay);
+      script.onerror = () => reject(new Error("Unable to load Razorpay checkout."));
+      document.body.appendChild(script);
+    });
+
+    createPaymentSession(payload, token)
+      .then(async (paymentInfo) => {
+        const Razorpay = await loadRazorpay();
+        const options = {
+          key: paymentInfo.key_id || appConfig.razorpayKeyId,
+          amount: Number(paymentInfo.amount || 0),
+          currency: paymentInfo.currency || "INR",
+          name: "PinkBakes",
+          description: `Payment for ${paymentInfo.order_id || "order"}`,
+          handler: function (response) {
+            verifyPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              amount: Number(paymentInfo.amount || 0),
+              payment_method: "razorpay",
+            }, token)
+              .then((result) => {
+                setCart([]);
+                setCheckoutOpen(false);
+                setSelectedOrder({
+                  id: result.order_id,
+                  order_number: `PB-${Date.now()}`,
+                  status: "ORDER_CONFIRMED",
+                  total_amount: Number(paymentInfo.amount || 0) / 100,
+                  items: cart.map(item => ({
+                    id: item.id,
+                    product_name: item.name,
+                    quantity: item.qty || 1,
+                    subtotal: Number((item.price || 0) * (item.qty || 1)),
+                    product_image: item.image,
+                  })),
+                  created_at: new Date().toISOString(),
+                });
+                setOrders(prev => [
+                  {
+                    id: result.order_id,
+                    order_number: `PB-${Date.now()}`,
+                    status: "ORDER_CONFIRMED",
+                    total_amount: Number(paymentInfo.amount || 0) / 100,
+                    items: cart.map(item => ({
+                      id: item.id,
+                      product_name: item.name,
+                      quantity: item.qty || 1,
+                      subtotal: Number((item.price || 0) * (item.qty || 1)),
+                      product_image: item.image,
+                    })),
+                    created_at: new Date().toISOString(),
+                  },
+                  ...prev,
+                ]);
+                setOrderHistoryOpen(true);
+                notify("Payment successful. Your order has been confirmed.");
+              })
+              .catch((error) => setCheckoutMessage(error.message || "Payment verification failed. Please contact support."));
+          },
+          prefill: {
+            name: payload.customer_name,
+            email: payload.customer_email,
+            contact: payload.customer_mobile,
+          },
+          theme: {
+            color: "#d62f7b",
+          },
+          modal: {
+            ondismiss: () => {
+              setCheckoutMessage("Payment cancelled. Your cart is still intact.");
+            },
+          },
+        };
+
+        const rzp = new Razorpay(options);
+        rzp.open();
       })
-      .catch((error) => setCheckoutMessage(error.message || "Unable to place your order right now."))
+      .catch((error) => setCheckoutMessage(error.message || "Unable to start payment right now."))
       .finally(() => setCheckoutLoading(false));
   }
 
@@ -780,7 +906,10 @@ function App() {
     if (!token) return;
 
     fetchOrder(orderId, token)
-      .then((order) => setSelectedOrder(order))
+      .then((order) => {
+        setSelectedOrder(order);
+        setTrackingOrder(null);
+      })
       .catch(() => setSelectedOrder(null));
   }
 
@@ -1442,6 +1571,47 @@ function App() {
                       </div>
                     </div>
                   ))}
+
+                  <div className="delivery-tracker-panel">
+                    <div className="delivery-tracker-header">
+                      <strong>Live delivery</strong>
+                      <button type="button" className="btn secondary small" onClick={() => fetchTracking(selectedOrder.id)}>
+                        {trackingLoading ? "Loading..." : "Track order"}
+                      </button>
+                    </div>
+
+                    {trackingError && <div className="auth-error">{trackingError}</div>}
+
+                    {trackingOrder ? (
+                      <div className="tracking-card">
+                        <div className="tracking-status-row">
+                          <span>Status</span>
+                          <b>{trackingOrder.status}</b>
+                        </div>
+                        <div className="tracking-status-row">
+                          <span>Delivery executive</span>
+                          <b>{trackingOrder.delivery_employee?.name || "Awaiting assignment"}</b>
+                        </div>
+                        {trackingOrder.location && (
+                          <a href={getMapsUrl(trackingOrder.location.latitude, trackingOrder.location.longitude)} target="_blank" rel="noreferrer" className="btn secondary full">
+                            Open map
+                          </a>
+                        )}
+                        {trackingOrder.status_history?.length ? (
+                          <ul className="tracking-history">
+                            {trackingOrder.status_history.map((event) => (
+                              <li key={`${event.status}-${event.timestamp}`}>
+                                <span>{event.status}</span>
+                                <small>{new Date(event.timestamp).toLocaleString()}</small>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="empty">Track an order to see live status and delivery updates.</div>
+                    )}
+                  </div>
 
                   <button type="button" className="btn secondary full" onClick={() => setSelectedOrder(null)}>
                     Back to orders

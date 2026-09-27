@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+import { appConfig } from "../config";
+
+const API_BASE_URL = appConfig.apiBaseUrl;
 
 async function requestJson(url, options = {}) {
   const response = await fetch(url, {
@@ -199,6 +201,53 @@ export async function checkoutOrder(payload, token) {
       Authorization: `Token ${token}`,
     },
     body: JSON.stringify(payload),
+  });
+}
+
+export async function createPaymentSession(payload, token) {
+  return requestJson(`${API_BASE_URL}/api/payments/create/`, {
+    method: "POST",
+    headers: {
+      Authorization: `Token ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function verifyPayment(payload, token) {
+  return requestJson(`${API_BASE_URL}/api/payments/verify/`, {
+    method: "POST",
+    headers: {
+      Authorization: `Token ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchPayment(paymentId, token) {
+  return requestJson(`${API_BASE_URL}/api/payments/${paymentId}/`, {
+    method: "GET",
+    headers: {
+      Authorization: `Token ${token}`,
+    },
+  });
+}
+
+export async function fetchOrderPayments(orderId, token) {
+  return requestJson(`${API_BASE_URL}/api/orders/${orderId}/payments/`, {
+    method: "GET",
+    headers: {
+      Authorization: `Token ${token}`,
+    },
+  });
+}
+
+export async function retryPayment(orderId, token) {
+  return requestJson(`${API_BASE_URL}/api/orders/${orderId}/retry-payment/`, {
+    method: "POST",
+    headers: {
+      Authorization: `Token ${token}`,
+    },
   });
 }
 
