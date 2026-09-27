@@ -4,22 +4,27 @@ import {
   Search, UserRound, ShoppingBag, Menu, X, ChevronRight, ChevronLeft,
   Star, Heart, ZoomIn, Rotate3d, Plus, Minus, Trash2, ArrowRight,
   CakeSlice, Sparkles, Leaf, CalendarDays, ShieldCheck, Instagram,
-  MessageCircle, Mail, MapPin, Check, SlidersHorizontal
+  MessageCircle, Mail, MapPin, Check, SlidersHorizontal, Send
 } from "lucide-react";
 import {
   adminLogin,
+  checkoutOrder,
   createProduct,
   deleteProduct,
   fetchCurrentUser,
+  fetchOrder,
+  fetchOrders,
   fetchProduct,
   fetchProductReviews,
   fetchProducts,
+  requestLoginOtp,
   sendVerification,
   signIn,
   signUp,
   submitReview,
   updateProduct,
   verifyEmail,
+  verifyLoginOtp,
   verifyOtp
 } from "./services/authService";
 import "./styles.css";
@@ -183,6 +188,24 @@ function App() {
   const [authMode, setAuthMode] = useState("signin");
   const [authStage, setAuthStage] = useState("form");
   const [authLoading, setAuthLoading] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutMessage, setCheckoutMessage] = useState("");
+  const [checkoutForm, setCheckoutForm] = useState({
+    customer_name: "",
+    customer_email: "",
+    customer_mobile: "",
+    shipping_address: "",
+    shipping_address_2: "",
+    city: "",
+    state: "",
+    postal_code: "",
+    country: "India",
+    notes: ""
+  });
+  const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
+  const [orders, setOrders] = useState([]);
+  const [selectedOrder, setSelectedOrder] = useState(null);
   const [authMessage, setAuthMessage] = useState("");
   const [authFlow, setAuthFlow] = useState("signin");
   const [forgotEmail, setForgotEmail] = useState("");
@@ -200,6 +223,25 @@ function App() {
     mobile_number: "",
     password: ""
   });
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [chatMessages, setChatMessages] = useState([
+    {
+      sender: "bot",
+      text: "Hi! I can help with cake suggestions, pricing, custom orders, and delivery questions."
+    }
+  ]);
+
+  useEffect(() => {
+    if (user) {
+      setCheckoutForm(prev => ({
+        ...prev,
+        customer_name: prev.customer_name || `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.username || "",
+        customer_email: prev.customer_email || user.email || "",
+        customer_mobile: prev.customer_mobile || user.mobile_number || "",
+      }));
+    }
+  }, [user]);
   const [cakeForm, setCakeForm] = useState({
     name: "",
     price: "",
@@ -425,6 +467,56 @@ function App() {
       .finally(() => setAuthLoading(false));
   }
 
+  function handleOtpLoginRequest(e) {
+    e.preventDefault();
+    const mobile = authForm.mobile_number.trim();
+    if (!mobile) {
+      setAuthMessage("Please enter your registered mobile number.");
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthMessage("");
+    requestLoginOtp({ mobile })
+      .then(data => {
+        setAuthMessage(data.message || "OTP sent successfully.");
+        setVerificationCode("");
+        setAuthMode("otp");
+      })
+      .catch(error => {
+        setAuthMessage(error.message || "Unable to send OTP right now.");
+      })
+      .finally(() => setAuthLoading(false));
+  }
+
+  function handleOtpLoginSubmit(e) {
+    e.preventDefault();
+    const mobile = authForm.mobile_number.trim();
+    if (!mobile) {
+      setAuthMessage("Please enter your registered mobile number.");
+      return;
+    }
+    if (!verificationCode.trim()) {
+      setAuthMessage("Please enter the OTP sent to your mobile number.");
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthMessage("");
+    verifyLoginOtp({ mobile, otp: verificationCode })
+      .then(data => {
+        localStorage.setItem("pinkbakes_token", data.token);
+        setUser(data.user);
+        setAuthOpen(false);
+        resetAuthForm();
+        notify("Logged in with OTP!");
+      })
+      .catch(error => {
+        setAuthMessage(error.message || "OTP login failed.");
+      })
+      .finally(() => setAuthLoading(false));
+  }
+
   function handleForgotPassword(e) {
     e.preventDefault();
     setAuthLoading(true);
@@ -550,10 +642,146 @@ function App() {
       .finally(() => setAuthLoading(false));
   }
 
+  function getChatbotReply(inputText) {
+    const query = (inputText || "").trim().toLowerCase();
+    if (!query) return "Please type a question and I’ll help you out.";
+
+    if (query.includes("hello") || query.includes("hi") || query.includes("hey")) {
+      return "Hello! I can suggest cakes, answer pricing questions, and help with custom orders.";
+    }
+
+    if (query.includes("price") || query.includes("budget") || query.includes("cost")) {
+      return `Our signature cakes start from ${formatCurrency(1099)} and custom designs are priced based on size and finish.`;
+    }
+
+    if (query.includes("birthday")) {
+      return "Birthday cakes are very popular here. Try our Chocolate Truffle, Vanilla Dream, or Berry Bliss for a festive favorite.";
+    }
+
+    if (query.includes("anniversary") || query.includes("wedding")) {
+      return "For anniversary or wedding celebrations, our Red Velvet and Rose Garden cakes are elegant choices for a memorable moment.";
+    }
+
+    if (query.includes("chocolate")) {
+      return "Our Chocolate Truffle and Midnight Mocha cakes are top picks if you want a rich chocolate experience.";
+    }
+
+    if (query.includes("eggless")) {
+      return "We offer eggless options on many of our favorite cakes. Tell me your occasion and I’ll suggest the best match.";
+    }
+
+    if (query.includes("custom") || query.includes("order")) {
+      return "You can place a custom cake request through our custom cake section. Share your theme, size, and flavor and we’ll guide you from there.";
+    }
+
+    if (query.includes("delivery") || query.includes("shipping") || query.includes("time")) {
+      return "We usually prepare cakes within 24–48 hours, and delivery timing depends on your selected size and location.";
+    }
+
+    if (query.includes("recommend") || query.includes("best")) {
+      const topChoices = catalog.slice(0, 3).map(item => item.name).join(", ");
+      return topChoices ? `Popular picks right now: ${topChoices}.` : "Popular picks right now include Chocolate Truffle, Red Velvet, and Vanilla Dream.";
+    }
+
+    return "I can help with cake recommendations, budgeting, custom orders, and delivery. Try asking about birthdays, chocolate cakes, or pricing.";
+  }
+
+  function handleChatSubmit(e) {
+    e.preventDefault();
+    const trimmed = chatInput.trim();
+    if (!trimmed) return;
+
+    setChatMessages(prev => [...prev, { sender: "user", text: trimmed }]);
+    setChatInput("");
+
+    const response = getChatbotReply(trimmed);
+    setTimeout(() => {
+      setChatMessages(prev => [...prev, { sender: "bot", text: response }]);
+    }, 250);
+  }
+
   function handleSignOut() {
     localStorage.removeItem("pinkbakes_token");
     setUser(null);
+    setOrderHistoryOpen(false);
+    setSelectedOrder(null);
     notify("Signed out successfully");
+  }
+
+  function loadUserOrders() {
+    const token = localStorage.getItem("pinkbakes_token");
+    if (!token) {
+      setAuthOpen(true);
+      setAuthMode("signin");
+      setAuthMessage("Please sign in to view your order history.");
+      return;
+    }
+
+    fetchOrders(token)
+      .then((response) => {
+        const items = Array.isArray(response?.results) ? response.results : Array.isArray(response) ? response : [];
+        setOrders(items);
+        setOrderHistoryOpen(true);
+      })
+      .catch(() => { setOrders([]); setOrderHistoryOpen(true); });
+  }
+
+  function openCheckout() {
+    if (!user) {
+      setAuthOpen(true);
+      setAuthMode("signin");
+      setAuthMessage("Please sign in to continue to checkout.");
+      return;
+    }
+
+    if (cart.length === 0) {
+      notify("Add at least one cake to your cart before checking out.");
+      return;
+    }
+
+    setCheckoutMessage("");
+    setCheckoutOpen(true);
+  }
+
+  function handleCheckoutSubmit(e) {
+    e.preventDefault();
+    const token = localStorage.getItem("pinkbakes_token");
+    if (!token || !user) {
+      setCheckoutMessage("Please sign in to complete checkout.");
+      return;
+    }
+
+    const payload = {
+      items: cart.map(item => ({ id: item.id, quantity: item.qty || 1 })),
+      ...checkoutForm,
+      customer_name: checkoutForm.customer_name || `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.username,
+      customer_email: checkoutForm.customer_email || user.email || "",
+      customer_mobile: checkoutForm.customer_mobile || user.mobile_number || "",
+    };
+
+    setCheckoutLoading(true);
+    setCheckoutMessage("");
+
+    checkoutOrder(payload, token)
+      .then((order) => {
+        setCart([]);
+        setCheckoutOpen(false);
+        setSelectedOrder(order);
+        setOrders(prev => [order, ...prev]);
+        setOrderHistoryOpen(true);
+        notify(`Order ${order.order_number} placed successfully`);
+      })
+      .catch((error) => setCheckoutMessage(error.message || "Unable to place your order right now."))
+      .finally(() => setCheckoutLoading(false));
+  }
+
+  function handleOpenOrder(orderId) {
+    const token = localStorage.getItem("pinkbakes_token");
+    if (!token) return;
+
+    fetchOrder(orderId, token)
+      .then((order) => setSelectedOrder(order))
+      .catch(() => setSelectedOrder(null));
   }
 
   function populateCakeForm(item) {
@@ -669,6 +897,10 @@ function App() {
             type="button"
             className="header-action account-btn"
             onClick={() => {
+              if (user) {
+                loadUserOrders();
+                return;
+              }
               setAuthMode("signin");
               setAuthStage("form");
               setAuthMessage("");
@@ -678,7 +910,7 @@ function App() {
             title={user ? `Signed in as ${user.first_name || user.username}` : "Sign in or sign up"}
           >
             <span className="action-icon"><UserRound size={16} /></span>
-            <span className="action-label">{user ? "Account" : "Sign in"}</span>
+            <span className="action-label">{user ? "Orders" : "Sign in"}</span>
           </button>
 
           <button type="button" className="header-action cart-btn" onClick={() => setCartOpen(true)} aria-label="Open cart" title="Open cart">
@@ -1090,11 +1322,158 @@ function App() {
         {cart.length === 0 ? <div className="empty-cart"><ShoppingBag size={38}/><h3>Your cart is empty</h3><p>Pick a beautiful cake for your next celebration.</p><button className="btn primary" onClick={() => {setCartOpen(false);scrollTo("cakes")}}>Explore Cakes</button></div> :
           <>
             <div className="cart-items">{cart.map(item => <div className="cart-item" key={item.id}><img src={item.image}/><div><b>{item.name}</b><small>{item.size}</small><strong>₹{(item.price*item.qty).toLocaleString("en-IN")}</strong><div className="qty"><button onClick={()=>changeQty(item.id,-1)}><Minus/></button><span>{item.qty}</span><button onClick={()=>changeQty(item.id,1)}><Plus/></button><button className="delete" onClick={()=>changeQty(item.id,-item.qty)}><Trash2/></button></div></div></div>)}</div>
-            <div className="cart-summary"><div><span>Subtotal</span><b>₹{cartTotal.toLocaleString("en-IN")}</b></div><small>Taxes and delivery calculated at checkout.</small><button className="btn primary checkout" onClick={()=>notify("Checkout is ready to connect to Shopify/Razorpay")}>Proceed to Checkout <ArrowRight/></button></div>
+            <div className="cart-summary"><div><span>Subtotal</span><b>₹{cartTotal.toLocaleString("en-IN")}</b></div><small>Taxes and delivery calculated at checkout.</small><button className="btn primary checkout" onClick={openCheckout}>Proceed to Checkout <ArrowRight/></button></div>
           </>
         }
       </aside>
       {cartOpen && <div className="backdrop" onClick={() => setCartOpen(false)}></div>}
+
+      {checkoutOpen && (
+        <div className="auth-page-shell" onClick={() => setCheckoutOpen(false)}>
+          <div className="auth-page-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 720 }}>
+            <div className="auth-form-panel" style={{ width: "100%" }}>
+              <button type="button" className="auth-close" onClick={() => setCheckoutOpen(false)} aria-label="Close checkout">
+                <X size={18} />
+              </button>
+
+              <div className="auth-header">
+                <span className="eyebrow">CHECKOUT</span>
+                <h3>Confirm your order</h3>
+              </div>
+
+              <form className="auth-form" onSubmit={handleCheckoutSubmit}>
+                <div className="auth-row">
+                  <label>
+                    Full name
+                    <input value={checkoutForm.customer_name} onChange={e => setCheckoutForm(prev => ({ ...prev, customer_name: e.target.value }))} placeholder="Aisha Patel" required />
+                  </label>
+                  <label>
+                    Email
+                    <input type="email" value={checkoutForm.customer_email} onChange={e => setCheckoutForm(prev => ({ ...prev, customer_email: e.target.value }))} placeholder="you@example.com" required />
+                  </label>
+                </div>
+
+                <div className="auth-row">
+                  <label>
+                    Mobile
+                    <input value={checkoutForm.customer_mobile} onChange={e => setCheckoutForm(prev => ({ ...prev, customer_mobile: e.target.value }))} placeholder="9876543210" required />
+                  </label>
+                  <label>
+                    Postal code
+                    <input value={checkoutForm.postal_code} onChange={e => setCheckoutForm(prev => ({ ...prev, postal_code: e.target.value }))} placeholder="400001" required />
+                  </label>
+                </div>
+
+                <label>
+                  Street address
+                  <input value={checkoutForm.shipping_address} onChange={e => setCheckoutForm(prev => ({ ...prev, shipping_address: e.target.value }))} placeholder="24 Rose Avenue" required />
+                </label>
+
+                <label>
+                  Apartment / landmark
+                  <input value={checkoutForm.shipping_address_2} onChange={e => setCheckoutForm(prev => ({ ...prev, shipping_address_2: e.target.value }))} placeholder="Near Scout Camp" />
+                </label>
+
+                <div className="auth-row">
+                  <label>
+                    City
+                    <input value={checkoutForm.city} onChange={e => setCheckoutForm(prev => ({ ...prev, city: e.target.value }))} placeholder="Mumbai" required />
+                  </label>
+                  <label>
+                    State
+                    <input value={checkoutForm.state} onChange={e => setCheckoutForm(prev => ({ ...prev, state: e.target.value }))} placeholder="Maharashtra" required />
+                  </label>
+                </div>
+
+                <label>
+                  Country
+                  <input value={checkoutForm.country} onChange={e => setCheckoutForm(prev => ({ ...prev, country: e.target.value }))} placeholder="India" required />
+                </label>
+
+                <label>
+                  Order notes
+                  <textarea value={checkoutForm.notes} onChange={e => setCheckoutForm(prev => ({ ...prev, notes: e.target.value }))} rows={3} placeholder="Add a note for your order" />
+                </label>
+
+                <div className="cart-summary" style={{ marginTop: 12, padding: 0, border: "none" }}>
+                  <div><span>Subtotal</span><b>₹{cartTotal.toLocaleString("en-IN")}</b></div>
+                  <div><span>Delivery</span><b>₹0</b></div>
+                  <div><span>Total</span><b>₹{cartTotal.toLocaleString("en-IN")}</b></div>
+                </div>
+
+                {checkoutMessage && <div className="auth-error">{checkoutMessage}</div>}
+
+                <button type="submit" className="btn primary full" disabled={checkoutLoading}>
+                  {checkoutLoading ? "Placing order..." : "Place Order"}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {orderHistoryOpen && (
+        <div className="auth-page-shell" onClick={() => setOrderHistoryOpen(false)}>
+          <div className="auth-page-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 820 }}>
+            <div className="auth-form-panel" style={{ width: "100%" }}>
+              <button type="button" className="auth-close" onClick={() => setOrderHistoryOpen(false)} aria-label="Close order history">
+                <X size={18} />
+              </button>
+
+              <div className="auth-header">
+                <span className="eyebrow">MY ORDERS</span>
+                <h3>{selectedOrder ? selectedOrder.order_number : "Order history"}</h3>
+              </div>
+
+              {selectedOrder ? (
+                <div className="auth-form" style={{ gap: 14 }}>
+                  <div className="cart-summary" style={{ marginTop: 0, padding: 0, border: "none" }}>
+                    <div><span>Status</span><b>{selectedOrder.status}</b></div>
+                    <div><span>Total</span><b>₹{Number(selectedOrder.total_amount || 0).toLocaleString("en-IN")}</b></div>
+                  </div>
+
+                  {(selectedOrder.items || []).map(item => (
+                    <div key={item.id} className="cart-item" style={{ marginBottom: 12 }}>
+                      <img src={item.product_image || item.product?.main_image || ""} alt={item.product_name} />
+                      <div>
+                        <b>{item.product_name}</b>
+                        <small>Qty: {item.quantity}</small>
+                        <strong>₹{Number(item.subtotal || 0).toLocaleString("en-IN")}</strong>
+                      </div>
+                    </div>
+                  ))}
+
+                  <button type="button" className="btn secondary full" onClick={() => setSelectedOrder(null)}>
+                    Back to orders
+                  </button>
+                </div>
+              ) : (
+                <div className="auth-form" style={{ gap: 12 }}>
+                  {orders.length === 0 ? (
+                    <div className="empty">No orders yet. Start with one of our signature cakes.</div>
+                  ) : (
+                    orders.map(order => (
+                      <button type="button" key={order.id} className="admin-cake-item" style={{ textAlign: "left", width: "100%", cursor: "pointer" }} onClick={() => handleOpenOrder(order.id)}>
+                        <div className="admin-cake-details">
+                          <div>
+                            <strong>{order.order_number}</strong>
+                            <span>{new Date(order.created_at).toLocaleDateString()}</span>
+                            <small>{order.items?.length || 0} item(s)</small>
+                          </div>
+                        </div>
+                        <div className="admin-item-actions">
+                          <strong>₹{Number(order.total_amount || 0).toLocaleString("en-IN")}</strong>
+                          <span>{order.status}</span>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {!authOpen && (
         <div className="auth-float" onClick={() => setAuthOpen(true)}>
@@ -1149,6 +1528,7 @@ function App() {
                 <div className="auth-toggle">
                   <button type="button" className={authMode === "signin" ? "active" : ""} onClick={() => setAuthMode("signin")}>Sign In</button>
                   <button type="button" className={authMode === "signup" ? "active" : ""} onClick={() => setAuthMode("signup")}>Sign Up</button>
+                  <button type="button" className={authMode === "otp" ? "active" : ""} onClick={() => setAuthMode("otp")}>OTP</button>
                 </div>
               )}
 
@@ -1240,6 +1620,43 @@ function App() {
                     Continue as guest
                   </button>
                 </div>
+              ) : authMode === "otp" ? (
+                <form className="auth-form" onSubmit={verificationCode ? handleOtpLoginSubmit : handleOtpLoginRequest}>
+                  <label>
+                    Registered mobile number
+                    <input value={authForm.mobile_number} onChange={e => setAuthForm(prev => ({ ...prev, mobile_number: e.target.value }))} placeholder="9876543210" required />
+                  </label>
+
+                  {authMessage && <div className="auth-error">{authMessage}</div>}
+
+                  {verificationCode || authMessage?.toLowerCase().includes("otp") ? (
+                    <label>
+                      OTP code
+                      <input value={verificationCode} onChange={e => setVerificationCode(e.target.value)} placeholder="123456" required />
+                    </label>
+                  ) : null}
+
+                  <button type="submit" className="btn primary full" disabled={authLoading}>
+                    {authLoading ? "Please wait..." : verificationCode ? "Verify & Sign In" : "Send OTP"}
+                  </button>
+
+                  <button type="button" className="btn secondary full" onClick={() => {
+                    setAuthOpen(false);
+                    setAuthStage("form");
+                    setAuthMessage("");
+                    setVerificationCode("");
+                    setAuthMode("signin");
+                  }}>
+                    Continue as guest
+                  </button>
+
+                  <div className="auth-footer-link">
+                    Need a password login?
+                    <button type="button" onClick={() => setAuthMode("signin")}>
+                      Sign in instead
+                    </button>
+                  </div>
+                </form>
               ) : (
                 <form className="auth-form" onSubmit={handleAuthSubmit}>
                   {authMode === "signup" && (
@@ -1317,6 +1734,47 @@ function App() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {!chatOpen && (
+        <button type="button" className="chatbot-launch" onClick={() => setChatOpen(true)} aria-label="Open bakery chatbot">
+          <MessageCircle size={18} />
+          <span>Chat</span>
+        </button>
+      )}
+
+      {chatOpen && (
+        <div className="chatbot-panel" role="dialog" aria-label="PinkBakes chatbot">
+          <div className="chatbot-header">
+            <div>
+              <span className="eyebrow">HELP DESK</span>
+              <strong>PinkBakes Assistant</strong>
+            </div>
+            <button type="button" className="chatbot-close" onClick={() => setChatOpen(false)} aria-label="Close chatbot">
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="chatbot-messages">
+            {chatMessages.map((message, index) => (
+              <div key={`${message.sender}-${index}`} className={`chatbot-message ${message.sender}`}>
+                {message.text}
+              </div>
+            ))}
+          </div>
+
+          <form className="chatbot-form" onSubmit={handleChatSubmit}>
+            <input
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              placeholder="Ask about cakes, pricing, or custom orders..."
+              aria-label="Type a message to the chatbot"
+            />
+            <button type="submit" aria-label="Send message">
+              <Send size={16} />
+            </button>
+          </form>
         </div>
       )}
 

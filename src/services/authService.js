@@ -60,6 +60,20 @@ export async function verifyOtp(payload) {
   });
 }
 
+export async function requestLoginOtp(payload) {
+  return requestJson(`${API_BASE_URL}/api/accounts/request-login-otp/`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function verifyLoginOtp(payload) {
+  return requestJson(`${API_BASE_URL}/api/accounts/verify-login-otp/`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function forgotPassword(payload) {
   return requestJson(`${API_BASE_URL}/api/accounts/forgot-password/`, {
     method: "POST",
@@ -175,6 +189,34 @@ export async function submitReview(productId, payload, token) {
       Authorization: `Token ${token}`,
     },
     body: JSON.stringify(payload),
+  });
+}
+
+export async function checkoutOrder(payload, token) {
+  return requestJson(`${API_BASE_URL}/api/orders/checkout/`, {
+    method: "POST",
+    headers: {
+      Authorization: `Token ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchOrders(token) {
+  return requestJson(`${API_BASE_URL}/api/orders/`, {
+    method: "GET",
+    headers: {
+      Authorization: `Token ${token}`,
+    },
+  });
+}
+
+export async function fetchOrder(orderId, token) {
+  return requestJson(`${API_BASE_URL}/api/orders/${orderId}/`, {
+    method: "GET",
+    headers: {
+      Authorization: `Token ${token}`,
+    },
   });
 }
 
