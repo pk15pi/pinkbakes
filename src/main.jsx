@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Search, UserRound, ShoppingBag, Menu, X, ChevronRight, ChevronLeft,
@@ -6,9 +6,25 @@ import {
   CakeSlice, Sparkles, Leaf, CalendarDays, ShieldCheck, Instagram,
   MessageCircle, Mail, MapPin, Check, SlidersHorizontal
 } from "lucide-react";
+import {
+  adminLogin,
+  createProduct,
+  deleteProduct,
+  fetchCurrentUser,
+  fetchProduct,
+  fetchProductReviews,
+  fetchProducts,
+  sendVerification,
+  signIn,
+  signUp,
+  submitReview,
+  updateProduct,
+  verifyEmail,
+  verifyOtp
+} from "./services/authService";
 import "./styles.css";
 
-const products = [
+const fallbackProducts = [
   {
     id: 1, name: "Chocolate Truffle", price: 1299, category: "Chocolate Cakes",
     rating: 4.9, badge: "Bestseller",
@@ -98,6 +114,43 @@ const BRAND_NAME = "pinkbakes";
 const WHATSAPP_NUMBER = "6033430700";
 const CONTACT_EMAIL = "pinkbakes@pinkbakes.com";
 
+const normalizeProduct = (product) => {
+  const base = product || {};
+  const price = Number(base.price ?? 0);
+  const discount = Number(base.discount ?? 0);
+  const discounted = Number(base.discounted_price ?? (price * (100 - discount) / 100 || price));
+  const image = base.main_image || base.image || base.images?.[0] || "";
+  const gallery = Array.isArray(base.gallery) && base.gallery.length
+    ? base.gallery
+    : Array.isArray(base.images) && base.images.length
+      ? base.images
+      : image
+        ? [image]
+        : [];
+
+  return {
+    ...base,
+    id: base.id,
+    name: base.name || "Cake",
+    price,
+    discount,
+    discounted_price: discounted,
+    rating: Number(base.average_rating ?? base.rating ?? 0),
+    review_count: Number(base.review_count ?? 0),
+    image,
+    gallery,
+    description: base.description || base.short_description || "",
+    short_description: base.short_description || base.description || "",
+    availability: base.availability || "in_stock",
+    status: base.status || "published",
+    badge: base.badge || (discount ? `${discount}% OFF` : ""),
+    main_image: image,
+    images: gallery,
+  };
+};
+
+const formatCurrency = (value) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(value || 0));
+
 function App() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cart, setCart] = useState([]);
@@ -108,18 +161,117 @@ function App() {
   const [toast, setToast] = useState("");
   const [newsletter, setNewsletter] = useState("");
   const [newsletterDone, setNewsletterDone] = useState(false);
-  const [catalog, setCatalog] = useState(products);
+  const [catalog, setCatalog] = useState([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState("");
   const [adminOpen, setAdminOpen] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
-  const [adminCredentials, setAdminCredentials] = useState({ id: "", password: "" });
+  const [adminReportsView, setAdminReportsView] = useState(false);
+  const [adminCredentials, setAdminCredentials] = useState({ username: "", password: "" });
   const [adminMessage, setAdminMessage] = useState("");
+  const [reportSummary, setReportSummary] = useState({
+    user_stats: {},
+    product_stats: {},
+    review_stats: {},
+    sales_stats: {}
+  });
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportsError, setReportsError] = useState("");
+  const [reportPerformance, setReportPerformance] = useState([]);
+  const [reportActivity, setReportActivity] = useState([]);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState("signin");
+  const [authStage, setAuthStage] = useState("form");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authMessage, setAuthMessage] = useState("");
+  const [authFlow, setAuthFlow] = useState("signin");
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [resetPasswordForm, setResetPasswordForm] = useState({ password: "", confirm_password: "" });
+  const [verificationMethod, setVerificationMethod] = useState("email");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationData, setVerificationData] = useState(null);
+  const [user, setUser] = useState(null);
+  const [authForm, setAuthForm] = useState({
+    first_name: "",
+    last_name: "",
+    username: "",
+    email: "",
+    mobile_number: "",
+    password: ""
+  });
   const [cakeForm, setCakeForm] = useState({
     name: "",
     price: "",
+    discount: "",
     category: "Birthday Cakes",
     description: "",
-    image: ""
+    image: "",
+    availability: "in_stock",
+    status: "published"
   });
+  const [editingCakeId, setEditingCakeId] = useState(null);
+
+  function resetCakeForm() {
+    setCakeForm({
+      name: "",
+      price: "",
+      discount: "",
+      category: "Birthday Cakes",
+      description: "",
+      image: "",
+      availability: "in_stock",
+      status: "published"
+    });
+    setEditingCakeId(null);
+    setAdminMessage("");
+  }
+
+  useEffect(() => {
+    const token = localStorage.getItem("pinkbakes_token");
+    if (!token) return;
+
+    fetchCurrentUser(token)
+      .then(data => setUser(data))
+      .catch(() => {
+        localStorage.removeItem("pinkbakes_token");
+      });
+  }, []);
+
+  useEffect(() => {
+    const pathToken = window.location.pathname.match(/\/reset-password\/([^/?#]+)/)?.[1];
+    const queryToken = new URLSearchParams(window.location.search).get("token");
+    const tokenValue = pathToken || queryToken;
+
+    if (!tokenValue) return;
+
+    const decodedToken = decodeURIComponent(tokenValue);
+    setResetToken(decodedToken);
+    setAuthOpen(true);
+    setAuthFlow("reset");
+    setAuthMode("signin");
+    setAuthMessage("Create a new password to finish resetting your account.");
+
+    handleVerifyResetToken(decodedToken).then((isValid) => {
+      if (!isValid) {
+        setAuthMessage("This password reset link is invalid or has expired.");
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    fetchProducts()
+      .then(data => {
+        const items = Array.isArray(data) ? data : [];
+        setCatalog(items.map(normalizeProduct));
+        setCatalogError("");
+      })
+      .catch(() => {
+        setCatalog(fallbackProducts.map(normalizeProduct));
+        setCatalogError("Unable to load cakes. Please try again.");
+      })
+      .finally(() => setCatalogLoading(false));
+  }, []);
 
   const filtered = useMemo(() => {
     return catalog.filter(p =>
@@ -168,28 +320,258 @@ function App() {
 
   function handleAdminLogin(e) {
     e.preventDefault();
-    if (
-      adminCredentials.id.trim().toLowerCase() === ADMIN_ID &&
-      adminCredentials.password.trim() === ADMIN_PASSWORD
-    ) {
-      setIsAdminLoggedIn(true);
-      setAdminOpen(false);
-      setAdminCredentials({ id: "", password: "" });
-      setAdminMessage("");
-      notify("Admin login successful");
-      return;
-    }
-    setAdminMessage("Invalid admin ID or password.");
+
+    adminLogin({
+      username: adminCredentials.username,
+      password: adminCredentials.password,
+    })
+      .then(data => {
+        localStorage.setItem("pinkbakes_admin_token", data.token);
+        setIsAdminLoggedIn(true);
+        setAdminOpen(false);
+        setAdminCredentials({ username: "", password: "" });
+        setAdminMessage("");
+        notify("Admin login successful");
+      })
+      .catch(error => {
+        setAdminMessage(error.message || "Invalid admin username or password.");
+      });
   }
 
   function handleAdminLogout() {
+    localStorage.removeItem("pinkbakes_admin_token");
     setIsAdminLoggedIn(false);
+    setAdminReportsView(false);
     setAdminOpen(false);
     setAdminMessage("");
-    setAdminCredentials({ id: "", password: "" });
+    setAdminCredentials({ username: "", password: "" });
+    window.history.pushState({}, "", "/");
   }
 
-  function addCake(e) {
+  function openAdminReports() {
+    setAdminReportsView(true);
+    setAdminOpen(true);
+    window.history.pushState({}, "", "/admin/reports");
+  }
+
+  function closeAdminReports() {
+    setAdminReportsView(false);
+    setAdminOpen(false);
+    window.history.pushState({}, "", "/");
+  }
+
+  function resetAuthForm() {
+    setAuthForm({
+      first_name: "",
+      last_name: "",
+      username: "",
+      email: "",
+      mobile_number: "",
+      password: ""
+    });
+    setVerificationCode("");
+    setVerificationData(null);
+    setAuthMessage("");
+  }
+
+  function handleAuthSubmit(e) {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthMessage("");
+
+    const payload = authMode === "signup"
+      ? {
+          first_name: authForm.first_name,
+          last_name: authForm.last_name,
+          username: authForm.username,
+          email: authForm.email,
+          mobile_number: authForm.mobile_number,
+          password: authForm.password
+        }
+      : {
+          username: authForm.username,
+          password: authForm.password
+        };
+
+    const request = authMode === "signup" ? signUp(payload) : signIn(payload);
+
+    request
+      .then(data => {
+        if (authMode === "signup") {
+          setVerificationData({
+            email: authForm.email,
+            token: data.verification_token || "",
+            link: data.verification_link || "",
+            otp: data.otp || "",
+            user: data.user || null
+          });
+          setVerificationMethod("email");
+          setVerificationCode("");
+          setAuthStage("verification");
+          setAuthMessage("Your account was created. Please verify it to sign in.");
+          setAuthForm(prev => ({ ...prev, password: "" }));
+          return;
+        }
+
+        localStorage.setItem("pinkbakes_token", data.token);
+        setUser(data.user);
+        setAuthOpen(false);
+        resetAuthForm();
+        notify("Welcome back!");
+      })
+      .catch(error => {
+        setAuthMessage(error.message || "Something went wrong.");
+      })
+      .finally(() => setAuthLoading(false));
+  }
+
+  function handleForgotPassword(e) {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthMessage("");
+
+    forgotPassword({ email: forgotEmail })
+      .then((data) => {
+        setAuthMessage(data.message || "If an account exists with this email address, a password reset link has been sent.");
+        setForgotEmail("");
+      })
+      .catch((error) => {
+        setAuthMessage(error.message || "Unable to send a password reset link right now.");
+      })
+      .finally(() => setAuthLoading(false));
+  }
+
+  function handleVerifyResetToken(tokenValue) {
+    return verifyResetToken({ token: tokenValue })
+      .then(() => true)
+      .catch(() => false);
+  }
+
+  function handleResetPasswordSubmit(e) {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthMessage("");
+
+    if (!resetToken.trim()) {
+      setAuthMessage("This password reset link is invalid or has expired.");
+      setAuthLoading(false);
+      return;
+    }
+
+    if (resetPasswordForm.password.length < 8) {
+      setAuthMessage("Password must be at least 8 characters long.");
+      setAuthLoading(false);
+      return;
+    }
+
+    if (resetPasswordForm.password !== resetPasswordForm.confirm_password) {
+      setAuthMessage("Passwords do not match.");
+      setAuthLoading(false);
+      return;
+    }
+
+    resetPassword({
+      token: resetToken,
+      password: resetPasswordForm.password,
+      confirm_password: resetPasswordForm.confirm_password,
+    })
+      .then((data) => {
+        setAuthMessage(data.message || "Your password has been reset successfully.");
+        setResetPasswordForm({ password: "", confirm_password: "" });
+        setAuthFlow("success");
+      })
+      .catch((error) => {
+        setAuthMessage(error.message || "Unable to reset your password.");
+      })
+      .finally(() => setAuthLoading(false));
+  }
+
+  function handleVerificationAction(action) {
+    if (!verificationData?.email) {
+      setAuthMessage("Please complete signup again to generate a verification request.");
+      return;
+    }
+
+    if (action === "send") {
+      setAuthLoading(true);
+      sendVerification({ email: verificationData.email, method: verificationMethod })
+        .then(data => {
+          setVerificationData({
+            email: verificationData.email,
+            token: data.verification_token || verificationData.token,
+            link: data.verification_link || verificationData.link,
+            otp: data.otp || verificationData.otp,
+            user: verificationData.user,
+          });
+          setVerificationCode("");
+          setAuthMessage(`A new ${verificationMethod === "email" ? "email link" : "OTP"} has been sent.`);
+        })
+        .catch(error => setAuthMessage(error.message || "Verification request failed."))
+        .finally(() => setAuthLoading(false));
+      return;
+    }
+
+    if (verificationMethod === "email") {
+      const token = verificationData.token || verificationCode;
+      if (!token) {
+        setAuthMessage("A verification link is missing. Please request a new one.");
+        return;
+      }
+
+      setAuthLoading(true);
+      verifyEmail({ token })
+        .then(() => {
+          setAuthMessage("Email verified successfully. You can now sign in.");
+          setAuthStage("form");
+          setAuthMode("signin");
+          setAuthForm(prev => ({ ...prev, username: verificationData.user?.username || prev.username, email: verificationData.email }));
+          setVerificationData(null);
+        })
+        .catch(error => setAuthMessage(error.message || "Email verification failed."))
+        .finally(() => setAuthLoading(false));
+      return;
+    }
+
+    if (!verificationCode.trim()) {
+      setAuthMessage("Enter the OTP sent to your mobile number.");
+      return;
+    }
+
+    setAuthLoading(true);
+    verifyOtp({ email: verificationData.email, otp: verificationCode })
+      .then(() => {
+        setAuthMessage("Mobile verification successful. You can now sign in.");
+        setAuthStage("form");
+        setAuthMode("signin");
+        setAuthForm(prev => ({ ...prev, username: verificationData.user?.username || prev.username, email: verificationData.email }));
+        setVerificationData(null);
+      })
+      .catch(error => setAuthMessage(error.message || "OTP verification failed."))
+      .finally(() => setAuthLoading(false));
+  }
+
+  function handleSignOut() {
+    localStorage.removeItem("pinkbakes_token");
+    setUser(null);
+    notify("Signed out successfully");
+  }
+
+  function populateCakeForm(item) {
+    setEditingCakeId(item.id);
+    setCakeForm({
+      name: item.name || "",
+      price: String(item.price ?? ""),
+      discount: String(item.discount ?? 0),
+      category: item.category || "Birthday Cakes",
+      description: item.description || item.short_description || "",
+      image: item.image || "",
+      availability: item.availability || "in_stock",
+      status: item.status || "published"
+    });
+    setAdminMessage("");
+  }
+
+  function submitCakeForm(e) {
     e.preventDefault();
 
     if (!cakeForm.name.trim() || !cakeForm.price || !cakeForm.description.trim()) {
@@ -197,29 +579,66 @@ function App() {
       return;
     }
 
+    const token = localStorage.getItem("pinkbakes_admin_token");
     const baseImage = cakeForm.image || catalog[0]?.image || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1000&q=85";
-    const newCake = {
-      id: Date.now(),
+    const existingCake = editingCakeId != null ? catalog.find(item => item.id === editingCakeId) : null;
+    const payload = {
       name: cakeForm.name.trim(),
       price: Number(cakeForm.price),
+      discount: Number(cakeForm.discount || 0),
       category: cakeForm.category,
-      rating: 4.8,
-      badge: "New",
       description: cakeForm.description.trim(),
+      short_description: cakeForm.description.trim(),
+      main_image: baseImage,
       image: baseImage,
-      gallery: [baseImage, baseImage]
+      gallery: [baseImage, baseImage],
+      images: [baseImage, baseImage],
+      badge: Number(cakeForm.discount || 0) > 0 ? `${Number(cakeForm.discount || 0)}% OFF` : "New",
+      rating: Number(existingCake?.rating ?? 4.8),
+      featured: false,
+      delivery_time: "24-48 hours",
+      availability: cakeForm.availability || "in_stock",
+      status: cakeForm.status || "published",
+      is_active: true,
     };
 
-    setCatalog(prev => [newCake, ...prev]);
-    setCakeForm({ name: "", price: "", category: "Birthday Cakes", description: "", image: "" });
-    setAdminMessage("Cake added successfully.");
-    notify(`${newCake.name} added to the catalog`);
+    const request = editingCakeId != null
+      ? updateProduct(editingCakeId, payload, token)
+      : createProduct(payload, token);
+
+    request
+      .then(product => {
+        const nextCake = normalizeProduct(product);
+        if (editingCakeId != null) {
+          setCatalog(prev => prev.map(item => item.id === editingCakeId ? nextCake : item));
+          setAdminMessage("Cake updated successfully.");
+          notify(`${nextCake.name} updated`);
+        } else {
+          setCatalog(prev => [nextCake, ...prev]);
+          setAdminMessage("Cake added successfully.");
+          notify(`${nextCake.name} added to the catalog`);
+        }
+        resetCakeForm();
+      })
+      .catch(error => {
+        setAdminMessage(error.message || (editingCakeId != null ? "Could not update cake." : "Could not add cake."));
+      });
   }
 
   function removeCake(id) {
-    setCatalog(prev => prev.filter(p => p.id !== id));
-    setAdminMessage("Cake removed successfully.");
-    notify("Cake removed from catalog");
+    const token = localStorage.getItem("pinkbakes_admin_token");
+    deleteProduct(id, token)
+      .then(() => {
+        setCatalog(prev => prev.filter(p => p.id !== id));
+        if (editingCakeId === id) {
+          resetCakeForm();
+        }
+        setAdminMessage("Cake removed successfully.");
+        notify("Cake removed from catalog");
+      })
+      .catch(error => {
+        setAdminMessage(error.message || "Could not remove cake.");
+      });
   }
 
   return (
@@ -242,13 +661,44 @@ function App() {
           <button onClick={() => scrollTo("contact")}>Contact</button>
         </nav>
         <div className="header-actions">
-          <button className="icon-btn search-toggle" onClick={() => document.getElementById("search")?.focus()}><Search/></button>
-          <button className="icon-btn hide-mobile"><UserRound/></button>
-          <button className="cart-btn" onClick={() => setCartOpen(true)}>
-            <ShoppingBag/><span>{cartCount}</span>
+          <button type="button" className="icon-btn search-toggle" onClick={() => document.getElementById("search")?.focus()} aria-label="Search cakes" title="Search cakes">
+            <Search/>
           </button>
-          <button className="admin-login-btn" onClick={() => isAdminLoggedIn ? setAdminOpen(true) : setAdminOpen(true)}>{isAdminLoggedIn ? "Admin" : "Admin Login"}</button>
-          <button className="order-top" onClick={() => scrollTo("cakes")}>Order Now</button>
+
+          <button
+            type="button"
+            className="header-action account-btn"
+            onClick={() => {
+              setAuthMode("signin");
+              setAuthStage("form");
+              setAuthMessage("");
+              setAuthOpen(true);
+            }}
+            aria-label="Open account"
+            title={user ? `Signed in as ${user.first_name || user.username}` : "Sign in or sign up"}
+          >
+            <span className="action-icon"><UserRound size={16} /></span>
+            <span className="action-label">{user ? "Account" : "Sign in"}</span>
+          </button>
+
+          <button type="button" className="header-action cart-btn" onClick={() => setCartOpen(true)} aria-label="Open cart" title="Open cart">
+            <span className="action-icon"><ShoppingBag size={16} /></span>
+            <span className="action-label">Cart</span>
+            <span className="cart-count">{cartCount}</span>
+          </button>
+
+          <button
+            type="button"
+            className="header-action admin-login-btn"
+            onClick={() => setAdminOpen(true)}
+            aria-label={isAdminLoggedIn ? "Open admin panel" : "Admin login"}
+            title={isAdminLoggedIn ? "Open admin panel" : "Admin login"}
+          >
+            <span className="action-icon"><ShieldCheck size={16} /></span>
+            <span className="action-label">Admin</span>
+          </button>
+
+          <button type="button" className="order-top" onClick={() => scrollTo("cakes")}>Order Now</button>
         </div>
       </header>
 
@@ -301,28 +751,37 @@ function App() {
           </div>
 
           <div className="product-grid">
-            {filtered.map(p => (
-              <article className="product-card" key={p.id}>
-                <div className="product-media">
-                  <img src={p.image} alt={p.name}/>
-                  {p.badge && <span className="badge">{p.badge}</span>}
-                  <button className="heart"><Heart size={17}/></button>
-                  <button className="quick-view" onClick={() => setProduct(p)}><ZoomIn size={15}/> Quick View</button>
-                </div>
-                <div className="product-body">
-                  <div className="rating"><Star size={13} fill="currentColor"/>{p.rating}</div>
-                  <h3>{p.name}</h3><p>{p.description}</p>
-                  <strong>₹{p.price.toLocaleString("en-IN")}</strong>
-                  <div className="sizes"><span>0.5 kg</span><span>1 kg</span><span>1.5 kg</span><span>2 kg</span></div>
-                  <div className="product-actions">
-                    <button className="btn secondary small" onClick={() => setProduct(p)}>View Cake</button>
-                    <button className="btn primary small" onClick={() => addToCart(p)}>Add to Cart</button>
+            {catalogLoading ? <div className="empty">Loading cakes...</div> : filtered.map(p => {
+              const priceAfterDiscount = p.discounted_price || Number((p.price * (100 - (p.discount || 0)) / 100).toFixed(2));
+              return (
+                <article className="product-card" key={p.id}>
+                  <div className="product-media">
+                    <img src={p.image || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1000&q=85"} alt={p.name}/>
+                    {p.badge && <span className="badge">{p.badge}</span>}
+                    <button className="heart"><Heart size={17}/></button>
+                    <button className="quick-view" onClick={() => setProduct(p)}><ZoomIn size={15}/> Quick View</button>
                   </div>
-                </div>
-              </article>
-            ))}
+                  <div className="product-body">
+                    <div className="rating"><Star size={13} fill="currentColor"/>{Number(p.rating || 0).toFixed(1)}</div>
+                    <h3>{p.name}</h3>
+                    <p>{p.short_description || p.description || "Freshly baked for your special celebration."}</p>
+                    <div className="price-row">
+                      <strong>{formatCurrency(priceAfterDiscount)}</strong>
+                      {p.discount > 0 && <span className="strike">{formatCurrency(p.price)}</span>}
+                    </div>
+                    {p.discount > 0 && <small className="discount-badge">{p.discount}% OFF</small>}
+                    <div className="sizes"><span>{p.availability || "In stock"}</span></div>
+                    <div className="product-actions">
+                      <button className="btn secondary small" onClick={() => setProduct(p)}>View Cake</button>
+                      <button className="btn primary small" onClick={() => addToCart(normalizeProduct(p))}>Add to Cart</button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
           </div>
-          {filtered.length === 0 && <div className="empty">No cakes found. Try another search or category.</div>}
+          {!catalogLoading && filtered.length === 0 && <div className="empty">No cakes are currently available.</div>}
+          {catalogError && !catalogLoading && <div className="empty">{catalogError}</div>}
         </section>
 
         <section className="benefits section" id="about">
@@ -418,8 +877,8 @@ function App() {
             </div>
             <form className="admin-form" onSubmit={handleAdminLogin}>
               <label>
-                Admin ID
-                <input value={adminCredentials.id} onChange={e => setAdminCredentials(prev => ({ ...prev, id: e.target.value }))} placeholder="pinkbake" />
+                Admin username
+                <input value={adminCredentials.username} onChange={e => setAdminCredentials(prev => ({ ...prev, username: e.target.value }))} placeholder="pinkbake" />
               </label>
               <label>
                 Password
@@ -439,63 +898,189 @@ function App() {
               <span className="eyebrow">ADMIN PANEL</span>
               <h2>{BRAND_NAME} Dashboard</h2>
             </div>
-            <button className="btn secondary small" onClick={handleAdminLogout}>Logout</button>
+            <div className="admin-panel-actions">
+              <button className="btn secondary small" onClick={() => setAdminReportsView(v => !v)}>{adminReportsView ? "Dashboard" : "Reports"}</button>
+              <button className="btn secondary small" onClick={handleAdminLogout}>Logout</button>
+            </div>
           </div>
 
           <div className="admin-content">
-            <form className="admin-form add-cake-form" onSubmit={addCake}>
-              <h3>Add New Cake</h3>
-              <label>
-                Cake Name
-                <input value={cakeForm.name} onChange={e => setCakeForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Strawberry Delight" />
-              </label>
-              <label>
-                Price (₹)
-                <input type="number" value={cakeForm.price} onChange={e => setCakeForm(prev => ({ ...prev, price: e.target.value }))} placeholder="1299" />
-              </label>
-              <label>
-                Category
-                <select value={cakeForm.category} onChange={e => setCakeForm(prev => ({ ...prev, category: e.target.value }))}>
-                  {[
-                    "Birthday Cakes",
-                    "Anniversary Cakes",
-                    "Wedding Cakes",
-                    "Chocolate Cakes",
-                    "Designer Cakes",
-                    "Photo Cakes",
-                    "Custom Cakes",
-                    "Eggless Cakes"
-                  ].map(categoryName => <option key={categoryName} value={categoryName}>{categoryName}</option>)}
-                </select>
-              </label>
-              <label>
-                Description
-                <textarea value={cakeForm.description} onChange={e => setCakeForm(prev => ({ ...prev, description: e.target.value }))} placeholder="Rich chocolate sponge with smooth cream..." />
-              </label>
-              <label>
-                Image URL
-                <input value={cakeForm.image} onChange={e => setCakeForm(prev => ({ ...prev, image: e.target.value }))} placeholder="https://..." />
-              </label>
-              {adminMessage && <span className="admin-error">{adminMessage}</span>}
-              <button type="submit" className="btn primary full">Add Cake</button>
-            </form>
-
-            <div className="admin-cake-list">
-              <h3>Current Cakes</h3>
-              {catalog.map(item => (
-                <div className="admin-cake-item" key={item.id}>
-                  <div className="admin-cake-details">
-                    <img src={item.image} alt={item.name} />
-                    <div>
-                      <strong>{item.name}</strong>
-                      <span>{item.category}</span>
-                      <small>₹{item.price.toLocaleString("en-IN")}</small>
-                    </div>
+            {adminReportsView ? (
+              <div className="admin-reports-page">
+                <div className="report-topbar">
+                  <div>
+                    <span className="eyebrow">REPORTS</span>
+                    <h3>Admin Reporting Dashboard</h3>
                   </div>
-                  <button className="admin-remove" onClick={() => removeCake(item.id)}><Trash2 size={15}/> Remove</button>
+                  <button className="btn primary small" onClick={closeAdminReports}>Close</button>
                 </div>
-              ))}
-            </div>
+
+                {reportsLoading ? (
+                  <div className="empty">Loading report...</div>
+                ) : reportsError ? (
+                  <div className="empty">{reportsError}</div>
+                ) : (
+                  <>
+                    <div className="report-summary-grid">
+                      <div className="report-card"><span>Total users</span><strong>{reportSummary.user_stats?.total_users ?? 0}</strong></div>
+                      <div className="report-card"><span>Verified users</span><strong>{reportSummary.user_stats?.verified_users ?? 0}</strong></div>
+                      <div className="report-card"><span>Unverified users</span><strong>{reportSummary.user_stats?.unverified_users ?? 0}</strong></div>
+                      <div className="report-card"><span>New this week</span><strong>{reportSummary.user_stats?.new_users_this_week ?? 0}</strong></div>
+                      <div className="report-card"><span>Total products</span><strong>{reportSummary.product_stats?.total_products ?? 0}</strong></div>
+                      <div className="report-card"><span>Active products</span><strong>{reportSummary.product_stats?.active_products ?? 0}</strong></div>
+                      <div className="report-card"><span>Discounted products</span><strong>{reportSummary.product_stats?.products_with_discounts ?? 0}</strong></div>
+                      <div className="report-card"><span>3D assets</span><strong>{reportSummary.product_stats?.products_with_3d_assets ?? 0}</strong></div>
+                      <div className="report-card"><span>Total reviews</span><strong>{reportSummary.review_stats?.total_reviews ?? 0}</strong></div>
+                      <div className="report-card"><span>Average rating</span><strong>{Number(reportSummary.review_stats?.average_rating ?? 0).toFixed(1)}</strong></div>
+                      <div className="report-card"><span>Pending reviews</span><strong>{reportSummary.review_stats?.pending_reviews ?? 0}</strong></div>
+                      <div className="report-card"><span>Orders</span><strong>{reportSummary.sales_stats?.total_orders ?? 0}</strong></div>
+                    </div>
+
+                    <div className="report-section">
+                      <h4>Sales overview</h4>
+                      <div className="report-note">
+                        {reportSummary.sales_stats?.note || "No order or payment module is active yet. Sales data will appear here when that feature is added."}
+                      </div>
+                    </div>
+
+                    <div className="report-section">
+                      <h4>Product performance</h4>
+                      {reportPerformance.length ? (
+                        <div className="table-wrap">
+                          <table className="report-table">
+                            <thead>
+                              <tr><th>Product</th><th>Views</th><th>Avg rating</th><th>Reviews</th><th>Availability</th></tr>
+                            </thead>
+                            <tbody>
+                              {reportPerformance.slice(0, 10).map(item => (
+                                <tr key={item.id}>
+                                  <td>{item.name}</td>
+                                  <td>{item.view_count ?? 0}</td>
+                                  <td>{Number(item.avg_rating ?? 0).toFixed(1)}</td>
+                                  <td>{item.review_count ?? 0}</td>
+                                  <td>{item.availability || "in_stock"}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="empty">No product performance data is available for the selected period.</div>
+                      )}
+                    </div>
+
+                    <div className="report-section">
+                      <h4>Recent admin activity</h4>
+                      {reportActivity.length ? (
+                        <div className="table-wrap">
+                          <table className="report-table">
+                            <thead>
+                              <tr><th>Admin</th><th>Action</th><th>Entity</th><th>Time</th></tr>
+                            </thead>
+                            <tbody>
+                              {reportActivity.slice(0, 10).map(item => (
+                                <tr key={item.id}>
+                                  <td>{item.admin_user__username}</td>
+                                  <td>{item.action}</td>
+                                  <td>{item.entity_type || "-"}</td>
+                                  <td>{new Date(item.created_at).toLocaleString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="empty">No admin activity recorded yet.</div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <>
+                <form className="admin-form add-cake-form" onSubmit={submitCakeForm}>
+                  <div className="admin-form-head">
+                    <h3>{editingCakeId != null ? "Edit Cake" : "Add New Cake"}</h3>
+                    {editingCakeId != null && (
+                      <button type="button" className="btn secondary small" onClick={resetCakeForm}>Cancel</button>
+                    )}
+                  </div>
+                  <label>
+                    Cake Name
+                    <input value={cakeForm.name} onChange={e => setCakeForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Strawberry Delight" />
+                  </label>
+                  <label>
+                    Price (₹)
+                    <input type="number" value={cakeForm.price} onChange={e => setCakeForm(prev => ({ ...prev, price: e.target.value }))} placeholder="1299" />
+                  </label>
+                  <label>
+                    Discount (%)
+                    <input type="number" min="0" max="100" value={cakeForm.discount} onChange={e => setCakeForm(prev => ({ ...prev, discount: e.target.value }))} placeholder="10" />
+                  </label>
+                  <label>
+                    Category
+                    <select value={cakeForm.category} onChange={e => setCakeForm(prev => ({ ...prev, category: e.target.value }))}>
+                      {[
+                        "Birthday Cakes",
+                        "Anniversary Cakes",
+                        "Wedding Cakes",
+                        "Chocolate Cakes",
+                        "Designer Cakes",
+                        "Photo Cakes",
+                        "Custom Cakes",
+                        "Eggless Cakes"
+                      ].map(categoryName => <option key={categoryName} value={categoryName}>{categoryName}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    Availability
+                    <select value={cakeForm.availability} onChange={e => setCakeForm(prev => ({ ...prev, availability: e.target.value }))}>
+                      <option value="in_stock">In Stock</option>
+                      <option value="low_stock">Low Stock</option>
+                      <option value="out_of_stock">Out of Stock</option>
+                    </select>
+                  </label>
+                  <label>
+                    Status
+                    <select value={cakeForm.status} onChange={e => setCakeForm(prev => ({ ...prev, status: e.target.value }))}>
+                      <option value="draft">Draft</option>
+                      <option value="published">Published</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                  </label>
+                  <label>
+                    Description
+                    <textarea value={cakeForm.description} onChange={e => setCakeForm(prev => ({ ...prev, description: e.target.value }))} placeholder="Rich chocolate sponge with smooth cream..." />
+                  </label>
+                  <label>
+                    Image URL
+                    <input value={cakeForm.image} onChange={e => setCakeForm(prev => ({ ...prev, image: e.target.value }))} placeholder="https://..." />
+                  </label>
+                  {adminMessage && <span className="admin-error">{adminMessage}</span>}
+                  <button type="submit" className="btn primary full">{editingCakeId != null ? "Save Changes" : "Add Cake"}</button>
+                </form>
+
+                <div className="admin-cake-list">
+                  <h3>Current Cakes</h3>
+                  {catalog.map(item => (
+                    <div className="admin-cake-item" key={item.id}>
+                      <div className="admin-cake-details">
+                        <img src={item.image} alt={item.name} />
+                        <div>
+                          <strong>{item.name}</strong>
+                          <span>{item.category}</span>
+                          <small>₹{item.price.toLocaleString("en-IN")}</small>
+                        </div>
+                      </div>
+                      <div className="admin-item-actions">
+                        <button className="btn secondary small" onClick={() => populateCakeForm(item)}>Edit</button>
+                        <button className="admin-remove" onClick={() => removeCake(item.id)}><Trash2 size={15}/> Remove</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </aside>
       )}
@@ -510,37 +1095,376 @@ function App() {
         }
       </aside>
       {cartOpen && <div className="backdrop" onClick={() => setCartOpen(false)}></div>}
+
+      {!authOpen && (
+        <div className="auth-float" onClick={() => setAuthOpen(true)}>
+          <div className="auth-float-badge">
+            <UserRound size={16}/>
+            <span>{user ? `Hi, ${user.first_name || user.username}` : "Sign in"}</span>
+          </div>
+        </div>
+      )}
+
+      {authOpen && (
+        <div className="auth-page-shell" onClick={() => setAuthOpen(false)}>
+          <div className="auth-page-card" onClick={e => e.stopPropagation()}>
+            <div className="auth-visual-panel">
+              <div className="auth-brand-row">
+                <div className="brand-mark"><CakeSlice size={20}/></div>
+                <div>
+                  <strong>{BRAND_NAME}</strong>
+                  <small>CAKES FOR EVERY MOMENT</small>
+                </div>
+              </div>
+
+              <div className="auth-visual-copy">
+                <span className="eyebrow">FRESHLY BAKED</span>
+                <h2>Celebrate every moment with a sweeter story.</h2>
+                <p>Order custom cakes, seasonal favorites, and handcrafted keepsakes made just for your occasion.</p>
+              </div>
+
+              <div className="auth-feature-pills">
+                <span>Fresh</span>
+                <span>Custom</span>
+                <span>Delivered</span>
+              </div>
+            </div>
+
+            <div className="auth-form-panel">
+              <button type="button" className="auth-close" onClick={() => setAuthOpen(false)} aria-label="Close auth form">
+                <X size={18}/>
+              </button>
+
+              <div className="auth-header">
+                <span className="eyebrow">ACCOUNT</span>
+                <h3>
+                  {authStage === "verification" ? "Verify your account"
+                    : authFlow === "forgot" ? "Forgot Password"
+                    : authFlow === "reset" ? "Reset Your Password"
+                    : authMode === "signup" ? "Create your account" : "Welcome back"}
+                </h3>
+              </div>
+
+              {authStage !== "verification" && authFlow === "signin" && (
+                <div className="auth-toggle">
+                  <button type="button" className={authMode === "signin" ? "active" : ""} onClick={() => setAuthMode("signin")}>Sign In</button>
+                  <button type="button" className={authMode === "signup" ? "active" : ""} onClick={() => setAuthMode("signup")}>Sign Up</button>
+                </div>
+              )}
+
+              {authFlow === "forgot" ? (
+                <form className="auth-form" onSubmit={handleForgotPassword}>
+                  <label>
+                    Email Address
+                    <input type="email" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} placeholder="you@example.com" required />
+                  </label>
+                  {authMessage && <div className="auth-error">{authMessage}</div>}
+                  <button type="submit" className="btn primary full" disabled={authLoading}>
+                    {authLoading ? "Sending..." : "Send Reset Link"}
+                  </button>
+                  <button type="button" className="btn secondary full" onClick={() => { setAuthFlow("signin"); setAuthMessage(""); setForgotEmail(""); }}>
+                    Back to Login
+                  </button>
+                </form>
+              ) : authFlow === "reset" ? (
+                <form className="auth-form" onSubmit={handleResetPasswordSubmit}>
+                  <label>
+                    New Password
+                    <input type="password" value={resetPasswordForm.password} onChange={e => setResetPasswordForm(prev => ({ ...prev, password: e.target.value }))} placeholder="••••••••" required />
+                  </label>
+                  <label>
+                    Confirm New Password
+                    <input type="password" value={resetPasswordForm.confirm_password} onChange={e => setResetPasswordForm(prev => ({ ...prev, confirm_password: e.target.value }))} placeholder="••••••••" required />
+                  </label>
+                  {authMessage && <div className="auth-error">{authMessage}</div>}
+                  <button type="submit" className="btn primary full" disabled={authLoading}>
+                    {authLoading ? "Resetting..." : "Reset Password"}
+                  </button>
+                </form>
+              ) : authFlow === "success" ? (
+                <div className="auth-form">
+                  <div className="auth-note">
+                    Your password has been reset successfully. You can now sign in with your new password.
+                  </div>
+                  {authMessage && <div className="auth-error">{authMessage}</div>}
+                  <button type="button" className="btn primary full" onClick={() => { setAuthOpen(false); setAuthFlow("signin"); setAuthMode("signin"); setAuthMessage(""); setResetToken(""); setResetPasswordForm({ password: "", confirm_password: "" }); }}>
+                    Login
+                  </button>
+                </div>
+              ) : authStage === "verification" ? (
+                <div className="auth-form">
+                  <div className="auth-toggle" style={{ marginBottom: 18 }}>
+                    <button type="button" className={verificationMethod === "email" ? "active" : ""} onClick={() => setVerificationMethod("email")}>Email Link</button>
+                    <button type="button" className={verificationMethod === "otp" ? "active" : ""} onClick={() => setVerificationMethod("otp")}>Mobile OTP</button>
+                  </div>
+
+                  <div className="auth-note">
+                    {verificationMethod === "email"
+                      ? "We’ve created a secure verification link for your email. You can also manually verify by using the generated token or request a fresh link."
+                      : "Enter the OTP sent to your mobile number to complete verification."}
+                  </div>
+
+                  {verificationMethod === "email" && verificationData?.link && (
+                    <a className="btn secondary full" href={verificationData.link} target="_blank" rel="noreferrer" style={{ textAlign: "center", textDecoration: "none" }}>
+                      Open verification link
+                    </a>
+                  )}
+
+                  {verificationMethod === "otp" && (
+                    <label>
+                      OTP code
+                      <input value={verificationCode} onChange={e => setVerificationCode(e.target.value)} placeholder="123456" />
+                    </label>
+                  )}
+
+                  {verificationData?.otp && verificationMethod === "otp" && (
+                    <div className="auth-note">Generated OTP: <strong>{verificationData.otp}</strong></div>
+                  )}
+
+                  {authMessage && <div className="auth-error">{authMessage}</div>}
+
+                  <button type="button" className="btn primary full" onClick={() => handleVerificationAction("verify")} disabled={authLoading}>
+                    {authLoading ? "Checking..." : verificationMethod === "email" ? "Verify email" : "Verify OTP"}
+                  </button>
+
+                  <button type="button" className="btn secondary full" onClick={() => handleVerificationAction("send")} disabled={authLoading}>
+                    {authLoading ? "Please wait..." : "Send a new code"}
+                  </button>
+
+                  <button type="button" className="btn secondary full" onClick={() => {
+                    setAuthOpen(false);
+                    setAuthStage("form");
+                    setAuthMode("signin");
+                    setAuthMessage("");
+                  }}>
+                    Continue as guest
+                  </button>
+                </div>
+              ) : (
+                <form className="auth-form" onSubmit={handleAuthSubmit}>
+                  {authMode === "signup" && (
+                    <div className="auth-row">
+                      <label>
+                        First name
+                        <input value={authForm.first_name} onChange={e => setAuthForm(prev => ({ ...prev, first_name: e.target.value }))} placeholder="Aisha" />
+                      </label>
+                      <label>
+                        Last name
+                        <input value={authForm.last_name} onChange={e => setAuthForm(prev => ({ ...prev, last_name: e.target.value }))} placeholder="Patel" />
+                      </label>
+                    </div>
+                  )}
+
+                  <label>
+                    Username
+                    <input value={authForm.username} onChange={e => setAuthForm(prev => ({ ...prev, username: e.target.value }))} placeholder="aishapatel" required />
+                  </label>
+
+                  {authMode === "signup" && (
+                    <>
+                      <label>
+                        Email
+                        <input type="email" value={authForm.email} onChange={e => setAuthForm(prev => ({ ...prev, email: e.target.value }))} placeholder="you@example.com" required />
+                      </label>
+
+                      <label>
+                        Mobile number
+                        <input value={authForm.mobile_number} onChange={e => setAuthForm(prev => ({ ...prev, mobile_number: e.target.value }))} placeholder="9876543210" required />
+                      </label>
+                    </>
+                  )}
+
+                  <label>
+                    Password
+                    <input type="password" value={authForm.password} onChange={e => setAuthForm(prev => ({ ...prev, password: e.target.value }))} placeholder="••••••••" required />
+                  </label>
+
+                  {authMessage && <div className="auth-error">{authMessage}</div>}
+
+                  <button type="submit" className="btn primary full" disabled={authLoading}>
+                    {authLoading ? "Please wait..." : authMode === "signup" ? "Create Account" : "Sign In"}
+                  </button>
+
+                  <button type="button" className="btn secondary full" onClick={() => {
+                    setAuthOpen(false);
+                    setAuthStage("form");
+                    setAuthMessage("");
+                  }}>
+                    Continue as guest
+                  </button>
+
+                  {authMode === "signin" && (
+                    <div className="auth-footer-link" style={{ justifyContent: "space-between" }}>
+                      <button type="button" onClick={() => { setAuthFlow("forgot"); setAuthMessage(""); }}>
+                        Forgot Password?
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="auth-footer-link">
+                    {authMode === "signin" ? "New here?" : "Already have an account?"}
+                    <button type="button" onClick={() => setAuthMode(authMode === "signin" ? "signup" : "signin")}>
+                      {authMode === "signin" ? "Create account" : "Sign in"}
+                    </button>
+                  </div>
+
+                  {user && (
+                    <button type="button" className="btn secondary full" onClick={handleSignOut}>
+                      Sign out
+                    </button>
+                  )}
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {toast && <div className="toast"><Check size={17}/>{toast}</div>}
     </div>
   );
 }
 
 function ProductModal({product,onClose,onAdd}) {
-  const [image,setImage] = useState(product.gallery[0]);
+  const [detail, setDetail] = useState(normalizeProduct(product));
+  const [reviews, setReviews] = useState([]);
+  const [image,setImage] = useState(product.gallery?.[0] || product.image || "");
   const [zoom,setZoom] = useState(false);
   const [threeD,setThreeD] = useState(false);
   const [size,setSize] = useState("1 kg");
   const [eggless,setEggless] = useState(false);
+  const [loading,setLoading] = useState(true);
+  const [reviewForm,setReviewForm] = useState({ rating: 5, comment: "" });
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    setLoading(true);
+    fetchProduct(product.id)
+      .then(data => {
+        if (!active) return;
+        const normalized = normalizeProduct(data);
+        setDetail(normalized);
+        setImage(normalized.gallery?.[0] || normalized.image || "");
+      })
+      .catch(() => {
+        if (!active) return;
+        setDetail({
+          ...normalizeProduct(product),
+          description: "This cake is no longer available.",
+          short_description: "This cake is no longer available.",
+        });
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    fetchProductReviews(product.id)
+      .then(data => {
+        if (!active) return;
+        setReviews(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (active) setReviews([]);
+      });
+
+    return () => { active = false; };
+  }, [product.id]);
+
+  function handleReviewSubmit(e) {
+    e.preventDefault();
+    const token = localStorage.getItem("pinkbakes_token");
+    if (!token) {
+      setReviewError("Authentication required to submit a review.");
+      return;
+    }
+
+    if (!reviewForm.comment.trim()) {
+      setReviewError("Please write a review before submitting.");
+      return;
+    }
+
+    setReviewSubmitting(true);
+    setReviewError("");
+
+    submitReview(product.id, {
+      rating: Number(reviewForm.rating),
+      comment: reviewForm.comment.trim(),
+    }, token)
+      .then((response) => {
+        setReviewForm({ rating: 5, comment: "" });
+        setDetail(prev => ({ ...prev, rating: Number(response.rating || prev.rating || 0), review_count: Number(prev.review_count || 0) + 1 }));
+        return fetchProductReviews(product.id);
+      })
+      .then((data) => setReviews(Array.isArray(data) ? data : []))
+      .catch(() => setReviewError("Unable to submit your review. Please try again."))
+      .finally(() => setReviewSubmitting(false));
+  }
+
+  const currentPrice = Number(detail.discounted_price ?? ((detail.price * (100 - (detail.discount || 0))) / 100 || detail.price));
+  const gallery = detail.gallery && detail.gallery.length ? detail.gallery : [detail.image || ""];
+
   return <div className="modal-backdrop" onClick={onClose}>
     <div className="product-modal" onClick={e=>e.stopPropagation()}>
       <button className="modal-close" onClick={onClose}><X/></button>
       <div className="modal-gallery">
-        <div className={zoom ? "modal-main zoomed" : "modal-main"}><img src={image} alt={product.name}/></div>
-        <div className="thumbs">{product.gallery.map(src=><button className={src===image?"selected":""} key={src} onClick={()=>setImage(src)}><img src={src} alt=""/></button>)}</div>
+        <div className={zoom ? "modal-main zoomed" : "modal-main"}><img src={image || detail.image} alt={detail.name}/></div>
+        <div className="thumbs">{gallery.map(src=><button className={src===image?"selected":""} key={src} onClick={()=>setImage(src)}><img src={src} alt=""/></button>)}</div>
         <div className="viewer-buttons"><button onClick={()=>setZoom(!zoom)}><ZoomIn/> {zoom?"Reset Zoom":"Zoom"}</button><button onClick={()=>setThreeD(!threeD)}><Rotate3d/> {threeD?"Exit 3D":"3D Preview"}</button></div>
         {threeD && <div className="mini-3d"><div className="cake-3d-shape"></div><span>Drag-ready 3D preview</span></div>}
       </div>
       <div className="modal-info">
-        <span className="eyebrow">{product.category.toUpperCase()}</span>
-        <div className="rating"><Star size={14} fill="currentColor"/>{product.rating} • 120+ reviews</div>
-        <h2>{product.name}</h2><p className="modal-desc">{product.description} Hand-finished with premium ingredients and made fresh to order.</p>
-        <div className="modal-price">₹{product.price.toLocaleString("en-IN")}</div>
-        <label>Choose Size</label><div className="option-row">{["0.5 kg","1 kg","1.5 kg","2 kg"].map(x=><button className={size===x?"selected-option":""} key={x} onClick={()=>setSize(x)}>{x}</button>)}</div>
-        <label>Preference</label><div className="option-row"><button className={!eggless?"selected-option":""} onClick={()=>setEggless(false)}>Regular</button><button className={eggless?"selected-option":""} onClick={()=>setEggless(true)}>Eggless</button></div>
-        <label>Message on Cake</label><input className="cake-message" placeholder="Happy Birthday..."/>
-        <label>Delivery Date</label><input className="cake-message" type="date"/>
-        <button className="btn primary full" onClick={onAdd}>Add to Cart <ShoppingBag size={17}/></button>
-        <div className="secure"><ShieldCheck/> Freshly made • Secure checkout • Delivery support</div>
+        {loading ? <div className="empty">Loading cake details...</div> : (
+          <>
+            <span className="eyebrow">{(detail.category || "CAKE").toUpperCase()}</span>
+            <div className="rating"><Star size={14} fill="currentColor"/>{Number(detail.average_rating ?? detail.rating ?? 0).toFixed(1)} • {detail.review_count || reviews.length || 0} reviews</div>
+            <h2>{detail.name}</h2>
+            <p className="modal-desc">{detail.description || detail.short_description || "Freshly baked for your special celebration."}</p>
+            <div className="modal-price-row">
+              <span className="modal-price">₹{Number(currentPrice || 0).toLocaleString("en-IN")}</span>
+              {Number(detail.discount || 0) > 0 && <span className="strike">₹{Number(detail.price || 0).toLocaleString("en-IN")}</span>}
+            </div>
+            {Number(detail.discount || 0) > 0 && <small className="discount-badge">{detail.discount}% OFF</small>}
+            <label>Choose Size</label><div className="option-row">{["0.5 kg","1 kg","1.5 kg","2 kg"].map(x=><button className={size===x?"selected-option":""} key={x} onClick={()=>setSize(x)}>{x}</button>)}</div>
+            <label>Preference</label><div className="option-row"><button className={!eggless?"selected-option":""} onClick={()=>setEggless(false)}>Regular</button><button className={eggless?"selected-option":""} onClick={()=>setEggless(true)}>Eggless</button></div>
+            <label>Message on Cake</label><input className="cake-message" placeholder="Happy Birthday..."/>
+            <label>Delivery Date</label><input className="cake-message" type="date"/>
+            <button className="btn primary full" onClick={onAdd}>Add to Cart <ShoppingBag size={17}/></button>
+            <div className="secure"><ShieldCheck/> Freshly made • Secure checkout • Delivery support</div>
+
+            <div className="review-panel">
+              <h3>Customer Reviews</h3>
+              <div className="review-form-wrap">
+                <form onSubmit={handleReviewSubmit} className="review-form">
+                  <label>
+                    Your rating
+                    <select value={reviewForm.rating} onChange={e => setReviewForm(prev => ({ ...prev, rating: Number(e.target.value) }))}>
+                      {[5,4,3,2,1].map(value => <option key={value} value={value}>{value} star{value > 1 ? "s" : ""}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    Your review
+                    <textarea value={reviewForm.comment} onChange={e => setReviewForm(prev => ({ ...prev, comment: e.target.value }))} placeholder="Beautiful cake and excellent taste." rows={4} />
+                  </label>
+                  {reviewError && <div className="auth-error">{reviewError}</div>}
+                  <button type="submit" className="btn primary" disabled={reviewSubmitting}>{reviewSubmitting ? "Submitting..." : "Submit review"}</button>
+                </form>
+              </div>
+
+              <div className="review-list">
+                {reviews.length === 0 ? <div className="empty">No reviews yet. Be the first to rate this cake.</div> : reviews.map(review => (
+                  <div className="review-item" key={review.id || `${review.user || review.name}-${review.created_at}`}>
+                    <div className="stars">{'★'.repeat(review.rating || 0)}{'☆'.repeat(5 - (review.rating || 0))} <small>{review.rating}/5</small></div>
+                    <p>“{review.comment || review.text}”</p>
+                    <small>— {review.user_name || review.name || 'Customer'} • {new Date(review.created_at).toLocaleDateString()}</small>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   </div>
