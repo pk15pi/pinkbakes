@@ -27,6 +27,15 @@ async function requestJson(url, options = {}) {
   return data;
 }
 
+
+function buildQuery(params = {}) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") query.append(key, value);
+  });
+  return query.toString();
+}
+
 export async function signUp(payload) {
   return requestJson(`${API_BASE_URL}/api/accounts/signup/`, {
     method: "POST",
@@ -114,14 +123,8 @@ export async function adminLogin(payload) {
 }
 
 export async function fetchAdminReportSummary(params = {}) {
-  const query = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
-      query.append(key, value);
-    }
-  });
-
-  const url = `${API_BASE_URL}/api/catalog/admin/reports/summary/${query.toString() ? `?${query.toString()}` : ""}`;
+  const qs = buildQuery(params);
+  const url = `${API_BASE_URL}/api/catalog/admin/reports/summary/${qs ? `?${qs}` : ""}`;
   return requestJson(url, {
     method: "GET",
     headers: {
@@ -131,14 +134,8 @@ export async function fetchAdminReportSummary(params = {}) {
 }
 
 export async function fetchAdminReportProductPerformance(params = {}) {
-  const query = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
-      query.append(key, value);
-    }
-  });
-
-  const url = `${API_BASE_URL}/api/catalog/admin/reports/product-performance/${query.toString() ? `?${query.toString()}` : ""}`;
+  const qs = buildQuery(params);
+  const url = `${API_BASE_URL}/api/catalog/admin/reports/product-performance/${qs ? `?${qs}` : ""}`;
   return requestJson(url, {
     method: "GET",
     headers: {
@@ -148,14 +145,8 @@ export async function fetchAdminReportProductPerformance(params = {}) {
 }
 
 export async function fetchAdminReportActivity(params = {}) {
-  const query = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
-      query.append(key, value);
-    }
-  });
-
-  const url = `${API_BASE_URL}/api/catalog/admin/reports/admin-activity/${query.toString() ? `?${query.toString()}` : ""}`;
+  const qs = buildQuery(params);
+  const url = `${API_BASE_URL}/api/catalog/admin/reports/admin-activity/${qs ? `?${qs}` : ""}`;
   return requestJson(url, {
     method: "GET",
     headers: {
@@ -164,20 +155,23 @@ export async function fetchAdminReportActivity(params = {}) {
   });
 }
 
-export async function fetchProducts(params = {}) {
-  const query = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
-      query.append(key, value);
-    }
-  });
 
-  const url = `${API_BASE_URL}/api/catalog/products/${query.toString() ? `?${query.toString()}` : ""}`;
+export async function fetchCategories() {
+  return requestJson(`${API_BASE_URL}/api/catalog/categories/`, { method: "GET" });
+}
+
+export async function fetchProducts(params = {}) {
+  const qs = buildQuery(params);
+  const url = `${API_BASE_URL}/api/catalog/products/${qs ? `?${qs}` : ""}`;
   return requestJson(url, { method: "GET" });
 }
 
 export async function fetchProduct(id) {
   return requestJson(`${API_BASE_URL}/api/catalog/products/${id}/`, { method: "GET" });
+}
+
+export async function fetchProductBySlug(slug) {
+  return requestJson(`${API_BASE_URL}/api/catalog/products/slug/${encodeURIComponent(slug)}/`, { method: "GET" });
 }
 
 export async function fetchProductReviews(productId) {
@@ -317,13 +311,8 @@ export async function validateCart(payload) {
 }
 
 export async function fetchAdminInventory(params = {}) {
-  const query = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
-      query.append(key, value);
-    }
-  });
-  const url = `${API_BASE_URL}/api/catalog/admin/inventory/${query.toString() ? `?${query.toString()}` : ""}`;
+  const qs = buildQuery(params);
+  const url = `${API_BASE_URL}/api/catalog/admin/inventory/${qs ? `?${qs}` : ""}`;
   return requestJson(url, {
     method: "GET",
     headers: {
@@ -372,13 +361,8 @@ export async function validateCoupon(payload, token) {
 }
 
 export async function fetchAdminCoupons(params = {}) {
-  const query = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
-      query.append(key, value);
-    }
-  });
-  const url = `${API_BASE_URL}/api/admin/coupons/${query.toString() ? `?${query.toString()}` : ""}`;
+  const qs = buildQuery(params);
+  const url = `${API_BASE_URL}/api/admin/coupons/${qs ? `?${qs}` : ""}`;
   return requestJson(url, {
     method: "GET",
     headers: {
@@ -466,13 +450,8 @@ export async function quoteDelivery(payload, token) {
 }
 
 export async function fetchAdminDeliveryZones(params = {}) {
-  const query = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") {
-      query.append(key, value);
-    }
-  });
-  const url = `${API_BASE_URL}/api/admin/delivery-zones/${query.toString() ? `?${query.toString()}` : ""}`;
+  const qs = buildQuery(params);
+  const url = `${API_BASE_URL}/api/admin/delivery-zones/${qs ? `?${qs}` : ""}`;
   return requestJson(url, {
     method: "GET",
     headers: {
@@ -568,13 +547,209 @@ export async function fetchAdminNotifications(token) {
 }
 
 export async function fetchAdminNotificationLogs(token, params = {}) {
-  const query = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v !== undefined && v !== null && v !== "") query.append(k, v);
-  });
-  const qs = query.toString();
+  const qs = buildQuery(params);
   return requestJson(`${API_BASE_URL}/api/admin/notification-logs${qs ? `?${qs}` : ""}`, {
     method: "GET",
     headers: { Authorization: `Token ${token}` },
   });
+}
+
+export async function fetchAdminDashboard(params = {}) {
+  const qs = buildQuery(params);
+  return requestJson(`${API_BASE_URL}/api/admin/dashboard/${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+  });
+}
+
+export async function fetchAdminOrders(params = {}) {
+  const qs = buildQuery(params);
+  return requestJson(`${API_BASE_URL}/api/admin/orders/${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+  });
+}
+
+export async function fetchAdminOrderDetail(orderId) {
+  return requestJson(`${API_BASE_URL}/api/admin/orders/${orderId}/`, {
+    method: "GET",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+  });
+}
+
+export async function updateAdminOrderStatus(orderId, payload) {
+  return requestJson(`${API_BASE_URL}/api/admin/orders/${orderId}/status/`, {
+    method: "PATCH",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function cancelAdminOrder(orderId, reason = "") {
+  return requestJson(`${API_BASE_URL}/api/admin/orders/${orderId}/cancel/`, {
+    method: "POST",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export async function refundAdminOrder(orderId, payload = {}) {
+  return requestJson(`${API_BASE_URL}/api/admin/orders/${orderId}/refund/`, {
+    method: "POST",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchAdminPayments(params = {}) {
+  const qs = buildQuery(params);
+  return requestJson(`${API_BASE_URL}/api/admin/payments/${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+  });
+}
+
+export async function fetchAdminRefunds(params = {}) {
+  const qs = buildQuery(params);
+  return requestJson(`${API_BASE_URL}/api/admin/refunds/${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+  });
+}
+
+export async function fetchAdminCustomers(params = {}) {
+  const qs = buildQuery(params);
+  return requestJson(`${API_BASE_URL}/api/admin/customers/${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+  });
+}
+
+export async function fetchAdminCustomerDetail(userId) {
+  return requestJson(`${API_BASE_URL}/api/admin/customers/${userId}/`, {
+    method: "GET",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+  });
+}
+
+export async function updateAdminCustomerStatus(userId, isActive) {
+  return requestJson(`${API_BASE_URL}/api/admin/customers/${userId}/`, {
+    method: "PATCH",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+    body: JSON.stringify({ is_active: isActive }),
+  });
+}
+
+export async function fetchAdminEmployees(params = {}) {
+  const qs = buildQuery(params);
+  return requestJson(`${API_BASE_URL}/api/admin/employees/${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+  });
+}
+
+export async function createAdminEmployee(payload) {
+  return requestJson(`${API_BASE_URL}/api/admin/employees/`, {
+    method: "POST",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAdminEmployee(id, payload) {
+  return requestJson(`${API_BASE_URL}/api/admin/employees/${id}/`, {
+    method: "PATCH",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function assignAdminDelivery(orderId, employeeId) {
+  return requestJson(`${API_BASE_URL}/api/admin/orders/${orderId}/assign-delivery/`, {
+    method: "POST",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+    body: JSON.stringify({ employee_id: employeeId }),
+  });
+}
+
+export async function unassignAdminDelivery(orderId) {
+  return requestJson(`${API_BASE_URL}/api/admin/orders/${orderId}/unassign-delivery/`, {
+    method: "POST",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+    body: JSON.stringify({}),
+  });
+}
+
+export async function fetchAdminActiveDeliveries(params = {}) {
+  const qs = buildQuery(params);
+  return requestJson(`${API_BASE_URL}/api/admin/deliveries/active/${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+  });
+}
+
+export async function fetchAdminReviews(params = {}) {
+  const qs = buildQuery(params);
+  return requestJson(`${API_BASE_URL}/api/admin/reviews/${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+  });
+}
+
+export async function approveAdminReview(reviewId, adminComment = "") {
+  return requestJson(`${API_BASE_URL}/api/admin/reviews/${reviewId}/approve/`, {
+    method: "POST",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+    body: JSON.stringify({ admin_comment: adminComment }),
+  });
+}
+
+export async function rejectAdminReview(reviewId, adminComment = "") {
+  return requestJson(`${API_BASE_URL}/api/admin/reviews/${reviewId}/reject/`, {
+    method: "POST",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+    body: JSON.stringify({ admin_comment: adminComment }),
+  });
+}
+
+export async function fetchAdminSettingsStatus() {
+  return requestJson(`${API_BASE_URL}/api/admin/settings/status/`, {
+    method: "GET",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+  });
+}
+
+export async function updateAdminSettingsStatus(payload) {
+  return requestJson(`${API_BASE_URL}/api/admin/settings/status/`, {
+    method: "PATCH",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+    body: JSON.stringify(payload),
+  });
+}
+
+export function adminExportUrl(entity, params = {}) {
+  const qs = buildQuery(params);
+  return `${API_BASE_URL}/api/admin/exports/${entity}/${qs ? `?${qs}` : ""}`;
+}
+
+export async function downloadAdminExport(entity, params = {}) {
+  const token = localStorage.getItem("pinkbakes_admin_token") || "";
+  const url = adminExportUrl(entity, params);
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { Authorization: `Token ${token}` },
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.detail || "Export failed");
+  }
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = `${entity}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(objectUrl);
 }

@@ -64,3 +64,20 @@ Edit the `products` array near the top of `src/main.jsx`. Replace the image URLs
 ## Design reference
 
 The project follows the premium cream / blush / chocolate / gold visual direction of the generated homepage concept.
+
+## Deploy to Firebase Hosting (pinkbakes.com)
+
+1. Set frontend env (`VITE_API_URL`, `VITE_PUBLIC_SITE_URL=https://pinkbakes.com`) and run `npm run build`.
+2. Sitemap proxy: copy `functions/.env.example` to `functions/.env` and set `API_ORIGIN` to your Django API origin (no trailing slash). Then `cd functions && npm install`.
+3. Deploy Hosting + the `sitemap` function (Blaze plan required for Functions):
+
+```bash
+npm run deploy
+# or separately:
+# npm run deploy:hosting
+# npm run deploy:functions
+```
+
+`firebase.json` rewrites `/sitemap.xml` to the `sitemap` Cloud Function before the SPA `**` -> `/index.html` fallback. The function GETs `${API_ORIGIN}/sitemap.xml` and returns `application/xml`.
+
+Static `public/robots.txt` is served as a normal Hosting file (not the SPA). Its `Sitemap:` line is `https://pinkbakes.com/sitemap.xml`. Keep Django `PUBLIC_SITE_URL=https://pinkbakes.com` so `<loc>` URLs in the sitemap match the public site.

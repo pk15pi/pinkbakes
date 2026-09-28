@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin-login
+Disallow: /api/
+Disallow: /cart
+Disallow: /checkout
+Disallow: /payment
+Disallow: /account
+Disallow: /orders
+Disallow: /login
+Disallow: /signup
+Disallow: /signin
+Disallow: /reset-password
+
+Sitemap: https://pinkbakes.com/sitemap.xml

@@ -1,15 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
-  Search, UserRound, ShoppingBag, Menu, X, ChevronRight, ChevronLeft,
+  Search, UserRound, ShoppingBag, Menu, X,
   Star, Heart, ZoomIn, Rotate3d, Plus, Minus, Trash2, ArrowRight,
   CakeSlice, Sparkles, Leaf, CalendarDays, ShieldCheck, Instagram,
-  MessageCircle, Mail, MapPin, Check, SlidersHorizontal, Send
+  MessageCircle, Mail, MapPin, Check, Send
 } from "lucide-react";
 import {
   adminLogin,
   cancelOrder,
-  checkoutOrder,
   createPaymentSession,
   createAdminCoupon,
   createProduct,
@@ -20,7 +19,9 @@ import {
   fetchOrder,
   fetchOrders,
   fetchProduct,
+  fetchProductBySlug,
   fetchProductReviews,
+  fetchCategories,
   fetchProducts,
   forgotPassword,
   requestLoginOtp,
@@ -54,87 +55,61 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
   fetchAdminNotifications,
+  fetchAdminDashboard,
+  fetchAdminOrders,
+  fetchAdminOrderDetail,
+  updateAdminOrderStatus,
+  cancelAdminOrder,
+  refundAdminOrder,
+  fetchAdminPayments,
+  fetchAdminRefunds,
+  fetchAdminCustomers,
+  fetchAdminCustomerDetail,
+  updateAdminCustomerStatus,
+  fetchAdminEmployees,
+  createAdminEmployee,
+  updateAdminEmployee,
+  assignAdminDelivery,
+  unassignAdminDelivery,
+  fetchAdminActiveDeliveries,
+  fetchAdminReviews,
+  approveAdminReview,
+  rejectAdminReview,
+  fetchAdminSettingsStatus,
+  updateAdminSettingsStatus,
+  fetchAdminInventory,
+  downloadAdminExport,
 } from "./services/authService";
 import { appConfig, getMapsUrl } from "./config";
+import {
+  SITE_URL,
+  setPageMeta,
+  productPath,
+  buildProductJsonLd,
+  buildOrganizationJsonLd,
+  buildWebSiteJsonLd,
+  buildBreadcrumbJsonLd,
+  parseProductPath,
+  isPrivatePath,
+  plainText,
+} from "./seo";
 import "./styles.css";
 
-const fallbackProducts = [
-  {
-    id: 1, name: "Chocolate Truffle", price: 1299, category: "Chocolate Cakes",
-    rating: 4.9, badge: "Bestseller",
-    description: "Rich, moist and absolutely indulgent.",
-    image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1000&q=85",
-    gallery: [
-      "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1400&q=90",
-      "https://images.unsplash.com/photo-1606313564200-e75d5e30476b?auto=format&fit=crop&w=1400&q=90",
-      "https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&w=1400&q=90"
-    ]
-  },
-  {
-    id: 2, name: "Red Velvet", price: 1199, category: "Designer Cakes",
-    rating: 4.8, badge: "New",
-    description: "Velvety layers with a hint of cocoa.",
-    image: "https://images.unsplash.com/photo-1586788680434-30d324b2d46f?auto=format&fit=crop&w=1000&q=85",
-    gallery: [
-      "https://images.unsplash.com/photo-1586788680434-30d324b2d46f?auto=format&fit=crop&w=1400&q=90",
-      "https://images.unsplash.com/photo-1614707267537-2b5d5b8e9e09?auto=format&fit=crop&w=1400&q=90",
-      "https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=1400&q=90"
-    ]
-  },
-  {
-    id: 3, name: "Vanilla Dream", price: 1099, category: "Birthday Cakes",
-    rating: 4.9, badge: "",
-    description: "Light, fresh and full of vanilla goodness.",
-    image: "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?auto=format&fit=crop&w=1000&q=85",
-    gallery: [
-      "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?auto=format&fit=crop&w=1400&q=90",
-      "https://images.unsplash.com/photo-1571115177098-24ec42ed204d?auto=format&fit=crop&w=1400&q=90",
-      "https://images.unsplash.com/photo-1519869325930-281384150729?auto=format&fit=crop&w=1400&q=90"
-    ]
-  },
-  {
-    id: 4, name: "Berry Bliss", price: 1399, category: "Designer Cakes",
-    rating: 5.0, badge: "",
-    description: "A perfect blend of chocolate and berries.",
-    image: "https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=1000&q=85",
-    gallery: [
-      "https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=1400&q=90",
-      "https://images.unsplash.com/photo-1576618148400-6b7c8d3c0f2a?auto=format&fit=crop&w=1400&q=90",
-      "https://images.unsplash.com/photo-1557925923-cd4648e211a0?auto=format&fit=crop&w=1400&q=90"
-    ]
-  },
-  {
-    id: 5, name: "Rose Garden", price: 1499, category: "Anniversary Cakes",
-    rating: 4.9, badge: "Popular",
-    description: "Elegant vanilla cake finished with buttercream roses.",
-    image: "https://images.unsplash.com/photo-1535254973040-607b474cb50d?auto=format&fit=crop&w=1000&q=85",
-    gallery: [
-      "https://images.unsplash.com/photo-1535254973040-607b474cb50d?auto=format&fit=crop&w=1400&q=90",
-      "https://images.unsplash.com/photo-1571115177098-24ec42ed204d?auto=format&fit=crop&w=1400&q=90"
-    ]
-  },
-  {
-    id: 6, name: "Midnight Mocha", price: 1599, category: "Chocolate Cakes",
-    rating: 4.9, badge: "Chef's Pick",
-    description: "Deep chocolate sponge, espresso cream and ganache.",
-    image: "https://images.unsplash.com/photo-1606890737304-57a1ca8a5b62?auto=format&fit=crop&w=1000&q=85",
-    gallery: [
-      "https://images.unsplash.com/photo-1606890737304-57a1ca8a5b62?auto=format&fit=crop&w=1400&q=90",
-      "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1400&q=90"
-    ]
-  }
-];
+/** Decorative category card images (same Unsplash paths used historically). Labels come from the API. */
+const CATEGORY_IMAGE_FALLBACKS = {
+  "Birthday Cakes": "https://images.unsplash.com/photo-1535141192574-5d4897c12636?auto=format&fit=crop&w=600&q=85",
+  "Anniversary Cakes": "https://images.unsplash.com/photo-1519915028121-7d3463d20b13?auto=format&fit=crop&w=600&q=85",
+  "Wedding Cakes": "https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?auto=format&fit=crop&w=600&q=85",
+  "Chocolate Cakes": "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=600&q=85",
+  "Designer Cakes": "https://images.unsplash.com/photo-1535254973040-607b474cb50d?auto=format&fit=crop&w=600&q=85",
+  "Photo Cakes": "https://images.unsplash.com/photo-1559620192-032c4bc4674e?auto=format&fit=crop&w=600&q=85",
+  "Custom Cakes": "https://images.unsplash.com/photo-1571115177098-24ec42ed204d?auto=format&fit=crop&w=600&q=85",
+  "Eggless Cakes": "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?auto=format&fit=crop&w=600&q=85",
+};
 
-const categories = [
-  ["Birthday Cakes", "https://images.unsplash.com/photo-1535141192574-5d4897c12636?auto=format&fit=crop&w=600&q=85"],
-  ["Anniversary Cakes", "https://images.unsplash.com/photo-1519915028121-7d3463d20b13?auto=format&fit=crop&w=600&q=85"],
-  ["Wedding Cakes", "https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?auto=format&fit=crop&w=600&q=85"],
-  ["Chocolate Cakes", "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=600&q=85"],
-  ["Designer Cakes", "https://images.unsplash.com/photo-1535254973040-607b474cb50d?auto=format&fit=crop&w=600&q=85"],
-  ["Photo Cakes", "https://images.unsplash.com/photo-1559620192-032c4bc4674e?auto=format&fit=crop&w=600&q=85"],
-  ["Custom Cakes", "https://images.unsplash.com/photo-1571115177098-24ec42ed204d?auto=format&fit=crop&w=600&q=85"],
-  ["Eggless Cakes", "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?auto=format&fit=crop&w=600&q=85"]
-];
+/** Canonical category names for the admin cake form (aligned with backend catalog.constants). */
+const CAKE_CATEGORY_OPTIONS = Object.keys(CATEGORY_IMAGE_FALLBACKS);
+
 
 const reviews = [
   ["Priya Sharma", "The cake was beyond beautiful and tasted amazing! Everyone loved it.", "Birthday Cake"],
@@ -142,8 +117,22 @@ const reviews = [
   ["Neha Verma", "I ordered a custom cake for my daughter's birthday and it was absolutely perfect.", "Custom Cake"]
 ];
 
-const ADMIN_ID = "pinkbake";
-const ADMIN_PASSWORD = "pinkbake";
+/** Mirrors backend catalog.admin_ops.ORDER_STATUS_TRANSITIONS (cancel via cancel endpoint). */
+const ORDER_STATUS_TRANSITIONS = {
+  PENDING: ["ORDER_CONFIRMED"],
+  ORDER_CONFIRMED: ["PREPARING"],
+  PREPARING: ["PACKING"],
+  PACKING: ["READY_FOR_DELIVERY"],
+  READY_FOR_DELIVERY: ["DELIVERY_BOY_ASSIGNED"],
+  DELIVERY_BOY_ASSIGNED: ["OUT_FOR_DELIVERY"],
+  OUT_FOR_DELIVERY: ["DELIVERED"],
+  DELIVERED: [],
+  CANCELLED: [],
+};
+
+function getNextOrderStatuses(current) {
+  return ORDER_STATUS_TRANSITIONS[current] || [];
+}
 const BRAND_NAME = "pinkbakes";
 const WHATSAPP_NUMBER = "6033430700";
 const CONTACT_EMAIL = "pinkbakes@pinkbakes.com";
@@ -165,6 +154,7 @@ const normalizeProduct = (product) => {
   return {
     ...base,
     id: base.id,
+    slug: base.slug || "",
     name: base.name || "Cake",
     price,
     discount,
@@ -195,6 +185,7 @@ function App() {
   const [category, setCategory] = useState("All Cakes");
   const [search, setSearch] = useState("");
   const [product, setProduct] = useState(null);
+  const [productNotFound, setProductNotFound] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [newsletter, setNewsletter] = useState("");
@@ -202,6 +193,7 @@ function App() {
   const [catalog, setCatalog] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [catalogError, setCatalogError] = useState("");
+  const [shopCategories, setShopCategories] = useState([]);
   const [adminOpen, setAdminOpen] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [adminReportsView, setAdminReportsView] = useState(false);
@@ -266,6 +258,60 @@ function App() {
   const [inAppNotifications, setInAppNotifications] = useState([]);
   const [notifUnreadCount, setNotifUnreadCount] = useState(0);
   const [adminNotifications, setAdminNotifications] = useState([]);
+  const [adminSection, setAdminSection] = useState("dashboard");
+  const [adminDashboard, setAdminDashboard] = useState(null);
+  const [adminDashPreset, setAdminDashPreset] = useState("today");
+  const [adminOrders, setAdminOrders] = useState([]);
+  const [adminOrdersMeta, setAdminOrdersMeta] = useState({ count: 0, page: 1 });
+  const [adminOrderFilter, setAdminOrderFilter] = useState({ status: "", payment_status: "", search: "" });
+  const [adminOrderDetail, setAdminOrderDetail] = useState(null);
+  const [adminPayments, setAdminPayments] = useState([]);
+  const [adminRefunds, setAdminRefunds] = useState([]);
+  const [adminCustomers, setAdminCustomers] = useState([]);
+  const [adminCustomerSearch, setAdminCustomerSearch] = useState("");
+  const [adminEmployees, setAdminEmployees] = useState([]);
+  const [adminActiveDeliveries, setAdminActiveDeliveries] = useState([]);
+  const [adminReviews, setAdminReviews] = useState([]);
+  const [adminReviewFilter, setAdminReviewFilter] = useState("pending");
+  const [adminSettings, setAdminSettings] = useState(null);
+  const [adminOpsMessage, setAdminOpsMessage] = useState("");
+  const [adminInventory, setAdminInventory] = useState([]);
+  const [adminLoadingSection, setAdminLoadingSection] = useState(false);
+  const [adminCustomerDetail, setAdminCustomerDetail] = useState(null);
+  const [adminCustomerDetailLoading, setAdminCustomerDetailLoading] = useState(false);
+  const [adminEmployeeForm, setAdminEmployeeForm] = useState({
+    employee_id: "",
+    name: "",
+    contact_number: "",
+    email: "",
+    photo: "",
+    status: "ACTIVE",
+  });
+  const [adminEmployeeEditingId, setAdminEmployeeEditingId] = useState(null);
+  const [adminEmployeeMessage, setAdminEmployeeMessage] = useState("");
+  const [assignPickerOpen, setAssignPickerOpen] = useState(false);
+  const [assignPickerLoading, setAssignPickerLoading] = useState(false);
+  const [assignPickerError, setAssignPickerError] = useState("");
+  const [assignPickerEmployees, setAssignPickerEmployees] = useState([]);
+  const [assignPickerSelectedId, setAssignPickerSelectedId] = useState("");
+  const [assignPickerSubmitting, setAssignPickerSubmitting] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelModalReason, setCancelModalReason] = useState("");
+  const [cancelModalError, setCancelModalError] = useState("");
+  const [cancelModalSubmitting, setCancelModalSubmitting] = useState(false);
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [refundModalAmount, setRefundModalAmount] = useState("");
+  const [refundModalReason, setRefundModalReason] = useState("Admin refund");
+  const [refundModalError, setRefundModalError] = useState("");
+  const [refundModalSubmitting, setRefundModalSubmitting] = useState(false);
+  const [restockModalOpen, setRestockModalOpen] = useState(false);
+  const [restockModalItem, setRestockModalItem] = useState(null);
+  const [restockModalAction, setRestockModalAction] = useState("restock");
+  const [restockModalQty, setRestockModalQty] = useState("10");
+  const [restockModalReason, setRestockModalReason] = useState("Restock");
+  const [restockModalError, setRestockModalError] = useState("");
+  const [restockModalSubmitting, setRestockModalSubmitting] = useState(false);
+  const [restockModalSource, setRestockModalSource] = useState("inventory");
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [authMessage, setAuthMessage] = useState("");
@@ -358,7 +404,6 @@ function App() {
     available_quantity: 50,
     low_stock_threshold: 5
   });
-  const [stockAdjust, setStockAdjust] = useState({ productId: null, action: "restock", quantity: "", reason: "" });
   const [editingCakeId, setEditingCakeId] = useState(null);
 
   function resetCakeForm() {
@@ -390,6 +435,20 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const adminToken = localStorage.getItem("pinkbakes_admin_token");
+    const path = window.location.pathname || "";
+    const wantsAdmin = path.startsWith("/admin");
+    if (adminToken) {
+      setIsAdminLoggedIn(true);
+      setAdminOpen(true);
+      setAdminSection("dashboard");
+      fetchAdminDashboard({ preset: "today" }).then(setAdminDashboard).catch(() => {});
+    } else if (wantsAdmin) {
+      setAdminOpen(true);
+    }
+  }, []);
+
+  useEffect(() => {
     const pathToken = window.location.pathname.match(/\/reset-password\/([^/?#]+)/)?.[1];
     const queryToken = new URLSearchParams(window.location.search).get("token");
     const tokenValue = pathToken || queryToken;
@@ -411,18 +470,191 @@ function App() {
   }, []);
 
   useEffect(() => {
-    fetchProducts()
-      .then(data => {
+    let cancelled = false;
+    setCatalogLoading(true);
+    Promise.all([
+      fetchProducts(),
+      fetchCategories().catch(() => []),
+    ])
+      .then(([data, categoriesData]) => {
+        if (cancelled) return;
         const items = Array.isArray(data) ? data : [];
         setCatalog(items.map(normalizeProduct));
+        const fromApi = Array.isArray(categoriesData) ? categoriesData : [];
+        if (fromApi.length) {
+          setShopCategories(fromApi.map((c) => ({
+            name: c.name,
+            product_count: Number(c.product_count || 0),
+            image: c.image || CATEGORY_IMAGE_FALLBACKS[c.name] || CATEGORY_IMAGE_FALLBACKS["Birthday Cakes"],
+          })));
+        } else {
+          // Derive categories from loaded products if categories endpoint is empty/unavailable
+          const seen = new Map();
+          items.forEach((raw) => {
+            const p = normalizeProduct(raw);
+            const name = (p.category || "").trim();
+            if (!name) return;
+            if (!seen.has(name)) {
+              seen.set(name, {
+                name,
+                product_count: 1,
+                image: p.image || CATEGORY_IMAGE_FALLBACKS[name] || CATEGORY_IMAGE_FALLBACKS["Birthday Cakes"],
+              });
+            } else {
+              seen.get(name).product_count += 1;
+            }
+          });
+          setShopCategories(Array.from(seen.values()));
+        }
         setCatalogError("");
       })
       .catch(() => {
-        setCatalog(fallbackProducts.map(normalizeProduct));
+        if (cancelled) return;
+        setCatalog([]);
+        setShopCategories([]);
         setCatalogError("Unable to load cakes. Please try again.");
       })
-      .finally(() => setCatalogLoading(false));
+      .finally(() => {
+        if (!cancelled) setCatalogLoading(false);
+      });
+    return () => { cancelled = true; };
   }, []);
+
+  const openProduct = (p, { pushUrl = true } = {}) => {
+    if (!p) return;
+    setProductNotFound(false);
+    setProduct(p);
+    if (pushUrl) {
+      const next = productPath(p);
+      try {
+        if ((window.location.pathname || "") !== next) {
+          window.history.pushState({ product: true }, "", next);
+        }
+      } catch (_) { /* ignore */ }
+    }
+  };
+
+  const closeProduct = () => {
+    setProduct(null);
+    setProductNotFound(false);
+    try {
+      const path = window.location.pathname || "";
+      if (parseProductPath(path)) {
+        window.history.pushState({}, "", "/");
+      }
+    } catch (_) { /* ignore */ }
+  };
+
+  // Deep-link: /products/:slugOrId opens product modal (or not-found).
+  useEffect(() => {
+    if (catalogLoading) return;
+
+    const resolveFromPath = () => {
+      const key = parseProductPath(window.location.pathname || "");
+      if (!key) {
+        setProductNotFound(false);
+        return;
+      }
+      const bySlug = catalog.find((p) => p.slug && p.slug === key);
+      const byId = catalog.find((p) => String(p.id) === String(key));
+      const found = bySlug || byId;
+      if (found) {
+        openProduct(found, { pushUrl: false });
+        return;
+      }
+      const loader = /^\d+$/.test(key)
+        ? fetchProduct(key)
+        : fetchProductBySlug(key);
+      loader
+        .then((data) => openProduct(normalizeProduct(data), { pushUrl: false }))
+        .catch(() => {
+          setProduct(null);
+          setProductNotFound(true);
+        });
+    };
+
+    resolveFromPath();
+    const onPop = () => {
+      const key = parseProductPath(window.location.pathname || "");
+      if (!key) {
+        setProduct(null);
+        setProductNotFound(false);
+        return;
+      }
+      resolveFromPath();
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [catalogLoading, catalog]);
+
+  // Document head: public vs private surfaces + product detail.
+  useEffect(() => {
+    const path = window.location.pathname || "/";
+    const privateUi = Boolean(
+      adminOpen || authOpen || cartOpen || checkoutOpen || orderHistoryOpen || productNotFound || isPrivatePath(path)
+    );
+
+    if (product && !privateUi) {
+      const desc = plainText(
+        product.short_description || product.description || `${product.name} from pinkbakes.`,
+        160
+      );
+      const crumbs = [
+        { name: "Home", path: "/" },
+        { name: product.category || "Cakes", path: "/#cakes" },
+        { name: product.name, path: productPath(product) },
+      ];
+      setPageMeta({
+        title: `${product.name} | pinkbakes`,
+        description: desc,
+        canonical: productPath(product),
+        robots: "index,follow",
+        image: product.main_image || product.image || "",
+        type: "product",
+        jsonLd: [
+          buildOrganizationJsonLd({ email: CONTACT_EMAIL, telephone: WHATSAPP_NUMBER }),
+          buildWebSiteJsonLd(),
+          buildBreadcrumbJsonLd(crumbs),
+          buildProductJsonLd(product),
+        ],
+      });
+      return;
+    }
+
+    if (productNotFound) {
+      setPageMeta({
+        title: "Cake not found | pinkbakes",
+        description: "This cake is unavailable or no longer listed.",
+        canonical: path,
+        robots: "noindex,follow",
+        jsonLd: [],
+      });
+      return;
+    }
+
+    if (privateUi) {
+      setPageMeta({
+        title: adminOpen ? "Admin | pinkbakes" : "pinkbakes",
+        description: "pinkbakes — handcrafted cakes for birthdays, anniversaries, weddings, and custom celebrations.",
+        canonical: SITE_URL + "/",
+        robots: "noindex,nofollow",
+        jsonLd: [],
+      });
+      return;
+    }
+
+    setPageMeta({
+      title: "pinkbakes — Cakes for Every Moment",
+      description: "pinkbakes — handcrafted cakes for birthdays, anniversaries, weddings, and custom celebrations.",
+      canonical: "/",
+      robots: "index,follow",
+      image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1200&q=85",
+      jsonLd: [
+        buildOrganizationJsonLd({ email: CONTACT_EMAIL, telephone: WHATSAPP_NUMBER }),
+        buildWebSiteJsonLd(),
+      ],
+    });
+  }, [product, productNotFound, adminOpen, authOpen, cartOpen, checkoutOpen, orderHistoryOpen, catalogLoading]);
 
   const filtered = useMemo(() => {
     return catalog.filter(p =>
@@ -518,10 +750,14 @@ function App() {
       .then(data => {
         localStorage.setItem("pinkbakes_admin_token", data.token);
         setIsAdminLoggedIn(true);
-        setAdminOpen(false);
+        setAdminOpen(true);
+        setAdminSection("dashboard");
         setAdminCredentials({ username: "", password: "" });
         setAdminMessage("");
         notify("Admin login successful");
+        try { window.history.pushState({}, "", "/admin"); } catch (_) { /* ignore */ }
+        fetchAdminDashboard({ preset: "today" }).then(setAdminDashboard).catch(() => {});
+        loadAdminSectionData("dashboard");
       })
       .catch(error => {
         setAdminMessage(error.message || "Invalid admin username or password.");
@@ -550,11 +786,372 @@ function App() {
       .finally(() => setReportsLoading(false));
   }
 
+
   function closeAdminReports() {
     setAdminReportsView(false);
     setAdminOpen(false);
     window.history.pushState({}, "", "/");
   }
+
+  function goAdminSection(section) {
+    setAdminSection(section);
+    setAdminReportsView(false);
+    setAdminCouponsView(false);
+    setAdminDeliveryView(false);
+    setAdminOpsMessage("");
+    setAdminOrderDetail(null);
+    if (section === "coupons") {
+      setAdminCouponsView(true);
+      loadAdminCoupons();
+      return;
+    }
+    if (section === "delivery") {
+      setAdminDeliveryView(true);
+      loadAdminDeliveryZones();
+      return;
+    }
+    if (section === "reports") {
+      setAdminReportsView(true);
+      openAdminReports();
+      return;
+    }
+    if (section === "products") {
+      return;
+    }
+    loadAdminSectionData(section);
+  }
+
+  function loadAdminSectionData(section, preset) {
+    const token = localStorage.getItem("pinkbakes_admin_token");
+    if (!token) return;
+    setAdminLoadingSection(true);
+    const p = preset || adminDashPreset;
+    const tasks = [];
+    if (section === "dashboard") {
+      tasks.push(fetchAdminDashboard({ preset: p }).then(setAdminDashboard).catch((e) => setAdminOpsMessage(e.message || "Dashboard failed")));
+    } else if (section === "orders") {
+      tasks.push(fetchAdminOrders({ ...adminOrderFilter, page: 1, page_size: 20 }).then((d) => {
+        setAdminOrders(d.results || []);
+        setAdminOrdersMeta({ count: d.count || 0, page: d.page || 1 });
+      }).catch((e) => setAdminOpsMessage(e.message || "Orders failed")));
+    } else if (section === "payments") {
+      tasks.push(fetchAdminPayments({ page: 1, page_size: 25 }).then((d) => setAdminPayments(d.results || [])).catch((e) => setAdminOpsMessage(e.message || "Payments failed")));
+    } else if (section === "refunds") {
+      tasks.push(fetchAdminRefunds({ page: 1, page_size: 25 }).then((d) => setAdminRefunds(d.results || [])).catch((e) => setAdminOpsMessage(e.message || "Refunds failed")));
+    } else if (section === "inventory") {
+      tasks.push(fetchAdminInventory().then((d) => setAdminInventory(Array.isArray(d) ? d : (d.results || []))).catch((e) => setAdminOpsMessage(e.message || "Inventory failed")));
+    } else if (section === "customers") {
+      tasks.push(fetchAdminCustomers({ search: adminCustomerSearch, page: 1, page_size: 25 }).then((d) => setAdminCustomers(d.results || [])).catch((e) => setAdminOpsMessage(e.message || "Customers failed")));
+    } else if (section === "employees") {
+      tasks.push(Promise.all([
+        fetchAdminEmployees().then((d) => setAdminEmployees(Array.isArray(d) ? d : (d.results || []))),
+        fetchAdminActiveDeliveries().then((d) => setAdminActiveDeliveries(d.results || [])),
+      ]).catch((e) => setAdminOpsMessage(e.message || "Delivery failed")));
+    } else if (section === "reviews") {
+      tasks.push(fetchAdminReviews({ status: adminReviewFilter, page: 1, page_size: 25 }).then((d) => {
+        const rows = Array.isArray(d) ? d : (d.results || []);
+        setAdminReviews(rows);
+      }).catch((e) => setAdminOpsMessage(e.message || "Reviews failed")));
+    } else if (section === "notifications") {
+      tasks.push(fetchAdminNotifications(token).then((d) => setAdminNotifications(Array.isArray(d?.results) ? d.results : [])).catch(() => setAdminNotifications([])));
+    } else if (section === "settings") {
+      tasks.push(fetchAdminSettingsStatus().then(setAdminSettings).catch((e) => setAdminOpsMessage(e.message || "Settings failed")));
+    }
+    Promise.all(tasks).finally(() => setAdminLoadingSection(false));
+  }
+
+  function resetEmployeeForm() {
+    setAdminEmployeeForm({
+      employee_id: "",
+      name: "",
+      contact_number: "",
+      email: "",
+      photo: "",
+      status: "ACTIVE",
+    });
+    setAdminEmployeeEditingId(null);
+    setAdminEmployeeMessage("");
+  }
+
+  function closeAssignPicker() {
+    setAssignPickerOpen(false);
+    setAssignPickerLoading(false);
+    setAssignPickerError("");
+    setAssignPickerEmployees([]);
+    setAssignPickerSelectedId("");
+    setAssignPickerSubmitting(false);
+  }
+
+  function openAssignPicker() {
+    if (!adminOrderDetail?.id) return;
+    setAssignPickerOpen(true);
+    setAssignPickerLoading(true);
+    setAssignPickerError("");
+    setAssignPickerEmployees([]);
+    setAssignPickerSelectedId("");
+    setAssignPickerSubmitting(false);
+    // Assign API accepts ACTIVE or AVAILABLE; list endpoint filters one status at a time.
+    fetchAdminEmployees()
+      .then((d) => {
+        const list = Array.isArray(d) ? d : (d.results || []);
+        setAdminEmployees(list);
+        const assignable = list.filter((e) => e.status === "ACTIVE" || e.status === "AVAILABLE");
+        setAssignPickerEmployees(assignable);
+        const currentId = adminOrderDetail?.delivery_employee?.id;
+        if (currentId && assignable.some((e) => e.id === currentId)) {
+          setAssignPickerSelectedId(String(currentId));
+        } else if (assignable.length === 1) {
+          setAssignPickerSelectedId(String(assignable[0].id));
+        }
+      })
+      .catch((err) => setAssignPickerError(err.message || "Could not load employees."))
+      .finally(() => setAssignPickerLoading(false));
+  }
+
+  function confirmAssignPicker() {
+    if (!adminOrderDetail?.id || !assignPickerSelectedId) {
+      setAssignPickerError("Select an employee to assign.");
+      return;
+    }
+    setAssignPickerSubmitting(true);
+    setAssignPickerError("");
+    const isReassign = Boolean(adminOrderDetail?.delivery_employee?.id);
+    assignAdminDelivery(adminOrderDetail.id, Number(assignPickerSelectedId))
+      .then((ord) => {
+        setAdminOrderDetail(ord);
+        setAdminOpsMessage(isReassign ? "Delivery reassigned." : "Delivery assigned.");
+        closeAssignPicker();
+        loadAdminSectionData("orders");
+      })
+      .catch((err) => setAssignPickerError(err.message || "Assign failed."))
+      .finally(() => setAssignPickerSubmitting(false));
+  }
+
+  function handleUnassignDelivery() {
+    if (!adminOrderDetail?.id) return;
+    if (!adminOrderDetail?.delivery_employee) {
+      setAdminOpsMessage("No delivery employee assigned.");
+      return;
+    }
+    setAdminOpsMessage("Unassigning...");
+    unassignAdminDelivery(adminOrderDetail.id)
+      .then((ord) => {
+        setAdminOrderDetail(ord);
+        setAdminOpsMessage("Delivery unassigned.");
+        loadAdminSectionData("orders");
+      })
+      .catch((e) => setAdminOpsMessage(e.message || "Unassign failed."));
+  }
+
+  function getAdminRefundableInfo(order) {
+    if (!order) return { paymentAmount: null, maxRefundable: null, paymentStatus: null };
+    const payments = Array.isArray(order.payments) ? order.payments : [];
+    const refundableStatuses = ["paid", "refund_pending", "partially_refunded"];
+    const paid = payments.find((p) => refundableStatuses.includes(p.status)) || payments[0] || null;
+    const paymentAmount = paid ? Number(paid.amount) : (order.total_amount != null ? Number(order.total_amount) : null);
+    const completedRefunded = Number(order.refunds_summary?.completed_amount ?? 0);
+    let maxRefundable = null;
+    if (paymentAmount != null && !Number.isNaN(paymentAmount)) {
+      maxRefundable = Math.max(0, Math.round((paymentAmount - completedRefunded) * 100) / 100);
+    }
+    return { paymentAmount, maxRefundable, paymentStatus: paid?.status || order.payment_status || null };
+  }
+
+  function closeCancelModal() {
+    setCancelModalOpen(false);
+    setCancelModalReason("");
+    setCancelModalError("");
+    setCancelModalSubmitting(false);
+  }
+
+  function openCancelModal() {
+    if (!adminOrderDetail?.id) return;
+    setCancelModalReason("");
+    setCancelModalError("");
+    setCancelModalSubmitting(false);
+    setCancelModalOpen(true);
+  }
+
+  function confirmCancelModal() {
+    if (!adminOrderDetail?.id) return;
+    setCancelModalSubmitting(true);
+    setCancelModalError("");
+    cancelAdminOrder(adminOrderDetail.id, cancelModalReason.trim())
+      .then((d) => {
+        setAdminOrderDetail(d);
+        setAdminOpsMessage("Order cancelled.");
+        closeCancelModal();
+        loadAdminSectionData("orders");
+      })
+      .catch((e) => setCancelModalError(e.message || "Cancel failed."))
+      .finally(() => setCancelModalSubmitting(false));
+  }
+
+  function closeRefundModal() {
+    setRefundModalOpen(false);
+    setRefundModalAmount("");
+    setRefundModalReason("Admin refund");
+    setRefundModalError("");
+    setRefundModalSubmitting(false);
+  }
+
+  function openRefundModal() {
+    if (!adminOrderDetail?.id) return;
+    setRefundModalAmount("");
+    setRefundModalReason("Admin refund");
+    setRefundModalError("");
+    setRefundModalSubmitting(false);
+    setRefundModalOpen(true);
+  }
+
+  function confirmRefundModal() {
+    if (!adminOrderDetail?.id) return;
+    const { maxRefundable } = getAdminRefundableInfo(adminOrderDetail);
+    const amountStr = String(refundModalAmount || "").trim();
+    const payload = { reason: (refundModalReason || "").trim() || "Admin refund" };
+    if (amountStr) {
+      const amountNum = Number(amountStr);
+      if (!Number.isFinite(amountNum) || amountNum <= 0) {
+        setRefundModalError("Enter a valid refund amount greater than zero, or leave blank for full refund.");
+        return;
+      }
+      if (maxRefundable != null && amountNum > maxRefundable + 1e-9) {
+        setRefundModalError(`Amount cannot exceed max refundable (₹${maxRefundable.toLocaleString("en-IN")}).`);
+        return;
+      }
+      payload.amount = amountStr;
+    }
+    setRefundModalSubmitting(true);
+    setRefundModalError("");
+    refundAdminOrder(adminOrderDetail.id, payload)
+      .then(() => {
+        setAdminOpsMessage("Refund initiated");
+        closeRefundModal();
+        return fetchAdminOrderDetail(adminOrderDetail.id).then(setAdminOrderDetail);
+      })
+      .catch((e) => setRefundModalError(e.message || "Refund failed."))
+      .finally(() => setRefundModalSubmitting(false));
+  }
+
+  function closeRestockModal() {
+    setRestockModalOpen(false);
+    setRestockModalItem(null);
+    setRestockModalAction("restock");
+    setRestockModalQty("10");
+    setRestockModalReason("Restock");
+    setRestockModalError("");
+    setRestockModalSubmitting(false);
+    setRestockModalSource("inventory");
+  }
+
+  function openRestockModal(item, source = "inventory") {
+    if (!item?.id) return;
+    setRestockModalItem(item);
+    setRestockModalAction("restock");
+    setRestockModalQty("10");
+    setRestockModalReason("Restock");
+    setRestockModalError("");
+    setRestockModalSubmitting(false);
+    setRestockModalSource(source);
+    setRestockModalOpen(true);
+  }
+
+  function confirmRestockModal() {
+    if (!restockModalItem?.id) return;
+    const qtyNum = Number(restockModalQty);
+    if (!Number.isFinite(qtyNum) || !Number.isInteger(qtyNum)) {
+      setRestockModalError("Quantity must be a whole number.");
+      return;
+    }
+    if (restockModalAction === "restock" || restockModalAction === "remove" || restockModalAction === "set") {
+      if (qtyNum < 0) {
+        setRestockModalError("Quantity must be zero or greater for this action.");
+        return;
+      }
+    }
+    if (restockModalAction === "restock" && qtyNum === 0) {
+      setRestockModalError("Restock quantity must be greater than zero.");
+      return;
+    }
+    setRestockModalSubmitting(true);
+    setRestockModalError("");
+    const reason = (restockModalReason || "").trim() || "Restock";
+    adjustAdminInventory(restockModalItem.id, {
+      action: restockModalAction,
+      quantity: qtyNum,
+      reason,
+    })
+      .then(() => {
+        setAdminOpsMessage("Stock updated.");
+        const source = restockModalSource;
+        closeRestockModal();
+        if (source === "products") {
+          return fetchProducts().then((data) => {
+            const list = Array.isArray(data) ? data : (data.results || []);
+            setCatalog(list.map(normalizeProduct));
+            notify("Stock updated");
+          });
+        }
+        return loadAdminSectionData("inventory");
+      })
+      .catch((e) => setRestockModalError(e.message || "Unable to adjust stock."))
+      .finally(() => setRestockModalSubmitting(false));
+  }
+
+
+  function openAdminLogin() {
+    setAdminOpen(true);
+    setAdminMessage("");
+    try {
+      window.history.pushState({}, "", "/admin-login");
+    } catch (_) { /* ignore */ }
+  }
+
+  function openCustomerDetail(userId) {
+    setAdminCustomerDetailLoading(true);
+    setAdminCustomerDetail(null);
+    fetchAdminCustomerDetail(userId)
+      .then((d) => setAdminCustomerDetail(d))
+      .catch((e) => setAdminOpsMessage(e.message || "Could not load customer"))
+      .finally(() => setAdminCustomerDetailLoading(false));
+  }
+
+  function handleEmployeeFormSubmit(e) {
+    e.preventDefault();
+    setAdminEmployeeMessage("");
+    const payload = {
+      employee_id: adminEmployeeForm.employee_id.trim(),
+      name: adminEmployeeForm.name.trim(),
+      contact_number: adminEmployeeForm.contact_number.trim(),
+      email: (adminEmployeeForm.email || "").trim(),
+      photo: (adminEmployeeForm.photo || "").trim(),
+      status: adminEmployeeForm.status || "ACTIVE",
+    };
+    const req = adminEmployeeEditingId
+      ? updateAdminEmployee(adminEmployeeEditingId, payload)
+      : createAdminEmployee(payload);
+    req
+      .then(() => {
+        setAdminEmployeeMessage(adminEmployeeEditingId ? "Employee updated." : "Employee created.");
+        resetEmployeeForm();
+        loadAdminSectionData("employees");
+      })
+      .catch((err) => setAdminEmployeeMessage(err.message || "Could not save employee."));
+  }
+
+  function startEditEmployee(emp) {
+    setAdminEmployeeEditingId(emp.id);
+    setAdminEmployeeForm({
+      employee_id: emp.employee_id || "",
+      name: emp.name || "",
+      contact_number: emp.contact_number || "",
+      email: emp.email || "",
+      photo: emp.photo || "",
+      status: emp.status || "ACTIVE",
+    });
+    setAdminEmployeeMessage("");
+  }
+
 
   function resetAuthForm() {
     setAuthForm({
@@ -1450,12 +2047,20 @@ function App() {
           <button
             type="button"
             className="header-action admin-login-btn"
-            onClick={() => setAdminOpen(true)}
-            aria-label={isAdminLoggedIn ? "Open admin panel" : "Admin login"}
-            title={isAdminLoggedIn ? "Open admin panel" : "Admin login"}
+            onClick={() => {
+              if (isAdminLoggedIn) {
+                setAdminOpen(true);
+                setAdminSection("dashboard");
+                try { window.history.pushState({}, "", "/admin"); } catch (_) { /* ignore */ }
+              } else {
+                openAdminLogin();
+              }
+            }}
+            aria-label={isAdminLoggedIn ? "Open admin panel" : "Admin Login"}
+            title={isAdminLoggedIn ? "Open admin panel" : "Admin Login"}
           >
             <span className="action-icon"><ShieldCheck size={16} /></span>
-            <span className="action-label">Admin</span>
+            <span className="action-label">{isAdminLoggedIn ? "Admin" : "Admin Login"}</span>
           </button>
 
           <button type="button" className="order-top" onClick={() => scrollTo("cakes")}>Order Now</button>
@@ -1474,7 +2079,7 @@ function App() {
             </div>
           </div>
           <div className="hero-image">
-            <img src="https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1600&q=90" alt="Premium chocolate cake"/>
+            <img src="https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1600&q=90" alt="Premium chocolate cake from pinkbakes" width="1600" height="1200" fetchPriority="high" />
             <div className="hero-note">Life is<br/><em>sweeter</em><br/>with cake <span>♡</span></div>
           </div>
         </section>
@@ -1485,9 +2090,13 @@ function App() {
             <h2>Find the Perfect Cake for Every Occasion</h2>
           </div>
           <div className="category-grid">
-            {categories.map(([name,img]) => (
+            {catalogLoading && shopCategories.length === 0 ? (
+              <div className="empty">Loading categories...</div>
+            ) : shopCategories.length === 0 ? (
+              <div className="empty">Categories will appear once cakes are published.</div>
+            ) : shopCategories.map(({ name, image: img }) => (
               <button key={name} className="category-card" onClick={() => {setCategory(name); scrollTo("cakes")}}>
-                <img src={img} alt={name}/><span>{name}</span>
+                <img src={img || CATEGORY_IMAGE_FALLBACKS[name] || CATEGORY_IMAGE_FALLBACKS["Birthday Cakes"]} alt={name} loading="lazy" width="600" height="400" /><span>{name}</span>
               </button>
             ))}
           </div>
@@ -1501,7 +2110,7 @@ function App() {
 
           <div className="catalog-toolbar">
             <div className="chips">
-              {["All Cakes","Birthday Cakes","Anniversary Cakes","Chocolate Cakes","Designer Cakes"].map(c =>
+              {(["All Cakes", ...shopCategories.map((c) => c.name)].filter((c, i, arr) => arr.indexOf(c) === i)).map(c =>
                 <button className={category === c ? "chip active" : "chip"} key={c} onClick={() => setCategory(c)}>{c}</button>
               )}
             </div>
@@ -1516,10 +2125,10 @@ function App() {
               return (
                 <article className="product-card" key={p.id}>
                   <div className="product-media">
-                    <img src={p.image || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1000&q=85"} alt={p.name}/>
+                    <img src={p.image || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1000&q=85"} alt={(p.name || "Cake") + " cake"} loading="lazy" width="600" height="750" />
                     {p.badge && <span className="badge">{p.badge}</span>}
                     <button className="heart"><Heart size={17}/></button>
-                    <button className="quick-view" onClick={() => setProduct(p)}><ZoomIn size={15}/> Quick View</button>
+                    <button className="quick-view" onClick={() => openProduct(p)}><ZoomIn size={15}/> Quick View</button>
                   </div>
                   <div className="product-body">
                     <div className="rating"><Star size={13} fill="currentColor"/>{Number(p.rating || 0).toFixed(1)}</div>
@@ -1532,7 +2141,7 @@ function App() {
                     {p.discount > 0 && <small className="discount-badge">{p.discount}% OFF</small>}
                     <div className="sizes"><span className={isOutOfStock(p) ? "stock-out" : (p.is_low_stock || p.availability === "low_stock" ? "stock-low" : "stock-ok")}>{stockLabel(p)}</span></div>
                     <div className="product-actions">
-                      <button className="btn secondary small" onClick={() => setProduct(p)}>View Cake</button>
+                      <button className="btn secondary small" onClick={() => openProduct(p)}>View Cake</button>
                       <button className="btn primary small" disabled={isOutOfStock(p)} onClick={() => addToCart(normalizeProduct(p))}>{isOutOfStock(p) ? "Out of Stock" : "Add to Cart"}</button>
                     </div>
                   </div>
@@ -1552,12 +2161,12 @@ function App() {
         </section>
 
         <section className="custom-banner section" id="custom">
-          <div className="custom-image"><img src="https://images.unsplash.com/photo-1557925923-cd4648e211a0?auto=format&fit=crop&w=1100&q=85" alt="Custom cake"/></div>
+          <div className="custom-image"><img src="https://images.unsplash.com/photo-1557925923-cd4648e211a0?auto=format&fit=crop&w=1100&q=85" alt="Custom celebration cake" loading="lazy" width="1100" height="800" /></div>
           <div className="custom-copy">
             <span className="eyebrow">DREAM IT • WE'LL BAKE IT</span>
             <h2>Create Your Custom Cake</h2>
             <p>Have a special idea in mind? Let us bring it to life with a cake designed just for you.</p>
-            <button className="btn primary" onClick={() => notify("Custom cake request form coming next")}>Design Your Custom Cake</button>
+            <button className="btn primary" onClick={() => scrollTo("contact")}>Design Your Custom Cake</button>
           </div>
           <div className="custom-points">
             <span><Check/> Personalized Designs</span><span><Check/> Any Theme</span><span><Check/> Any Size</span><span><Check/> Delicious Flavours</span>
@@ -1594,7 +2203,7 @@ function App() {
         <section className="gallery section" id="gallery">
           <div className="section-head">
             <div><span className="eyebrow">FOLLOW OUR SWEET JOURNEY</span><h2>Made to Be Shared</h2></div>
-            <button className="outline-pill" onClick={() => notify("Opening Instagram...")}><Instagram size={15}/> Follow on Instagram</button>
+            <button className="outline-pill" onClick={() => scrollTo("contact")}><Instagram size={15}/> Get in touch</button>
           </div>
           <div className="gallery-grid">
             {[
@@ -1604,7 +2213,7 @@ function App() {
               "https://images.unsplash.com/photo-1586788680434-30d324b2d46f?auto=format&fit=crop&w=600&q=85",
               "https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=600&q=85",
               "https://images.unsplash.com/photo-1519869325930-281384150729?auto=format&fit=crop&w=600&q=85"
-            ].map((src,i)=><img key={i} src={src} alt="Cake gallery"/>)
+            ].map((src,i)=><img key={i} src={src} alt="Handcrafted cake from pinkbakes gallery" loading="lazy" width="600" height="600" />)
             }
           </div>
         </section>
@@ -1620,20 +2229,31 @@ function App() {
         <div className="footer-top">
           <div className="footer-brand"><div className="brand-mark"><CakeSlice size={21}/></div><strong>{BRAND_NAME}</strong><small>CAKES FOR EVERY MOMENT</small><p>Handcrafted cakes made for life's sweetest celebrations.</p></div>
           <div><h4>Explore</h4><button onClick={() => scrollTo("cakes")}>Cakes</button><button onClick={() => scrollTo("categories")}>Categories</button><button onClick={() => scrollTo("custom")}>Custom Cakes</button><button onClick={() => scrollTo("gallery")}>Gallery</button></div>
-          <div><h4>Company</h4><button onClick={() => notify("About page coming next")}>About Us</button><button onClick={() => notify("Contact page coming next")}>Contact</button><button onClick={() => notify("Delivery policy coming next")}>Shipping & Delivery</button><button onClick={() => notify("Refund policy coming next")}>Refund Policy</button></div>
+          <div><h4>Company</h4><button type="button" onClick={() => scrollTo("about")}>About Us</button><button type="button" onClick={() => scrollTo("contact")}>Contact</button><button type="button" onClick={() => scrollTo("contact")}>Shipping & Delivery</button><button type="button" onClick={() => scrollTo("contact")}>Refund Policy</button></div>
           <div className="newsletter"><h4>Subscribe for latest updates</h4><form onSubmit={subscribe}><input value={newsletter} onChange={e=>setNewsletter(e.target.value)} placeholder="Your email address" type="email" required/><button aria-label="Subscribe"><ArrowRight/></button></form>{newsletterDone && <span className="subscribed"><Check size={14}/> You're subscribed!</span>}<div className="social"><Instagram/><MessageCircle/><Heart/></div></div>
         </div>
         <div className="footer-bottom"><span>© 2026 {BRAND_NAME}. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms & Conditions &nbsp; | &nbsp; Shipping & Delivery &nbsp; | &nbsp; Refund Policy</span></div>
       </footer>
 
-      {product && <ProductModal product={product} onClose={() => setProduct(null)} onAdd={() => {addToCart(product); setProduct(null)}} stockLabel={stockLabel} isOutOfStock={isOutOfStock}/>}
+      {product && <ProductModal product={product} onClose={closeProduct} onAdd={() => {addToCart(product); closeProduct()}} stockLabel={stockLabel} isOutOfStock={isOutOfStock}/>}
+
+      {productNotFound && (
+        <div className="modal-backdrop" onClick={closeProduct} role="dialog" aria-label="Cake not found">
+          <div className="product-modal" style={{maxWidth: 480, padding: "2rem", textAlign: "center"}} onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={closeProduct} aria-label="Close"><X/></button>
+            <h1 style={{fontSize: "1.5rem", marginBottom: "0.75rem"}}>Cake not found</h1>
+            <p style={{marginBottom: "1.25rem"}}>This cake is unavailable or no longer listed.</p>
+            <button type="button" className="btn primary" onClick={() => { closeProduct(); scrollTo("cakes"); }}>Browse cakes</button>
+          </div>
+        </div>
+      )}
 
       {adminOpen && !isAdminLoggedIn && (
-        <div className="admin-modal-backdrop" onClick={() => setAdminOpen(false)}>
+        <div className="admin-modal-backdrop" onClick={() => { setAdminOpen(false); try { if ((window.location.pathname || "").startsWith("/admin")) window.history.pushState({}, "", "/"); } catch (_) {} }}>
           <div className="admin-modal" onClick={e => e.stopPropagation()}>
             <div className="admin-modal-head">
               <h3>Admin Login</h3>
-              <button onClick={() => setAdminOpen(false)}><X/></button>
+              <button type="button" onClick={() => { setAdminOpen(false); try { if ((window.location.pathname || "").startsWith("/admin")) window.history.pushState({}, "", "/"); } catch (_) {} }}><X/></button>
             </div>
             <form className="admin-form" onSubmit={handleAdminLogin}>
               <label>
@@ -1661,6 +2281,220 @@ function App() {
         </div>
       )}
 
+      {assignPickerOpen && (
+        <div className="admin-modal-backdrop admin-assign-backdrop" onClick={closeAssignPicker}>
+          <div className="admin-modal admin-assign-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="assign-delivery-title">
+            <div className="admin-modal-head">
+              <h3 id="assign-delivery-title">{adminOrderDetail?.delivery_employee ? "Reassign delivery" : "Assign delivery"}</h3>
+              <button type="button" onClick={closeAssignPicker} aria-label="Close"><X/></button>
+            </div>
+            <div className="admin-form">
+              {adminOrderDetail && (
+                <p className="admin-muted" style={{ margin: 0 }}>
+                  Order {adminOrderDetail.order_number}
+                  {adminOrderDetail.delivery_employee
+                    ? ` - currently ${adminOrderDetail.delivery_employee.name}`
+                    : " - no employee assigned"}
+                </p>
+              )}
+              {assignPickerLoading && <div className="admin-empty">Loading delivery employees...</div>}
+              {!assignPickerLoading && assignPickerError && !assignPickerEmployees.length && (
+                <span className="admin-error">{assignPickerError}</span>
+              )}
+              {!assignPickerLoading && !assignPickerEmployees.length && !assignPickerError && (
+                <div className="admin-empty">No active/available delivery employees. Create one under Delivery first.</div>
+              )}
+              {!assignPickerLoading && assignPickerEmployees.length > 0 && (
+                <label>
+                  Delivery employee
+                  <select
+                    value={assignPickerSelectedId}
+                    onChange={(e) => setAssignPickerSelectedId(e.target.value)}
+                    disabled={assignPickerSubmitting}
+                  >
+                    <option value="">Select employee...</option>
+                    {assignPickerEmployees.map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.name} - #{e.id} ({e.employee_id}) - {e.status}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {assignPickerError && assignPickerEmployees.length > 0 && (
+                <span className="admin-error">{assignPickerError}</span>
+              )}
+              <div className="admin-form-row" style={{ marginTop: 4 }}>
+                <button type="button" className="btn secondary small" onClick={closeAssignPicker} disabled={assignPickerSubmitting}>Cancel</button>
+                <button
+                  type="button"
+                  className="btn primary small"
+                  onClick={confirmAssignPicker}
+                  disabled={assignPickerLoading || assignPickerSubmitting || !assignPickerSelectedId}
+                >
+                  {assignPickerSubmitting ? "Assigning..." : (adminOrderDetail?.delivery_employee ? "Confirm reassign" : "Confirm assign")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {cancelModalOpen && (
+        <div className="admin-modal-backdrop admin-ops-backdrop" onClick={closeCancelModal}>
+          <div className="admin-modal admin-ops-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="cancel-order-title">
+            <div className="admin-modal-head">
+              <h3 id="cancel-order-title">Cancel order</h3>
+              <button type="button" onClick={closeCancelModal} aria-label="Close" disabled={cancelModalSubmitting}><X/></button>
+            </div>
+            <div className="admin-form">
+              {adminOrderDetail && (
+                <p className="admin-muted" style={{ margin: 0 }}>
+                  Order {adminOrderDetail.order_number} (#{adminOrderDetail.id}) — status {adminOrderDetail.status}
+                </p>
+              )}
+              <label>
+                Reason <span className="admin-muted">(optional)</span>
+                <textarea
+                  rows={3}
+                  value={cancelModalReason}
+                  onChange={(e) => setCancelModalReason(e.target.value)}
+                  placeholder="Why is this order being cancelled?"
+                  disabled={cancelModalSubmitting}
+                />
+              </label>
+              {cancelModalError && <span className="admin-error">{cancelModalError}</span>}
+              <div className="admin-form-row" style={{ marginTop: 4 }}>
+                <button type="button" className="btn secondary small" onClick={closeCancelModal} disabled={cancelModalSubmitting}>Cancel</button>
+                <button type="button" className="btn primary small" onClick={confirmCancelModal} disabled={cancelModalSubmitting}>
+                  {cancelModalSubmitting ? "Cancelling..." : "Confirm cancel"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {refundModalOpen && (() => {
+        const info = getAdminRefundableInfo(adminOrderDetail);
+        return (
+          <div className="admin-modal-backdrop admin-ops-backdrop" onClick={closeRefundModal}>
+            <div className="admin-modal admin-ops-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="refund-order-title">
+              <div className="admin-modal-head">
+                <h3 id="refund-order-title">Refund</h3>
+                <button type="button" onClick={closeRefundModal} aria-label="Close" disabled={refundModalSubmitting}><X/></button>
+              </div>
+              <div className="admin-form">
+                {adminOrderDetail && (
+                  <div className="admin-ops-summary">
+                    <p className="admin-muted" style={{ margin: 0 }}>
+                      Order {adminOrderDetail.order_number} (#{adminOrderDetail.id})
+                    </p>
+                    <p className="admin-muted" style={{ margin: 0 }}>
+                      Payment: {info.paymentStatus || "—"}
+                      {info.paymentAmount != null ? ` · original ₹${Number(info.paymentAmount).toLocaleString("en-IN")}` : ""}
+                    </p>
+                    <p className="admin-muted" style={{ margin: 0 }}>
+                      Max refundable (estimate): {info.maxRefundable != null ? `₹${Number(info.maxRefundable).toLocaleString("en-IN")}` : "—"}
+                      <span className="admin-muted"> — backend is source of truth</span>
+                    </p>
+                  </div>
+                )}
+                <label>
+                  Amount <span className="admin-muted">(blank = full remaining)</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={refundModalAmount}
+                    onChange={(e) => setRefundModalAmount(e.target.value)}
+                    placeholder={info.maxRefundable != null ? String(info.maxRefundable) : "Full refund"}
+                    disabled={refundModalSubmitting}
+                  />
+                </label>
+                <label>
+                  Reason
+                  <input
+                    type="text"
+                    value={refundModalReason}
+                    onChange={(e) => setRefundModalReason(e.target.value)}
+                    placeholder="Admin refund"
+                    disabled={refundModalSubmitting}
+                  />
+                </label>
+                {refundModalError && <span className="admin-error">{refundModalError}</span>}
+                <div className="admin-form-row" style={{ marginTop: 4 }}>
+                  <button type="button" className="btn secondary small" onClick={closeRefundModal} disabled={refundModalSubmitting}>Cancel</button>
+                  <button type="button" className="btn primary small" onClick={confirmRefundModal} disabled={refundModalSubmitting}>
+                    {refundModalSubmitting ? "Refunding..." : "Confirm refund"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {restockModalOpen && (
+        <div className="admin-modal-backdrop admin-ops-backdrop" onClick={closeRestockModal}>
+          <div className="admin-modal admin-ops-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="restock-title">
+            <div className="admin-modal-head">
+              <h3 id="restock-title">Adjust inventory</h3>
+              <button type="button" onClick={closeRestockModal} aria-label="Close" disabled={restockModalSubmitting}><X/></button>
+            </div>
+            <div className="admin-form">
+              {restockModalItem && (
+                <p className="admin-muted" style={{ margin: 0 }}>
+                  {restockModalItem.name || "Product"} (#{restockModalItem.id})
+                  {" — available "}
+                  {restockModalItem.available_quantity ?? restockModalItem.stock_remaining ?? "—"}
+                </p>
+              )}
+              <label>
+                Action
+                <select
+                  value={restockModalAction}
+                  onChange={(e) => setRestockModalAction(e.target.value)}
+                  disabled={restockModalSubmitting}
+                >
+                  <option value="restock">Restock (add quantity)</option>
+                  <option value="remove">Remove (subtract quantity)</option>
+                  <option value="set">Set absolute quantity</option>
+                  <option value="adjust">Adjust (+/- quantity)</option>
+                </select>
+              </label>
+              <label>
+                Quantity
+                <input
+                  type="number"
+                  step="1"
+                  value={restockModalQty}
+                  onChange={(e) => setRestockModalQty(e.target.value)}
+                  disabled={restockModalSubmitting}
+                />
+              </label>
+              <label>
+                Note / reason <span className="admin-muted">(optional)</span>
+                <input
+                  type="text"
+                  value={restockModalReason}
+                  onChange={(e) => setRestockModalReason(e.target.value)}
+                  placeholder="Restock"
+                  disabled={restockModalSubmitting}
+                />
+              </label>
+              {restockModalError && <span className="admin-error">{restockModalError}</span>}
+              <div className="admin-form-row" style={{ marginTop: 4 }}>
+                <button type="button" className="btn secondary small" onClick={closeRestockModal} disabled={restockModalSubmitting}>Cancel</button>
+                <button type="button" className="btn primary small" onClick={confirmRestockModal} disabled={restockModalSubmitting || !restockModalItem}>
+                  {restockModalSubmitting ? "Saving..." : "Confirm adjust"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isAdminLoggedIn && (
         <aside className="admin-panel">
           <div className="admin-panel-head">
@@ -1668,22 +2502,360 @@ function App() {
               <span className="eyebrow">ADMIN PANEL</span>
               <h2>{BRAND_NAME} Dashboard</h2>
             </div>
-            <div className="admin-panel-actions">
-              <button className="btn secondary small" onClick={() => { setAdminReportsView(false); setAdminCouponsView(v => !v); if (!adminCouponsView) loadAdminCoupons(); }}>{adminCouponsView ? "Dashboard" : "Coupons"}</button>
-              <button className="btn secondary small" onClick={() => { setAdminReportsView(false); setAdminCouponsView(false); setAdminDeliveryView(v => !v); if (!adminDeliveryView) loadAdminDeliveryZones(); }}>{adminDeliveryView ? "Dashboard" : "Delivery Zones"}</button>
-              <button className="btn secondary small" onClick={() => { setAdminCouponsView(false); setAdminDeliveryView(false); setAdminReportsView(v => !v); }}>{adminReportsView ? "Dashboard" : "Reports"}</button>
-              <button type="button" className="btn secondary small" onClick={() => {
-                const token = localStorage.getItem("pinkbakes_admin_token");
-                if (!token) return;
-                fetchAdminNotifications(token)
-                  .then((data) => setAdminNotifications(Array.isArray(data?.results) ? data.results : []))
-                  .catch(() => setAdminNotifications([]));
-              }}>Alerts</button>
+            <div className="admin-panel-actions admin-nav-wrap">
+              {[
+                ["dashboard", "Dashboard"],
+                ["orders", "Orders"],
+                ["payments", "Payments"],
+                ["refunds", "Refunds"],
+                ["products", "Products"],
+                ["inventory", "Inventory"],
+                ["coupons", "Coupons"],
+                ["customers", "Customers"],
+                ["employees", "Delivery"],
+                ["reviews", "Reviews"],
+                ["notifications", "Notifications"],
+                ["reports", "Reports"],
+                ["settings", "Settings"],
+                ["delivery", "Zones"],
+              ].map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={`btn secondary small${adminSection === id || (id === "reports" && adminReportsView) || (id === "delivery" && adminDeliveryView) || (id === "coupons" && adminCouponsView) ? " active" : ""}`}
+                  onClick={() => goAdminSection(id)}
+                >{label}</button>
+              ))}
               <button className="btn secondary small" onClick={handleAdminLogout}>Logout</button>
             </div>
           </div>
 
           <div className="admin-content">
+            {adminOpsMessage && <div className="admin-error" style={{ marginBottom: 12 }}>{adminOpsMessage}</div>}
+            {adminLoadingSection && <div className="empty">Loading…</div>}
+
+            {!adminReportsView && !adminDeliveryView && !adminCouponsView && adminSection === "dashboard" && (
+              <div className="admin-reports-page">
+                <div className="report-topbar">
+                  <div><span className="eyebrow">OVERVIEW</span><h3>Operations Dashboard</h3></div>
+                  <select value={adminDashPreset} onChange={(e) => { setAdminDashPreset(e.target.value); loadAdminSectionData("dashboard", e.target.value); }}>
+                    <option value="today">Today</option>
+                    <option value="yesterday">Yesterday</option>
+                    <option value="last_7_days">Last 7 days</option>
+                    <option value="last_30_days">Last 30 days</option>
+                    <option value="this_month">This month</option>
+                  </select>
+                </div>
+                <div className="report-summary-grid">
+                  <div className="report-card" role="button" onClick={() => goAdminSection("orders")}><span>Orders today</span><strong>{adminDashboard?.orders?.today ?? 0}</strong></div>
+                  <div className="report-card" role="button" onClick={() => goAdminSection("orders")}><span>Pending</span><strong>{adminDashboard?.pending_orders ?? 0}</strong></div>
+                  <div className="report-card"><span>Preparing</span><strong>{adminDashboard?.orders?.preparing ?? 0}</strong></div>
+                  <div className="report-card" role="button" onClick={() => goAdminSection("employees")}><span>Out for delivery</span><strong>{adminDashboard?.orders?.out_for_delivery ?? 0}</strong></div>
+                  <div className="report-card"><span>Delivered</span><strong>{adminDashboard?.orders?.delivered ?? 0}</strong></div>
+                  <div className="report-card"><span>Cancelled</span><strong>{adminDashboard?.orders?.cancelled ?? 0}</strong></div>
+                  <div className="report-card" role="button" onClick={() => goAdminSection("reports")}><span>Net revenue</span><strong>₹{Number(adminDashboard?.revenue ?? 0).toLocaleString("en-IN")}</strong></div>
+                  <div className="report-card" role="button" onClick={() => goAdminSection("payments")}><span>Payments OK</span><strong>{adminDashboard?.payments?.successful ?? 0}</strong></div>
+                  <div className="report-card" role="button" onClick={() => goAdminSection("refunds")}><span>Refunds pending</span><strong>{adminDashboard?.payments?.refunds_pending ?? 0}</strong></div>
+                  <div className="report-card" role="button" onClick={() => goAdminSection("inventory")}><span>Low stock</span><strong>{adminDashboard?.low_stock ?? 0}</strong></div>
+                  <div className="report-card" role="button" onClick={() => goAdminSection("coupons")}><span>Active coupons</span><strong>{adminDashboard?.active_coupons ?? 0}</strong></div>
+                  <div className="report-card" role="button" onClick={() => goAdminSection("reviews")}><span>Reviews pending</span><strong>{adminDashboard?.reviews?.pending ?? 0}</strong></div>
+                  <div className="report-card" role="button" onClick={() => goAdminSection("customers")}><span>Customers</span><strong>{adminDashboard?.customers?.total ?? 0}</strong></div>
+                  <div className="report-card"><span>Gross sales</span><strong>₹{Number(adminDashboard?.sales_summary?.gross_sales ?? 0).toLocaleString("en-IN")}</strong></div>
+                  <div className="report-card"><span>Refunds</span><strong>₹{Number(adminDashboard?.sales_summary?.refunds ?? 0).toLocaleString("en-IN")}</strong></div>
+                  <div className="report-card"><span>Delivery fees</span><strong>₹{Number(adminDashboard?.sales_summary?.delivery_charges ?? 0).toLocaleString("en-IN")}</strong></div>
+                </div>
+              </div>
+            )}
+
+            {!adminReportsView && !adminDeliveryView && adminSection === "orders" && (
+              <div className="admin-reports-page">
+                <div className="report-topbar"><div><span className="eyebrow">ORDERS</span><h3>Order management</h3></div>
+                  <button type="button" className="btn secondary small" onClick={() => downloadAdminExport("orders").catch((e) => setAdminOpsMessage(e.message))}>Export CSV</button>
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                  <input placeholder="Search" value={adminOrderFilter.search} onChange={(e) => setAdminOrderFilter((p) => ({ ...p, search: e.target.value }))} />
+                  <select value={adminOrderFilter.status} onChange={(e) => setAdminOrderFilter((p) => ({ ...p, status: e.target.value }))}>
+                    <option value="">All statuses</option>
+                    {["PENDING","ORDER_CONFIRMED","PREPARING","PACKING","READY_FOR_DELIVERY","DELIVERY_BOY_ASSIGNED","OUT_FOR_DELIVERY","DELIVERED","CANCELLED"].map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <select value={adminOrderFilter.payment_status} onChange={(e) => setAdminOrderFilter((p) => ({ ...p, payment_status: e.target.value }))}>
+                    <option value="">All payments</option>
+                    {["pending","paid","failed","refunded"].map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <button type="button" className="btn primary small" onClick={() => loadAdminSectionData("orders")}>Filter</button>
+                </div>
+                {adminOrderDetail ? (
+                  <div className="report-section">
+                    <button type="button" className="btn secondary small" onClick={() => setAdminOrderDetail(null)}>Back</button>
+                    <h4>{adminOrderDetail.order_number} — {adminOrderDetail.status}</h4>
+                    <p>{adminOrderDetail.customer_name} · {adminOrderDetail.customer_email} · {adminOrderDetail.customer_mobile}</p>
+                    <p>{adminOrderDetail.shipping_address}, {adminOrderDetail.city} {adminOrderDetail.postal_code}</p>
+                    <p>Payment: {adminOrderDetail.payment_status} · Total ₹{Number(adminOrderDetail.total_amount || 0).toLocaleString("en-IN")} · Coupon {adminOrderDetail.coupon_code || "—"}</p>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "12px 0" }}>
+                      <select id="admin-next-status" key={adminOrderDetail.status} defaultValue="">
+                        <option value="">Next status...</option>
+                        {getNextOrderStatuses(adminOrderDetail.status).map((s) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      {getNextOrderStatuses(adminOrderDetail.status).length === 0 && (
+                        <span className="admin-muted">No further status transitions (use Cancel if needed).</span>
+                      )}
+                      <button type="button" className="btn primary small" onClick={() => {
+                        const el = document.getElementById("admin-next-status");
+                        const st = el && el.value;
+                        if (!st) return;
+                        updateAdminOrderStatus(adminOrderDetail.id, { status: st })
+                          .then((d) => { setAdminOrderDetail(d); setAdminOpsMessage("Status updated"); loadAdminSectionData("orders"); })
+                          .catch((e) => setAdminOpsMessage(e.message || "Status update failed"));
+                      }}>Apply</button>
+                      <button type="button" className="btn secondary small" onClick={openCancelModal}>Cancel order</button>
+                      <button type="button" className="btn secondary small" onClick={openRefundModal}>Refund</button>
+                      <button type="button" className="btn secondary small" onClick={openAssignPicker}>
+                        {adminOrderDetail.delivery_employee ? "Reassign delivery" : "Assign delivery"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn secondary small"
+                        disabled={!adminOrderDetail.delivery_employee}
+                        onClick={handleUnassignDelivery}
+                      >
+                        Unassign
+                      </button>
+                    </div>
+                    <p className="admin-muted" style={{ marginTop: 4 }}>
+                      Delivery: {adminOrderDetail.delivery_employee
+                        ? `${adminOrderDetail.delivery_employee.name} (#${adminOrderDetail.delivery_employee.id} / ${adminOrderDetail.delivery_employee.employee_id || "-"} / ${adminOrderDetail.delivery_employee.status || ""})`
+                        : "Not assigned"}
+                    </p>
+                    <div className="table-wrap"><table className="report-table"><thead><tr><th>Item</th><th>Qty</th><th>Price</th></tr></thead><tbody>
+                      {(adminOrderDetail.items || []).map((it) => <tr key={it.id}><td>{it.product_name}</td><td>{it.quantity}</td><td>₹{Number(it.subtotal || 0).toLocaleString("en-IN")}</td></tr>)}
+                    </tbody></table></div>
+                    <h4>History</h4>
+                    <ul>{(adminOrderDetail.status_history || []).map((h) => <li key={h.id}>{h.status} — {h.message} <small>{new Date(h.created_at).toLocaleString()}</small></li>)}</ul>
+                  </div>
+                ) : (
+                  <div className="table-wrap"><table className="report-table"><thead><tr><th>Order</th><th>Customer</th><th>Status</th><th>Payment</th><th>Total</th><th></th></tr></thead><tbody>
+                    {adminOrders.length === 0 && (<tr><td colSpan={6}><div className="admin-empty">No orders match filters.</div></td></tr>)}{adminOrders.map((o) => (
+                      <tr key={o.id}>
+                        <td>{o.order_number}</td><td>{o.customer_name}</td><td>{o.status}</td><td>{o.payment_status}</td>
+                        <td>₹{Number(o.total_amount || 0).toLocaleString("en-IN")}</td>
+                        <td><button type="button" className="btn secondary small" onClick={() => fetchAdminOrderDetail(o.id).then(setAdminOrderDetail).catch((e) => setAdminOpsMessage(e.message))}>Open</button></td>
+                      </tr>
+                    ))}
+                  </tbody></table></div>
+                )}
+              </div>
+            )}
+
+            {!adminReportsView && !adminDeliveryView && adminSection === "payments" && (
+              <div className="admin-reports-page">
+                <div className="report-topbar"><div><span className="eyebrow">PAYMENTS</span><h3>Payments</h3></div>
+                  <button type="button" className="btn secondary small" onClick={() => downloadAdminExport("payments").catch((e) => setAdminOpsMessage(e.message))}>Export CSV</button>
+                </div>
+                <div className="table-wrap"><table className="report-table"><thead><tr><th>Order</th><th>Customer</th><th>Amount</th><th>Status</th><th>Method</th><th>Gateway order</th><th>Failure</th></tr></thead><tbody>
+                  {adminPayments.length === 0 && (<tr><td colSpan={7}><div className="admin-empty">No payments yet.</div></td></tr>)}{adminPayments.map((p) => <tr key={p.id}><td>{p.order_number}</td><td>{p.customer_name}</td><td>₹{Number(p.amount || 0).toLocaleString("en-IN")}</td><td>{p.status}</td><td>{p.payment_method || "—"}</td><td>{p.gateway_order_id}</td><td>{p.failure_reason || "—"}</td></tr>)}
+                </tbody></table></div>
+              </div>
+            )}
+
+            {!adminReportsView && !adminDeliveryView && adminSection === "refunds" && (
+              <div className="admin-reports-page">
+                <div className="report-topbar"><div><span className="eyebrow">REFUNDS</span><h3>Refunds</h3></div>
+                  <button type="button" className="btn secondary small" onClick={() => downloadAdminExport("refunds").catch((e) => setAdminOpsMessage(e.message))}>Export CSV</button>
+                </div>
+                <div className="table-wrap"><table className="report-table"><thead><tr><th>ID</th><th>Order</th><th>Amount</th><th>Status</th><th>By</th><th>Reason</th><th>Gateway refund</th></tr></thead><tbody>
+                  {adminRefunds.length === 0 && (<tr><td colSpan={7}><div className="admin-empty">No refunds yet.</div></td></tr>)}{adminRefunds.map((r) => <tr key={r.id}><td>{r.id}</td><td>{r.order}</td><td>₹{Number(r.amount || 0).toLocaleString("en-IN")}</td><td>{r.status}</td><td>{r.initiated_by_type}</td><td>{r.reason || "—"}</td><td>{r.gateway_refund_id || "—"}</td></tr>)}
+                </tbody></table></div>
+              </div>
+            )}
+
+            {!adminReportsView && !adminDeliveryView && adminSection === "inventory" && (
+              <div className="admin-reports-page">
+                <div className="report-topbar"><div><span className="eyebrow">INVENTORY</span><h3>Stock control</h3></div>
+                  <button type="button" className="btn secondary small" onClick={() => downloadAdminExport("inventory").catch((e) => setAdminOpsMessage(e.message))}>Export CSV</button>
+                </div>
+                <div className="table-wrap"><table className="report-table"><thead><tr><th>Product</th><th>Available</th><th>Reserved</th><th>Sold</th><th>Availability</th><th></th></tr></thead><tbody>
+                  {adminInventory.length === 0 && (<tr><td colSpan={6}><div className="admin-empty">No inventory rows.</div></td></tr>)}{adminInventory.map((item) => (
+                    <tr key={item.id}>
+                      <td>{item.name}</td><td>{item.available_quantity}</td><td>{item.reserved_quantity}</td><td>{item.sold_quantity}</td><td>{item.availability}</td>
+                      <td><button type="button" className="btn secondary small" onClick={() => openRestockModal(item, "inventory")}>Restock</button></td>
+                    </tr>
+                  ))}
+                </tbody></table></div>
+              </div>
+            )}
+
+            {!adminReportsView && !adminDeliveryView && (adminSection === "coupons" || adminCouponsView) && (
+              <div className="admin-reports-page">
+                <div className="report-topbar"><div><span className="eyebrow">COUPONS</span><h3>Promo codes</h3></div></div>
+                {adminCouponMessage && <div className="admin-error">{adminCouponMessage}</div>}
+                <form className="admin-form" onSubmit={(e) => { e.preventDefault(); createAdminCoupon({
+                  code: adminCouponForm.code, name: adminCouponForm.name, discount_type: adminCouponForm.discount_type,
+                  discount_value: adminCouponForm.discount_value, is_active: !!adminCouponForm.is_active,
+                }).then(() => { setAdminCouponMessage("Coupon created."); setAdminCouponForm({ code: "", name: "", discount_type: "percentage", discount_value: "10", is_active: true }); loadAdminCoupons(); }).catch((err) => setAdminCouponMessage(err.message)); }}>
+                  <label>Code<input value={adminCouponForm.code} onChange={(e) => setAdminCouponForm((p) => ({ ...p, code: e.target.value }))} /></label>
+                  <label>Name<input value={adminCouponForm.name} onChange={(e) => setAdminCouponForm((p) => ({ ...p, name: e.target.value }))} /></label>
+                  <label>Type<select value={adminCouponForm.discount_type} onChange={(e) => setAdminCouponForm((p) => ({ ...p, discount_type: e.target.value }))}><option value="percentage">Percentage</option><option value="fixed_amount">Fixed</option></select></label>
+                  <label>Value<input type="number" value={adminCouponForm.discount_value} onChange={(e) => setAdminCouponForm((p) => ({ ...p, discount_value: e.target.value }))} /></label>
+                  <label><input type="checkbox" checked={!!adminCouponForm.is_active} onChange={(e) => setAdminCouponForm((p) => ({ ...p, is_active: e.target.checked }))} /> Active</label>
+                  <button type="submit" className="btn primary small">Create coupon</button>
+                </form>
+                <div className="table-wrap"><table className="report-table"><thead><tr><th>Code</th><th>Type</th><th>Value</th><th>Used</th><th>Active</th><th></th></tr></thead><tbody>
+                  {adminCoupons.map((c) => (
+                    <tr key={c.id}><td>{c.code}</td><td>{c.discount_type}</td><td>{c.discount_value}</td><td>{c.total_used}</td><td>{c.is_active ? "Yes" : "No"}</td>
+                      <td><button type="button" className="btn secondary small" onClick={() => updateAdminCoupon(c.id, { is_active: !c.is_active }).then(() => loadAdminCoupons())}>{c.is_active ? "Disable" : "Enable"}</button></td>
+                    </tr>
+                  ))}
+                </tbody></table></div>
+              </div>
+            )}
+
+            {!adminReportsView && !adminDeliveryView && adminSection === "customers" && (
+              <div className="admin-reports-page">
+                <div className="report-topbar"><div><span className="eyebrow">CUSTOMERS</span><h3>Customer accounts</h3></div>
+                  <button type="button" className="btn secondary small" onClick={() => downloadAdminExport("customers").catch((e) => setAdminOpsMessage(e.message))}>Export CSV</button>
+                </div>
+                <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                  <input placeholder="Search name/email/mobile" value={adminCustomerSearch} onChange={(e) => setAdminCustomerSearch(e.target.value)} />
+                  <button type="button" className="btn primary small" onClick={() => loadAdminSectionData("customers")}>Search</button>
+                </div>
+                <div className="table-wrap"><table className="report-table"><thead><tr><th>User</th><th>Email</th><th>Mobile</th><th>Orders</th><th>Purchase</th><th>Active</th><th></th></tr></thead><tbody>
+                  {adminCustomers.length === 0 && (
+                    <tr><td colSpan={7}><div className="admin-empty">No customers found.</div></td></tr>
+                  )}
+                  {adminCustomers.map((c) => (
+                    <tr key={c.id}><td>{c.username}</td><td>{c.email}</td><td>{c.mobile_number || "—"}</td><td>{c.order_count}</td><td>₹{Number(c.total_purchase || 0).toLocaleString("en-IN")}</td><td>{c.is_active ? "Yes" : "No"}</td>
+                      <td style={{ display: "flex", gap: 6 }}>
+                        <button type="button" className="btn secondary small" onClick={() => openCustomerDetail(c.id)}>View</button>
+                        <button type="button" className="btn secondary small" onClick={() => updateAdminCustomerStatus(c.id, !c.is_active).then(() => { loadAdminSectionData("customers"); if (adminCustomerDetail?.id === c.id) openCustomerDetail(c.id); }).catch((e) => setAdminOpsMessage(e.message))}>{c.is_active ? "Deactivate" : "Activate"}</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody></table></div>
+              </div>
+            )}
+
+            {!adminReportsView && !adminDeliveryView && adminSection === "employees" && (
+              <div className="admin-reports-page">
+                <div className="report-topbar"><div><span className="eyebrow">DELIVERY</span><h3>Employees & active deliveries</h3></div></div>
+                {adminEmployeeMessage && <div className={adminEmployeeMessage.includes("Could") ? "admin-error" : "admin-success"}>{adminEmployeeMessage}</div>}
+                <form className="admin-form" onSubmit={handleEmployeeFormSubmit} style={{ background: "#fff", border: "1px solid #f0e3d6", borderRadius: 14, paddingBottom: 16 }}>
+                  <div className="admin-form-head">
+                    <strong>{adminEmployeeEditingId ? "Edit employee" : "Create employee"}</strong>
+                    {adminEmployeeEditingId && <button type="button" className="btn secondary small" onClick={resetEmployeeForm}>Cancel edit</button>}
+                  </div>
+                  <div className="admin-form-row">
+                    <label>Employee ID<input value={adminEmployeeForm.employee_id} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, employee_id: e.target.value }))} required disabled={!!adminEmployeeEditingId} /></label>
+                    <label>Name<input value={adminEmployeeForm.name} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, name: e.target.value }))} required /></label>
+                  </div>
+                  <div className="admin-form-row">
+                    <label>Contact<input value={adminEmployeeForm.contact_number} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, contact_number: e.target.value }))} required /></label>
+                    <label>Email<input type="email" value={adminEmployeeForm.email} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, email: e.target.value }))} /></label>
+                  </div>
+                  <div className="admin-form-row">
+                    <label>Photo URL<input value={adminEmployeeForm.photo} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, photo: e.target.value }))} /></label>
+                    <label>Status<select value={adminEmployeeForm.status} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, status: e.target.value }))}>
+                      {["ACTIVE","AVAILABLE","BUSY","ON_LEAVE","INACTIVE"].map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select></label>
+                  </div>
+                  <button type="submit" className="btn primary small">{adminEmployeeEditingId ? "Save employee" : "Create employee"}</button>
+                </form>
+                <h4>Active deliveries</h4>
+                <div className="table-wrap"><table className="report-table"><thead><tr><th>Order</th><th>Status</th><th>Employee</th><th>Duration</th><th>Delayed</th><th>Location</th></tr></thead><tbody>
+                  {adminActiveDeliveries.length === 0 ? (
+                    <tr><td colSpan={6}><div className="admin-empty">No active deliveries.</div></td></tr>
+                  ) : adminActiveDeliveries.map((d) => (
+                    <tr key={d.id}><td>{d.order_number}</td><td>{d.status}</td><td>{d.delivery_employee?.name || "-"}</td><td>{d.duration_minutes ?? "-"}m</td><td>{d.delayed ? "Yes" : "No"}</td>
+                      <td>{d.last_known_location ? `${d.last_known_location.latitude}, ${d.last_known_location.longitude}` : "-"}</td></tr>
+                  ))}
+                </tbody></table></div>
+                <h4>Employees</h4>
+                <div className="table-wrap"><table className="report-table"><thead><tr><th>ID</th><th>Name</th><th>Contact</th><th>Email</th><th>Status</th><th></th></tr></thead><tbody>
+                  {adminEmployees.length === 0 ? (
+                    <tr><td colSpan={6}><div className="admin-empty">No employees yet. Create one above.</div></td></tr>
+                  ) : adminEmployees.map((e) => (
+                    <tr key={e.id}>
+                      <td>{e.employee_id}</td><td>{e.name}</td><td>{e.contact_number}</td><td>{e.email || "-"}</td><td>{e.status}</td>
+                      <td><button type="button" className="btn secondary small" onClick={() => startEditEmployee(e)}>Edit</button></td>
+                    </tr>
+                  ))}
+                </tbody></table></div>
+              </div>
+            )}
+
+            {!adminReportsView && !adminDeliveryView && adminSection === "reviews" && (
+              <div className="admin-reports-page">
+                <div className="report-topbar"><div><span className="eyebrow">REVIEWS</span><h3>Moderation</h3></div>
+                  <select value={adminReviewFilter} onChange={(e) => { const v = e.target.value; setAdminReviewFilter(v); setAdminLoadingSection(true); fetchAdminReviews({ status: v, page: 1, page_size: 25 }).then((d) => setAdminReviews(Array.isArray(d) ? d : (d.results || []))).catch((err) => setAdminOpsMessage(err.message || "Reviews failed")).finally(() => setAdminLoadingSection(false)); }}>
+                    <option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="">All</option>
+                  </select>
+                </div>
+                <div className="table-wrap"><table className="report-table"><thead><tr><th>Product</th><th>User</th><th>Rating</th><th>Comment</th><th>Status</th><th></th></tr></thead><tbody>
+                  {adminReviews.map((r) => (
+                    <tr key={r.id}><td>{r.product_name || r.product}</td><td>{r.user_name || r.name}</td><td>{r.rating}</td><td>{r.comment}</td><td>{r.status}</td>
+                      <td style={{ display: "flex", gap: 6 }}>
+                        {r.status === "pending" && <>
+                          <button type="button" className="btn primary small" onClick={() => approveAdminReview(r.id).then(() => loadAdminSectionData("reviews"))}>Approve</button>
+                          <button type="button" className="btn secondary small" onClick={() => rejectAdminReview(r.id, "Rejected by admin").then(() => loadAdminSectionData("reviews"))}>Reject</button>
+                        </>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody></table></div>
+              </div>
+            )}
+
+            {!adminReportsView && !adminDeliveryView && adminSection === "notifications" && (
+              <div className="admin-reports-page">
+                <div className="report-topbar"><div><span className="eyebrow">NOTIFICATIONS</span><h3>Admin alerts</h3></div>
+                  <button type="button" className="btn secondary small" onClick={() => loadAdminSectionData("notifications")}>Refresh</button>
+                </div>
+                <div style={{ display: "grid", gap: 8 }}>
+                  {(adminNotifications || []).length === 0 ? <div className="empty">No admin alerts.</div> : adminNotifications.map((n) => (
+                    <div key={n.id} className="report-card" style={{ textAlign: "left" }}>
+                      <strong>{n.title}</strong>
+                      <div>{n.body}</div>
+                      <small>{n.event} · {n.reference_type} {n.reference_id} · {new Date(n.created_at).toLocaleString()} · {n.is_read ? "Read" : "Unread"}</small>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!adminReportsView && !adminDeliveryView && adminSection === "settings" && (
+              <div className="admin-reports-page">
+                <div className="report-topbar"><div><span className="eyebrow">SETTINGS</span><h3>Business & integrations</h3></div></div>
+                {adminSettings && (
+                  <>
+                    <div className="report-summary-grid">
+                      <div className="report-card"><span>SMTP</span><strong>{adminSettings.integrations?.smtp_configured ? "Configured" : "Not configured"}</strong></div>
+                      <div className="report-card"><span>SMS</span><strong>{adminSettings.integrations?.sms_configured ? "Configured" : "Not configured"}</strong></div>
+                      <div className="report-card"><span>WhatsApp</span><strong>{adminSettings.integrations?.whatsapp_configured ? "Configured" : "Not configured"}</strong></div>
+                      <div className="report-card"><span>Payments</span><strong>{adminSettings.integrations?.payment_configured ? "Configured" : "Not configured"}</strong></div>
+                    </div>
+                    <form className="admin-form" onSubmit={(e) => {
+                      e.preventDefault();
+                      updateAdminSettingsStatus({
+                        bakery_latitude: adminSettings.business?.bakery_latitude,
+                        bakery_longitude: adminSettings.business?.bakery_longitude,
+                        delivery_enabled: !!adminSettings.business?.delivery_enabled,
+                        default_delivery_charge: adminSettings.business?.default_delivery_charge,
+                        free_delivery_threshold: adminSettings.business?.free_delivery_threshold,
+                        max_delivery_radius_km: adminSettings.business?.max_delivery_radius_km,
+                        per_km_charge: adminSettings.business?.per_km_charge,
+                      }).then((d) => { setAdminSettings(d); setAdminOpsMessage("Settings saved"); }).catch((err) => setAdminOpsMessage(err.message));
+                    }}>
+                      <label>Bakery latitude<input value={adminSettings.business?.bakery_latitude || ""} onChange={(e) => setAdminSettings((p) => ({ ...p, business: { ...p.business, bakery_latitude: e.target.value } }))} /></label>
+                      <label>Bakery longitude<input value={adminSettings.business?.bakery_longitude || ""} onChange={(e) => setAdminSettings((p) => ({ ...p, business: { ...p.business, bakery_longitude: e.target.value } }))} /></label>
+                      <label>Default delivery charge<input value={adminSettings.business?.default_delivery_charge || ""} onChange={(e) => setAdminSettings((p) => ({ ...p, business: { ...p.business, default_delivery_charge: e.target.value } }))} /></label>
+                      <label><input type="checkbox" checked={!!adminSettings.business?.delivery_enabled} onChange={(e) => setAdminSettings((p) => ({ ...p, business: { ...p.business, delivery_enabled: e.target.checked } }))} /> Delivery enabled</label>
+                      <p><small>Contact: {adminSettings.business?.contact_email || "—"} · Secrets are never shown or accepted here.</small></p>
+                      <button type="submit" className="btn primary small">Save operational settings</button>
+                    </form>
+                  </>
+                )}
+              </div>
+            )}
+
             {adminReportsView ? (
               <div className="admin-reports-page">
                 <div className="report-topbar">
@@ -1856,7 +3028,7 @@ function App() {
                   ))}
                 </div>
               </div>
-            ) : (
+            ) : (adminSection === "products" || (!["dashboard","orders","payments","refunds","inventory","coupons","customers","employees","reviews","notifications","settings"].includes(adminSection))) ? (
               <>
                 <form className="admin-form add-cake-form" onSubmit={submitCakeForm}>
                   <div className="admin-form-head">
@@ -1880,16 +3052,7 @@ function App() {
                   <label>
                     Category
                     <select value={cakeForm.category} onChange={e => setCakeForm(prev => ({ ...prev, category: e.target.value }))}>
-                      {[
-                        "Birthday Cakes",
-                        "Anniversary Cakes",
-                        "Wedding Cakes",
-                        "Chocolate Cakes",
-                        "Designer Cakes",
-                        "Photo Cakes",
-                        "Custom Cakes",
-                        "Eggless Cakes"
-                      ].map(categoryName => <option key={categoryName} value={categoryName}>{categoryName}</option>)}
+                      {CAKE_CATEGORY_OPTIONS.map(categoryName => <option key={categoryName} value={categoryName}>{categoryName}</option>)}
                     </select>
                   </label>
                   <label>
@@ -1943,28 +3106,63 @@ function App() {
                       </div>
                       <div className="admin-item-actions">
                         <button className="btn secondary small" onClick={() => populateCakeForm(item)}>Edit</button>
-                        <button className="btn secondary small" type="button" onClick={() => {
-                          const qty = window.prompt("Restock quantity to add", "10");
-                          if (qty == null || qty === "") return;
-                          const reason = window.prompt("Reason", "Restock") || "Restock";
-                          const token = localStorage.getItem("pinkbakes_admin_token");
-                          adjustAdminInventory(item.id, { action: "restock", quantity: Number(qty), reason })
-                            .then(() => fetchProducts().then(data => {
-                              const list = Array.isArray(data) ? data : (data.results || []);
-                              setCatalog(list.map(normalizeProduct));
-                              notify("Stock updated");
-                            }))
-                            .catch(err => notify(err.message || "Unable to adjust stock"));
-                        }}>Restock</button>
+                        <button className="btn secondary small" type="button" onClick={() => openRestockModal(item, "products")}>Restock</button>
                         <button className="admin-remove" onClick={() => removeCake(item.id)}><Trash2 size={15}/> Remove</button>
                       </div>
                     </div>
                   ))}
                 </div>
               </>
-            )}
+            ) : null}
           </div>
         </aside>
+      )}
+
+      {(adminCustomerDetail || adminCustomerDetailLoading) && (
+        <>
+          <div className="admin-drawer-backdrop" onClick={() => { setAdminCustomerDetail(null); setAdminCustomerDetailLoading(false); }} />
+          <aside className="admin-drawer" role="dialog" aria-label="Customer detail">
+            <div className="drawer-head">
+              <h2>Customer</h2>
+              <button type="button" onClick={() => { setAdminCustomerDetail(null); setAdminCustomerDetailLoading(false); }}><X /></button>
+            </div>
+            <div className="admin-drawer-body">
+              {adminCustomerDetailLoading && <div className="admin-empty">Loading...</div>}
+              {adminCustomerDetail && (
+                <>
+                  <p><strong>{adminCustomerDetail.first_name || ""} {adminCustomerDetail.last_name || ""}</strong> <span className="admin-muted">@{adminCustomerDetail.username}</span></p>
+                  <p className="admin-muted">{adminCustomerDetail.email} · {adminCustomerDetail.mobile_number || "No mobile"}</p>
+                  <p>Status: <strong>{adminCustomerDetail.is_active ? "Active" : "Inactive"}</strong>
+                    {" · "}Verified: {adminCustomerDetail.is_verified ? "Yes" : "No"}
+                    {" · "}Joined: {adminCustomerDetail.date_joined ? new Date(adminCustomerDetail.date_joined).toLocaleDateString() : "-"}
+                  </p>
+                  <p>Orders: <strong>{adminCustomerDetail.order_count ?? 0}</strong> · Purchase: <strong>₹{Number(adminCustomerDetail.total_purchase || 0).toLocaleString("en-IN")}</strong></p>
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <button type="button" className="btn primary small" onClick={() => updateAdminCustomerStatus(adminCustomerDetail.id, !adminCustomerDetail.is_active).then(() => { openCustomerDetail(adminCustomerDetail.id); loadAdminSectionData("customers"); setAdminOpsMessage(adminCustomerDetail.is_active ? "Customer deactivated" : "Customer activated"); }).catch((e) => setAdminOpsMessage(e.message))}>
+                      {adminCustomerDetail.is_active ? "Deactivate" : "Activate"}
+                    </button>
+                  </div>
+                  <h4>Addresses</h4>
+                  {(adminCustomerDetail.addresses || []).length === 0 ? <div className="admin-empty">No saved addresses.</div> : (
+                    <ul className="tracking-history">
+                      {(adminCustomerDetail.addresses || []).map((a) => (
+                        <li key={a.id}><span>{a.full_name}{a.is_default ? " (default)" : ""}</span><small>{a.address_line_1}, {a.city} {a.postal_code}</small></li>
+                      ))}
+                    </ul>
+                  )}
+                  <h4>Recent orders</h4>
+                  {(adminCustomerDetail.orders || []).length === 0 ? <div className="admin-empty">No orders.</div> : (
+                    <div className="table-wrap"><table className="report-table"><thead><tr><th>Order</th><th>Status</th><th>Total</th></tr></thead><tbody>
+                      {(adminCustomerDetail.orders || []).slice(0, 15).map((o) => (
+                        <tr key={o.id}><td>{o.order_number}</td><td>{o.status}</td><td>₹{Number(o.total_amount || 0).toLocaleString("en-IN")}</td></tr>
+                      ))}
+                    </tbody></table></div>
+                  )}
+                </>
+              )}
+            </div>
+          </aside>
+        </>
       )}
 
       <aside className={cartOpen ? "cart-drawer open" : "cart-drawer"}>
@@ -2839,17 +4037,24 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
     <div className="product-modal" onClick={e=>e.stopPropagation()}>
       <button className="modal-close" onClick={onClose}><X/></button>
       <div className="modal-gallery">
-        <div className={zoom ? "modal-main zoomed" : "modal-main"}><img src={image || detail.image} alt={detail.name}/></div>
-        <div className="thumbs">{gallery.map(src=><button className={src===image?"selected":""} key={src} onClick={()=>setImage(src)}><img src={src} alt=""/></button>)}</div>
+        <div className={zoom ? "modal-main zoomed" : "modal-main"}><img src={image || detail.image} alt={(detail.name || "Cake") + " cake"} width="800" height="800" /></div>
+        <div className="thumbs">{gallery.map(src=><button className={src===image?"selected":""} key={src} onClick={()=>setImage(src)}><img src={src} alt={(detail.name || "Cake") + " photo"} loading="lazy" width="120" height="120" /></button>)}</div>
         <div className="viewer-buttons"><button onClick={()=>setZoom(!zoom)}><ZoomIn/> {zoom?"Reset Zoom":"Zoom"}</button><button onClick={()=>setThreeD(!threeD)}><Rotate3d/> {threeD?"Exit 3D":"3D Preview"}</button></div>
         {threeD && <div className="mini-3d"><div className="cake-3d-shape"></div><span>Drag-ready 3D preview</span></div>}
       </div>
       <div className="modal-info">
         {loading ? <div className="empty">Loading cake details...</div> : (
           <>
+            <nav className="product-breadcrumbs" aria-label="Breadcrumb" style={{fontSize: "0.85rem", marginBottom: "0.75rem", opacity: 0.85}}>
+              <a href="/" onClick={(e) => { e.preventDefault(); onClose(); }}>Home</a>
+              <span aria-hidden="true"> / </span>
+              <a href="/#cakes" onClick={(e) => { e.preventDefault(); onClose(); document.getElementById("cakes")?.scrollIntoView({behavior: "smooth"}); }}>{detail.category || "Cakes"}</a>
+              <span aria-hidden="true"> / </span>
+              <span aria-current="page">{detail.name}</span>
+            </nav>
             <span className="eyebrow">{(detail.category || "CAKE").toUpperCase()}</span>
             <div className="rating"><Star size={14} fill="currentColor"/>{Number(detail.average_rating ?? detail.rating ?? 0).toFixed(1)} • {detail.review_count || reviews.length || 0} reviews</div>
-            <h2>{detail.name}</h2>
+            <h1 className="product-title">{detail.name}</h1>
             <p className="modal-desc">{detail.description || detail.short_description || "Freshly baked for your special celebration."}</p>
             <div className="modal-price-row">
               <span className="modal-price">₹{Number(currentPrice || 0).toLocaleString("en-IN")}</span>
