@@ -11,11 +11,9 @@ import {
   cancelOrder,
   checkoutOrder,
   createPaymentSession,
-  createAdminCoupon,
   createProduct,
   deleteProduct,
   fetchAdminReportSummary,
-  fetchAdminCoupons,
   fetchCurrentUser,
   fetchOrder,
   fetchOrders,
@@ -32,28 +30,12 @@ import {
   signUp,
   submitReview,
   updateProduct,
-  updateAdminCoupon,
-  validateCoupon,
   validateCart,
   adjustAdminInventory,
-  fetchAddresses,
-  createAddress,
-  quoteDelivery,
-  fetchAdminDeliveryZones,
-  createAdminDeliveryZone,
-  updateAdminDeliveryZone,
-  fetchAdminDeliverySettings,
-  updateAdminDeliverySettings,
   verifyEmail,
   verifyLoginOtp,
   verifyOtp,
-  verifyResetToken,
-  fetchNotificationPreferences,
-  updateNotificationPreferences,
-  fetchInAppNotifications,
-  markNotificationRead,
-  markAllNotificationsRead,
-  fetchAdminNotifications,
+  verifyResetToken
 } from "./services/authService";
 import { appConfig, getMapsUrl } from "./config";
 import "./styles.css";
@@ -224,48 +206,19 @@ function App() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutMessage, setCheckoutMessage] = useState("");
-  const [couponCodeInput, setCouponCodeInput] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState(null);
-  const [couponMessage, setCouponMessage] = useState("");
-  const [couponLoading, setCouponLoading] = useState(false);
-  const [adminCouponsView, setAdminCouponsView] = useState(false);
-  const [adminCoupons, setAdminCoupons] = useState([]);
-  const [adminCouponForm, setAdminCouponForm] = useState({ code: "", name: "", discount_type: "percentage", discount_value: "10", is_active: true });
-  const [adminCouponMessage, setAdminCouponMessage] = useState("");
-  const [adminDeliveryView, setAdminDeliveryView] = useState(false);
-  const [adminZones, setAdminZones] = useState([]);
-  const [adminZoneForm, setAdminZoneForm] = useState({
-    name: "", postal_codes: "", delivery_charge: "50", minimum_order_amount: "0",
-    free_delivery_threshold: "", is_active: true,
-  });
-  const [adminDeliveryMessage, setAdminDeliveryMessage] = useState("");
-  const [adminDeliverySettings, setAdminDeliverySettings] = useState(null);
-  const [savedAddresses, setSavedAddresses] = useState([]);
-  const [selectedAddressId, setSelectedAddressId] = useState(null);
-  const [showNewAddressForm, setShowNewAddressForm] = useState(false);
-  const [deliveryQuote, setDeliveryQuote] = useState(null);
-  const [deliveryQuoteMessage, setDeliveryQuoteMessage] = useState("");
   const [checkoutForm, setCheckoutForm] = useState({
     customer_name: "",
     customer_email: "",
     customer_mobile: "",
     shipping_address: "",
     shipping_address_2: "",
-    landmark: "",
     city: "",
     state: "",
     postal_code: "",
     country: "India",
-    notes: "",
-    shipping_latitude: "",
-    shipping_longitude: "",
+    notes: ""
   });
   const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
-  const [notificationPrefs, setNotificationPrefs] = useState(null);
-  const [notificationPrefsMessage, setNotificationPrefsMessage] = useState("");
-  const [inAppNotifications, setInAppNotifications] = useState([]);
-  const [notifUnreadCount, setNotifUnreadCount] = useState(0);
-  const [adminNotifications, setAdminNotifications] = useState([]);
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [authMessage, setAuthMessage] = useState("");
@@ -433,9 +386,6 @@ function App() {
 
   const cartCount = cart.reduce((n, item) => n + item.qty, 0);
   const cartTotal = cart.reduce((n, item) => n + item.price * item.qty, 0);
-  const couponDiscountPreview = Number(appliedCoupon?.discount_amount || 0);
-  const deliveryFeePreview = deliveryQuote?.eligible ? Number(deliveryQuote.delivery_fee || 0) : 0;
-  const checkoutPayable = Math.max(0, cartTotal - couponDiscountPreview + (deliveryQuote?.eligible ? deliveryFeePreview : 0));
 
   function notify(message) {
     setToast(message);
@@ -878,222 +828,6 @@ function App() {
         setOrderHistoryOpen(true);
       })
       .catch(() => { setOrders([]); setOrderHistoryOpen(true); });
-
-    // loadUserOrders prefs + in-app notifications
-    fetchNotificationPreferences(token)
-      .then((data) => setNotificationPrefs(data))
-      .catch(() => {});
-    fetchInAppNotifications(token, { limit: 20 })
-      .then((data) => {
-        setInAppNotifications(Array.isArray(data?.results) ? data.results : []);
-        setNotifUnreadCount(data?.unread_count || 0);
-      })
-      .catch(() => {});
-  }
-
-
-  function handleApplyCoupon() {
-    const token = localStorage.getItem("pinkbakes_token");
-    if (!token || !user) {
-      setCouponMessage("Please sign in to apply a coupon.");
-      return;
-    }
-    const code = (couponCodeInput || "").trim();
-    if (!code) {
-      setCouponMessage("Enter a coupon code.");
-      return;
-    }
-    if (!cart.length) {
-      setCouponMessage("Your cart is empty.");
-      return;
-    }
-    setCouponLoading(true);
-    setCouponMessage("");
-    validateCoupon({
-      code,
-      items: cart.map(item => ({ id: item.id, quantity: item.qty || 1 })),
-    }, token)
-      .then((data) => {
-        if (!data?.valid) {
-          setAppliedCoupon(null);
-          setCouponMessage(data?.message || "Invalid coupon.");
-          return;
-        }
-        setAppliedCoupon({
-          code: data.code,
-          discount_type: data.discount_type,
-          discount_amount: Number(data.discount_amount || 0),
-        });
-        setCouponMessage(data.message || "Coupon applied.");
-        refreshDeliveryQuote(checkoutForm.postal_code, selectedAddressId, checkoutForm.shipping_latitude, checkoutForm.shipping_longitude);
-      })
-      .catch((error) => {
-        setAppliedCoupon(null);
-        setCouponMessage(error.message || "Unable to validate coupon.");
-      })
-      .finally(() => setCouponLoading(false));
-  }
-
-  function handleRemoveCoupon() {
-    setAppliedCoupon(null);
-    setCouponCodeInput("");
-    setCouponMessage("");
-  }
-
-  function loadAdminCoupons() {
-    fetchAdminCoupons()
-      .then((data) => setAdminCoupons(data.results || []))
-      .catch((error) => setAdminCouponMessage(error.message || "Unable to load coupons."));
-  }
-
-  function handleCreateAdminCoupon(e) {
-    e.preventDefault();
-    setAdminCouponMessage("");
-    createAdminCoupon({
-      code: adminCouponForm.code,
-      name: adminCouponForm.name,
-      discount_type: adminCouponForm.discount_type,
-      discount_value: adminCouponForm.discount_value,
-      is_active: !!adminCouponForm.is_active,
-      applies_to: "all",
-    })
-      .then(() => {
-        setAdminCouponMessage("Coupon created.");
-        setAdminCouponForm({ code: "", name: "", discount_type: "percentage", discount_value: "10", is_active: true });
-        loadAdminCoupons();
-      })
-      .catch((error) => setAdminCouponMessage(error.message || "Could not create coupon."));
-  }
-
-  function handleToggleAdminCoupon(coupon) {
-    updateAdminCoupon(coupon.id, { is_active: !coupon.is_active })
-      .then(() => loadAdminCoupons())
-      .catch((error) => setAdminCouponMessage(error.message || "Could not update coupon."));
-  }
-
-  function loadSavedAddresses() {
-    const token = localStorage.getItem("pinkbakes_token");
-    if (!token) return;
-    fetchAddresses(token)
-      .then((data) => {
-        const list = data.results || [];
-        setSavedAddresses(list);
-        const def = list.find(a => a.is_default) || list[0];
-        if (def) {
-          applyAddressToCheckout(def);
-        }
-      })
-      .catch(() => setSavedAddresses([]));
-  }
-
-  function applyAddressToCheckout(addr) {
-    if (!addr) return;
-    setSelectedAddressId(addr.id);
-    setShowNewAddressForm(false);
-    setCheckoutForm(prev => ({
-      ...prev,
-      customer_name: addr.full_name || prev.customer_name,
-      customer_mobile: addr.mobile_number || prev.customer_mobile,
-      shipping_address: addr.address_line_1 || "",
-      shipping_address_2: addr.address_line_2 || "",
-      landmark: addr.landmark || "",
-      city: addr.city || "",
-      state: addr.state || "",
-      postal_code: addr.postal_code || "",
-      country: addr.country || "India",
-      shipping_latitude: addr.latitude != null ? String(addr.latitude) : "",
-      shipping_longitude: addr.longitude != null ? String(addr.longitude) : "",
-    }));
-    refreshDeliveryQuote(addr.postal_code, addr.id, addr.latitude, addr.longitude);
-  }
-
-  function refreshDeliveryQuote(postalCode, addressId, lat, lng) {
-    const token = localStorage.getItem("pinkbakes_token");
-    if (!token) return;
-    const pin = (postalCode || checkoutForm.postal_code || "").trim();
-    if (!pin || cart.length === 0) {
-      setDeliveryQuote(null);
-      return;
-    }
-    const payload = {
-      postal_code: pin,
-      items: cart.map(item => ({ id: item.id, quantity: item.qty || 1 })),
-      ...(appliedCoupon?.code ? { coupon_code: appliedCoupon.code } : {}),
-      ...(addressId ? { address_id: addressId } : {}),
-      ...(lat != null && lat !== "" ? { shipping_latitude: lat } : {}),
-      ...(lng != null && lng !== "" ? { shipping_longitude: lng } : {}),
-    };
-    quoteDelivery(payload, token)
-      .then((data) => {
-        setDeliveryQuote(data);
-        setDeliveryQuoteMessage(data.message || "");
-      })
-      .catch((error) => {
-        setDeliveryQuote(null);
-        setDeliveryQuoteMessage(error.message || "Unable to quote delivery.");
-      });
-  }
-
-  function handleSaveNewAddress() {
-    const token = localStorage.getItem("pinkbakes_token");
-    if (!token) return;
-    const payload = {
-      full_name: checkoutForm.customer_name || `${user?.first_name || ""} ${user?.last_name || ""}`.trim() || user?.username || "Customer",
-      mobile_number: checkoutForm.customer_mobile || user?.mobile_number || "",
-      address_line_1: checkoutForm.shipping_address,
-      address_line_2: checkoutForm.shipping_address_2 || "",
-      landmark: checkoutForm.landmark || "",
-      city: checkoutForm.city,
-      state: checkoutForm.state,
-      postal_code: checkoutForm.postal_code,
-      country: checkoutForm.country || "India",
-      latitude: checkoutForm.shipping_latitude || null,
-      longitude: checkoutForm.shipping_longitude || null,
-      address_type: "HOME",
-      is_default: savedAddresses.length === 0,
-    };
-    createAddress(payload, token)
-      .then((addr) => {
-        setSavedAddresses(prev => [addr, ...prev.filter(a => a.id !== addr.id)]);
-        applyAddressToCheckout(addr);
-        notify("Address saved");
-      })
-      .catch((error) => setCheckoutMessage(error.message || "Unable to save address."));
-  }
-
-  function loadAdminDeliveryZones() {
-    fetchAdminDeliveryZones()
-      .then((data) => setAdminZones(data.results || []))
-      .catch((error) => setAdminDeliveryMessage(error.message || "Unable to load zones."));
-    fetchAdminDeliverySettings()
-      .then((data) => setAdminDeliverySettings(data))
-      .catch(() => {});
-  }
-
-  function handleCreateAdminZone(e) {
-    e.preventDefault();
-    setAdminDeliveryMessage("");
-    const pins = (adminZoneForm.postal_codes || "").split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
-    createAdminDeliveryZone({
-      name: adminZoneForm.name,
-      postal_codes: pins,
-      delivery_charge: adminZoneForm.delivery_charge,
-      minimum_order_amount: adminZoneForm.minimum_order_amount || "0",
-      free_delivery_threshold: adminZoneForm.free_delivery_threshold || null,
-      is_active: !!adminZoneForm.is_active,
-    })
-      .then(() => {
-        setAdminDeliveryMessage("Zone created.");
-        setAdminZoneForm({ name: "", postal_codes: "", delivery_charge: "50", minimum_order_amount: "0", free_delivery_threshold: "", is_active: true });
-        loadAdminDeliveryZones();
-      })
-      .catch((error) => setAdminDeliveryMessage(error.message || "Could not create zone."));
-  }
-
-  function toggleAdminZone(zone) {
-    updateAdminDeliveryZone(zone.id, { is_active: !zone.is_active })
-      .then(() => loadAdminDeliveryZones())
-      .catch((error) => setAdminDeliveryMessage(error.message || "Could not update zone."));
   }
 
   function openCheckout() {
@@ -1110,14 +844,7 @@ function App() {
     }
 
     setCheckoutMessage("");
-    setCouponCodeInput("");
-    setAppliedCoupon(null);
-    setCouponMessage("");
-    setDeliveryQuote(null);
-    setDeliveryQuoteMessage("");
-    setShowNewAddressForm(false);
     setCheckoutOpen(true);
-    loadSavedAddresses();
   }
 
   function handleCheckoutSubmit(e) {
@@ -1128,31 +855,12 @@ function App() {
       return;
     }
 
-    if (deliveryQuote && deliveryQuote.eligible === false) {
-      setCheckoutMessage(deliveryQuote.message || "Delivery is not available for this address.");
-      return;
-    }
-
     const payload = {
       items: cart.map(item => ({ id: item.id, quantity: item.qty || 1 })),
+      ...checkoutForm,
       customer_name: checkoutForm.customer_name || `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.username,
       customer_email: checkoutForm.customer_email || user.email || "",
       customer_mobile: checkoutForm.customer_mobile || user.mobile_number || "",
-      notes: checkoutForm.notes || "",
-      ...(appliedCoupon?.code ? { coupon_code: appliedCoupon.code } : {}),
-      ...(selectedAddressId
-        ? { address_id: selectedAddressId }
-        : {
-            shipping_address: checkoutForm.shipping_address,
-            shipping_address_2: checkoutForm.shipping_address_2,
-            landmark: checkoutForm.landmark || "",
-            city: checkoutForm.city,
-            state: checkoutForm.state,
-            postal_code: checkoutForm.postal_code,
-            country: checkoutForm.country || "India",
-            ...(checkoutForm.shipping_latitude ? { shipping_latitude: checkoutForm.shipping_latitude } : {}),
-            ...(checkoutForm.shipping_longitude ? { shipping_longitude: checkoutForm.shipping_longitude } : {}),
-          }),
     };
 
     setCheckoutLoading(true);
@@ -1644,16 +1352,6 @@ function App() {
                 Password
                 <input type="password" value={adminCredentials.password} onChange={e => setAdminCredentials(prev => ({ ...prev, password: e.target.value }))} placeholder="pinkbake" />
               </label>
-              {adminNotifications.length > 0 && (
-                <div className="cart-summary" style={{ marginBottom: 12 }}>
-                  <strong>Admin notification feed</strong>
-                  <ul className="tracking-history" style={{ maxHeight: 120, overflow: "auto" }}>
-                    {adminNotifications.slice(0, 6).map((n) => (
-                      <li key={n.id}><span>{n.title}</span><small>{n.created_at ? new Date(n.created_at).toLocaleString() : ""}</small></li>
-                    ))}
-                  </ul>
-                </div>
-              )}
               {adminMessage && <span className="admin-error">{adminMessage}</span>}
               <button type="submit" className="btn primary full">Login</button>
             </form>
@@ -1669,16 +1367,7 @@ function App() {
               <h2>{BRAND_NAME} Dashboard</h2>
             </div>
             <div className="admin-panel-actions">
-              <button className="btn secondary small" onClick={() => { setAdminReportsView(false); setAdminCouponsView(v => !v); if (!adminCouponsView) loadAdminCoupons(); }}>{adminCouponsView ? "Dashboard" : "Coupons"}</button>
-              <button className="btn secondary small" onClick={() => { setAdminReportsView(false); setAdminCouponsView(false); setAdminDeliveryView(v => !v); if (!adminDeliveryView) loadAdminDeliveryZones(); }}>{adminDeliveryView ? "Dashboard" : "Delivery Zones"}</button>
-              <button className="btn secondary small" onClick={() => { setAdminCouponsView(false); setAdminDeliveryView(false); setAdminReportsView(v => !v); }}>{adminReportsView ? "Dashboard" : "Reports"}</button>
-              <button type="button" className="btn secondary small" onClick={() => {
-                const token = localStorage.getItem("pinkbakes_admin_token");
-                if (!token) return;
-                fetchAdminNotifications(token)
-                  .then((data) => setAdminNotifications(Array.isArray(data?.results) ? data.results : []))
-                  .catch(() => setAdminNotifications([]));
-              }}>Alerts</button>
+              <button className="btn secondary small" onClick={() => setAdminReportsView(v => !v)}>{adminReportsView ? "Dashboard" : "Reports"}</button>
               <button className="btn secondary small" onClick={handleAdminLogout}>Logout</button>
             </div>
           </div>
@@ -1717,9 +1406,6 @@ function App() {
                       <div className="report-card"><span>Failed payments</span><strong>{reportSummary.sales_stats?.failed_payments ?? 0}</strong></div>
                       <div className="report-card"><span>Pending payments</span><strong>{reportSummary.sales_stats?.pending_payments ?? 0}</strong></div>
                       <div className="report-card"><span>Orders</span><strong>{reportSummary.sales_stats?.total_orders ?? 0}</strong></div>
-                      <div className="report-card"><span>Orders with coupon</span><strong>{reportSummary.sales_stats?.orders_with_coupon ?? 0}</strong></div>
-                      <div className="report-card"><span>Coupon discount</span><strong>₹{Number(reportSummary.sales_stats?.total_coupon_discount ?? 0).toLocaleString("en-IN")}</strong></div>
-                      <div className="report-card"><span>Coupons used</span><strong>{reportSummary.sales_stats?.coupons_used_count ?? 0}</strong></div>
                     </div>
 
                     <div className="report-section">
@@ -1781,80 +1467,6 @@ function App() {
                     </div>
                   </>
                 )}
-              </div>
-            ) : adminDeliveryView ? (
-              <div className="admin-reports-page">
-                <div className="report-topbar">
-                  <div>
-                    <span className="eyebrow">DELIVERY</span>
-                    <h3>Delivery Zones & Settings</h3>
-                  </div>
-                  <button type="button" className="btn primary small" onClick={() => setAdminDeliveryView(false)}>Close</button>
-                </div>
-                {adminDeliveryMessage && <div className="admin-error">{adminDeliveryMessage}</div>}
-                {adminDeliverySettings && (
-                  <form className="admin-form" style={{ marginBottom: 16 }} onSubmit={(e) => {
-                    e.preventDefault();
-                    updateAdminDeliverySettings({
-                      delivery_enabled: !!adminDeliverySettings.delivery_enabled,
-                      default_delivery_charge: adminDeliverySettings.default_delivery_charge,
-                      free_delivery_threshold: adminDeliverySettings.free_delivery_threshold || null,
-                      bakery_latitude: adminDeliverySettings.bakery_latitude || null,
-                      bakery_longitude: adminDeliverySettings.bakery_longitude || null,
-                      max_delivery_radius_km: adminDeliverySettings.max_delivery_radius_km || null,
-                      per_km_charge: adminDeliverySettings.per_km_charge || null,
-                    })
-                      .then((data) => { setAdminDeliverySettings(data); setAdminDeliveryMessage("Settings saved."); })
-                      .catch((err) => setAdminDeliveryMessage(err.message || "Could not save settings."));
-                  }}>
-                    <h4>Global settings</h4>
-                    <div className="auth-row">
-                      <label>Default charge<input type="number" value={adminDeliverySettings.default_delivery_charge ?? ""} onChange={e => setAdminDeliverySettings(prev => ({ ...prev, default_delivery_charge: e.target.value }))} /></label>
-                      <label>Free threshold<input type="number" value={adminDeliverySettings.free_delivery_threshold ?? ""} onChange={e => setAdminDeliverySettings(prev => ({ ...prev, free_delivery_threshold: e.target.value }))} /></label>
-                    </div>
-                    <div className="auth-row">
-                      <label>Bakery lat<input value={adminDeliverySettings.bakery_latitude ?? ""} onChange={e => setAdminDeliverySettings(prev => ({ ...prev, bakery_latitude: e.target.value }))} /></label>
-                      <label>Bakery lng<input value={adminDeliverySettings.bakery_longitude ?? ""} onChange={e => setAdminDeliverySettings(prev => ({ ...prev, bakery_longitude: e.target.value }))} /></label>
-                    </div>
-                    <div className="auth-row">
-                      <label>Max radius km<input type="number" value={adminDeliverySettings.max_delivery_radius_km ?? ""} onChange={e => setAdminDeliverySettings(prev => ({ ...prev, max_delivery_radius_km: e.target.value }))} /></label>
-                      <label>Per-km charge<input type="number" value={adminDeliverySettings.per_km_charge ?? ""} onChange={e => setAdminDeliverySettings(prev => ({ ...prev, per_km_charge: e.target.value }))} /></label>
-                    </div>
-                    <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <input type="checkbox" checked={!!adminDeliverySettings.delivery_enabled} onChange={e => setAdminDeliverySettings(prev => ({ ...prev, delivery_enabled: e.target.checked }))} />
-                      Delivery enabled
-                    </label>
-                    <button type="submit" className="btn primary">Save settings</button>
-                  </form>
-                )}
-                <form className="admin-form" onSubmit={handleCreateAdminZone}>
-                  <h4>Add zone</h4>
-                  <label>Name<input value={adminZoneForm.name} onChange={e => setAdminZoneForm(prev => ({ ...prev, name: e.target.value }))} required /></label>
-                  <label>PIN codes (comma-separated)<input value={adminZoneForm.postal_codes} onChange={e => setAdminZoneForm(prev => ({ ...prev, postal_codes: e.target.value }))} placeholder="400001, 400002" required /></label>
-                  <div className="auth-row">
-                    <label>Charge<input type="number" value={adminZoneForm.delivery_charge} onChange={e => setAdminZoneForm(prev => ({ ...prev, delivery_charge: e.target.value }))} /></label>
-                    <label>Min order<input type="number" value={adminZoneForm.minimum_order_amount} onChange={e => setAdminZoneForm(prev => ({ ...prev, minimum_order_amount: e.target.value }))} /></label>
-                    <label>Free above<input type="number" value={adminZoneForm.free_delivery_threshold} onChange={e => setAdminZoneForm(prev => ({ ...prev, free_delivery_threshold: e.target.value }))} /></label>
-                  </div>
-                  <button type="submit" className="btn primary">Create zone</button>
-                </form>
-                <div className="admin-cake-list" style={{ marginTop: 16 }}>
-                  <h3>Zones</h3>
-                  {adminZones.map(zone => (
-                    <div className="admin-cake-item" key={zone.id}>
-                      <div className="admin-cake-details">
-                        <div>
-                          <strong>{zone.name}</strong>
-                          <span>{(zone.postal_codes || []).join(", ")}</span>
-                          <small>Charge {String.fromCharCode(8377)}{Number(zone.delivery_charge || 0)} · Min {String.fromCharCode(8377)}{Number(zone.minimum_order_amount || 0)}</small>
-                        </div>
-                      </div>
-                      <div className="admin-item-actions">
-                        <button type="button" className="btn secondary small" onClick={() => toggleAdminZone(zone)}>{zone.is_active ? "Disable" : "Enable"}</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
             ) : (
               <>
@@ -1992,133 +1604,63 @@ function App() {
               </div>
 
               <form className="auth-form" onSubmit={handleCheckoutSubmit}>
-                {savedAddresses.length > 0 && (
-                  <div style={{ marginBottom: 12 }}>
-                    <div className="eyebrow" style={{ marginBottom: 8 }}>Saved addresses</div>
-                    <div style={{ display: "grid", gap: 8 }}>
-                      {savedAddresses.map(addr => (
-                        <label key={addr.id} style={{ display: "flex", gap: 8, alignItems: "flex-start", border: "1px solid #ead9e0", borderRadius: 12, padding: 10, cursor: "pointer", background: selectedAddressId === addr.id ? "#fff5f8" : "#fff" }}>
-                          <input
-                            type="radio"
-                            name="saved_address"
-                            checked={selectedAddressId === addr.id}
-                            onChange={() => applyAddressToCheckout(addr)}
-                          />
-                          <span>
-                            <strong>{addr.full_name}</strong> {addr.is_default ? <em>(default)</em> : null}
-                            <br />
-                            <small>{addr.address_line_1}{addr.address_line_2 ? `, ${addr.address_line_2}` : ""}, {addr.city}, {addr.state} {addr.postal_code}</small>
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                    <button type="button" className="btn secondary small" style={{ marginTop: 8 }} onClick={() => { setSelectedAddressId(null); setShowNewAddressForm(true); }}>
-                      Deliver to a new address
-                    </button>
-                  </div>
-                )}
-
-                {(showNewAddressForm || savedAddresses.length === 0 || !selectedAddressId) && (
-                <>
                 <div className="auth-row">
                   <label>
                     Full name
-                    <input value={checkoutForm.customer_name} onChange={e => { setSelectedAddressId(null); setCheckoutForm(prev => ({ ...prev, customer_name: e.target.value })); }} placeholder="Aisha Patel" required />
+                    <input value={checkoutForm.customer_name} onChange={e => setCheckoutForm(prev => ({ ...prev, customer_name: e.target.value }))} placeholder="Aisha Patel" required />
                   </label>
                   <label>
                     Email
-                    <input type="email" value={checkoutForm.customer_email} onChange={e => { setSelectedAddressId(null); setCheckoutForm(prev => ({ ...prev, customer_email: e.target.value })); }} placeholder="you@example.com" required />
+                    <input type="email" value={checkoutForm.customer_email} onChange={e => setCheckoutForm(prev => ({ ...prev, customer_email: e.target.value }))} placeholder="you@example.com" required />
                   </label>
                 </div>
 
                 <div className="auth-row">
                   <label>
                     Mobile
-                    <input value={checkoutForm.customer_mobile} onChange={e => { setSelectedAddressId(null); setCheckoutForm(prev => ({ ...prev, customer_mobile: e.target.value })); }} placeholder="9876543210" required />
+                    <input value={checkoutForm.customer_mobile} onChange={e => setCheckoutForm(prev => ({ ...prev, customer_mobile: e.target.value }))} placeholder="9876543210" required />
                   </label>
                   <label>
                     Postal code
-                    <input value={checkoutForm.postal_code} onChange={e => {
-                      const postal_code = e.target.value;
-                      setSelectedAddressId(null);
-                      setCheckoutForm(prev => ({ ...prev, postal_code }));
-                    }} onBlur={() => refreshDeliveryQuote(checkoutForm.postal_code, null, checkoutForm.shipping_latitude, checkoutForm.shipping_longitude)} placeholder="400001" required />
+                    <input value={checkoutForm.postal_code} onChange={e => setCheckoutForm(prev => ({ ...prev, postal_code: e.target.value }))} placeholder="400001" required />
                   </label>
                 </div>
 
                 <label>
                   Street address
-                  <input value={checkoutForm.shipping_address} onChange={e => { setSelectedAddressId(null); setCheckoutForm(prev => ({ ...prev, shipping_address: e.target.value })); }} placeholder="24 Rose Avenue" required />
+                  <input value={checkoutForm.shipping_address} onChange={e => setCheckoutForm(prev => ({ ...prev, shipping_address: e.target.value }))} placeholder="24 Rose Avenue" required />
                 </label>
 
                 <label>
-                  Apartment / floor
-                  <input value={checkoutForm.shipping_address_2} onChange={e => setCheckoutForm(prev => ({ ...prev, shipping_address_2: e.target.value }))} placeholder="Flat 4B" />
-                </label>
-
-                <label>
-                  Landmark
-                  <input value={checkoutForm.landmark || ""} onChange={e => { setSelectedAddressId(null); setCheckoutForm(prev => ({ ...prev, landmark: e.target.value })); }} placeholder="Near Scout Camp" />
+                  Apartment / landmark
+                  <input value={checkoutForm.shipping_address_2} onChange={e => setCheckoutForm(prev => ({ ...prev, shipping_address_2: e.target.value }))} placeholder="Near Scout Camp" />
                 </label>
 
                 <div className="auth-row">
                   <label>
                     City
-                    <input value={checkoutForm.city} onChange={e => { setSelectedAddressId(null); setCheckoutForm(prev => ({ ...prev, city: e.target.value })); }} placeholder="Mumbai" required />
+                    <input value={checkoutForm.city} onChange={e => setCheckoutForm(prev => ({ ...prev, city: e.target.value }))} placeholder="Mumbai" required />
                   </label>
                   <label>
                     State
-                    <input value={checkoutForm.state} onChange={e => { setSelectedAddressId(null); setCheckoutForm(prev => ({ ...prev, state: e.target.value })); }} placeholder="Maharashtra" required />
+                    <input value={checkoutForm.state} onChange={e => setCheckoutForm(prev => ({ ...prev, state: e.target.value }))} placeholder="Maharashtra" required />
                   </label>
                 </div>
 
                 <label>
                   Country
-                  <input value={checkoutForm.country} onChange={e => { setSelectedAddressId(null); setCheckoutForm(prev => ({ ...prev, country: e.target.value })); }} placeholder="India" required />
+                  <input value={checkoutForm.country} onChange={e => setCheckoutForm(prev => ({ ...prev, country: e.target.value }))} placeholder="India" required />
                 </label>
-
-                {(showNewAddressForm || savedAddresses.length === 0 || !selectedAddressId) && (
-                  <button type="button" className="btn secondary" onClick={handleSaveNewAddress}>Save this address</button>
-                )}
-                </>
-                )}
 
                 <label>
                   Order notes
                   <textarea value={checkoutForm.notes} onChange={e => setCheckoutForm(prev => ({ ...prev, notes: e.target.value }))} rows={3} placeholder="Add a note for your order" />
                 </label>
 
-                                <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
-                  <div className="auth-row" style={{ alignItems: "end" }}>
-                    <label style={{ flex: 1 }}>
-                      Promo code
-                      <input
-                        value={couponCodeInput}
-                        onChange={e => setCouponCodeInput(e.target.value.toUpperCase())}
-                        placeholder="SAVE10"
-                        disabled={!!appliedCoupon}
-                      />
-                    </label>
-                    {!appliedCoupon ? (
-                      <button type="button" className="btn secondary" onClick={handleApplyCoupon} disabled={couponLoading}>
-                        {couponLoading ? "Checking..." : "Apply"}
-                      </button>
-                    ) : (
-                      <button type="button" className="btn secondary" onClick={handleRemoveCoupon}>Remove</button>
-                    )}
-                  </div>
-                  {couponMessage && <div className="auth-error" style={{ color: appliedCoupon ? "#2f6b4f" : undefined }}>{couponMessage}</div>}
-                </div>
-
                 <div className="cart-summary" style={{ marginTop: 12, padding: 0, border: "none" }}>
                   <div><span>Subtotal</span><b>₹{cartTotal.toLocaleString("en-IN")}</b></div>
-                  {appliedCoupon ? (
-                    <div><span>Coupon ({appliedCoupon.code})</span><b>-₹{couponDiscountPreview.toLocaleString("en-IN")}</b></div>
-                  ) : null}
-                  <div><span>Delivery</span><b>{deliveryQuote?.eligible ? (String.fromCharCode(8377) + deliveryFeePreview.toLocaleString("en-IN")) : "—"}</b></div>
-                  {deliveryQuoteMessage ? <div className="auth-error" style={{ color: deliveryQuote?.eligible ? "#2f6b4f" : undefined }}>{deliveryQuoteMessage}</div> : null}
-                  {deliveryQuote?.eta_min_minutes ? <small>ETA {deliveryQuote.eta_min_minutes}-{deliveryQuote.eta_max_minutes || "?"} min</small> : null}
-                  <div><span>Total</span><b>₹{checkoutPayable.toLocaleString("en-IN")}</b></div>
+                  <div><span>Delivery</span><b>₹0</b></div>
+                  <div><span>Total</span><b>₹{cartTotal.toLocaleString("en-IN")}</b></div>
                 </div>
 
                 {checkoutMessage && <div className="auth-error">{checkoutMessage}</div>}
@@ -2169,132 +1711,12 @@ function App() {
                 <h3>{selectedOrder ? selectedOrder.order_number : "Order history"}</h3>
               </div>
 
-              {!selectedOrder && (
-                <div className="cart-summary" style={{ marginTop: 0, marginBottom: 12, padding: "12px 0", borderBottom: "1px solid #f2dfe8" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                    <strong>Notifications{notifUnreadCount > 0 ? ` (${notifUnreadCount} unread)` : ""}</strong>
-                    <button
-                      type="button"
-                      className="btn secondary small"
-                      onClick={() => {
-                        const token = localStorage.getItem("pinkbakes_token");
-                        if (!token) return;
-                        markAllNotificationsRead(token)
-                          .then(() => fetchInAppNotifications(token, { limit: 20 }))
-                          .then((data) => {
-                            setInAppNotifications(Array.isArray(data?.results) ? data.results : []);
-                            setNotifUnreadCount(data?.unread_count || 0);
-                          })
-                          .catch(() => {});
-                      }}
-                    >
-                      Mark all read
-                    </button>
-                  </div>
-                  {inAppNotifications.length === 0 ? (
-                    <div className="empty" style={{ padding: 8 }}>No notifications yet.</div>
-                  ) : (
-                    <ul className="tracking-history" style={{ maxHeight: 160, overflow: "auto" }}>
-                      {inAppNotifications.slice(0, 8).map((n) => (
-                        <li key={n.id} style={{ opacity: n.is_read ? 0.65 : 1 }}>
-                          <span>{n.title}</span>
-                          <small>{n.created_at ? new Date(n.created_at).toLocaleString() : ""}</small>
-                          {!n.is_read && (
-                            <button
-                              type="button"
-                              className="btn secondary small"
-                              style={{ marginLeft: 8 }}
-                              onClick={() => {
-                                const token = localStorage.getItem("pinkbakes_token");
-                                if (!token) return;
-                                markNotificationRead(token, n.id)
-                                  .then(() => fetchInAppNotifications(token, { limit: 20 }))
-                                  .then((data) => {
-                                    setInAppNotifications(Array.isArray(data?.results) ? data.results : []);
-                                    setNotifUnreadCount(data?.unread_count || 0);
-                                  })
-                                  .catch(() => {});
-                              }}
-                            >
-                              Read
-                            </button>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {notificationPrefs && (
-                    <div style={{ marginTop: 12 }}>
-                      <strong>Email preferences</strong>
-                      <p style={{ fontSize: 12, color: "#7b6070", margin: "4px 0 8px" }}>
-                        Verification, password reset, payment, and order confirmation emails cannot be turned off.
-                      </p>
-                      {[
-                        ["email_order_updates", "Order & refund updates"],
-                        ["email_delivery_updates", "Delivery updates"],
-                        ["email_review_updates", "Review updates"],
-                        ["email_promotional", "Promotional emails"],
-                        ["sms_order_updates", "SMS order updates"],
-                      ].map(([key, label]) => (
-                        <label key={key} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6, fontSize: 14 }}>
-                          <input
-                            type="checkbox"
-                            checked={!!notificationPrefs[key]}
-                            onChange={(e) => {
-                              const next = { ...notificationPrefs, [key]: e.target.checked };
-                              setNotificationPrefs(next);
-                              const token = localStorage.getItem("pinkbakes_token");
-                              if (!token) return;
-                              updateNotificationPreferences(token, { [key]: e.target.checked })
-                                .then((data) => {
-                                  setNotificationPrefs(data);
-                                  setNotificationPrefsMessage("Preferences saved.");
-                                })
-                                .catch((err) => setNotificationPrefsMessage(err.message || "Could not save preferences."));
-                            }}
-                          />
-                          {label}
-                        </label>
-                      ))}
-                      {notificationPrefsMessage && (
-                        <div className="auth-error" style={{ color: "#5d4753" }}>{notificationPrefsMessage}</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-
               {selectedOrder ? (
                 <div className="auth-form" style={{ gap: 14 }}>
                   <div className="cart-summary" style={{ marginTop: 0, padding: 0, border: "none" }}>
                     <div><span>Status</span><b>{selectedOrder.status}</b></div>
                     <div><span>Payment</span><b>{selectedOrder.payment_status || "pending"}</b></div>
-                    {selectedOrder.coupon_code ? (
-                    <div><span>Coupon</span><b>{selectedOrder.coupon_code}</b></div>
-                  ) : null}
-                  {Number(selectedOrder.coupon_discount_amount || selectedOrder.discount_amount || 0) > 0 ? (
-                    <div><span>Coupon discount</span><b>-₹{Number(selectedOrder.coupon_discount_amount || selectedOrder.discount_amount || 0).toLocaleString("en-IN")}</b></div>
-                  ) : null}
-                  <div><span>Total</span><b>₹{Number(selectedOrder.total_amount || 0).toLocaleString("en-IN")}</b></div>
-              {Number(selectedOrder.delivery_fee || 0) > 0 ? (
-                <div><span>Delivery fee</span><b>{String.fromCharCode(8377)}{Number(selectedOrder.delivery_fee || 0).toLocaleString("en-IN")}</b></div>
-              ) : (
-                <div><span>Delivery fee</span><b>Free / {String.fromCharCode(8377)}0</b></div>
-              )}
-              <div style={{ marginTop: 8 }}>
-                <span>Deliver to</span>
-                <b style={{ display: "block", fontWeight: 500 }}>
-                  {selectedOrder.shipping_address}
-                  {selectedOrder.shipping_address_2 ? `, ${selectedOrder.shipping_address_2}` : ""}
-                  {selectedOrder.landmark ? ` (${selectedOrder.landmark})` : ""}
-                  <br />
-                  {selectedOrder.city}, {selectedOrder.state} {selectedOrder.postal_code}
-                  <br />
-                  {selectedOrder.country}
-                </b>
-              </div>
+                    <div><span>Total</span><b>₹{Number(selectedOrder.total_amount || 0).toLocaleString("en-IN")}</b></div>
                   </div>
 
                   {selectedOrder.payment_status !== "paid" && selectedOrder.payment_status !== "refunded" && selectedOrder.status !== "CANCELLED" && (
