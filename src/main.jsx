@@ -2079,7 +2079,7 @@ function App() {
             </div>
           </div>
           <div className="hero-image">
-            <img src="https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1600&q=90" alt="Premium chocolate cake from pinkbakes" width="1600" height="1200" fetchPriority="high" />
+            <img src="https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1600&q=90" alt="Premium chocolate cake from pinkbakes" width="1600" height="1200" fetchpriority="high" />
             <div className="hero-note">Life is<br/><em>sweeter</em><br/>with cake <span>♡</span></div>
           </div>
         </section>
