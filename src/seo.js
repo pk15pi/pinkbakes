@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Lightweight document-head helper for the PinkBakes SPA.
  * Equivalent to a head manager (no react-helmet dependency).
  * Always escapes text before writing into meta/JSON-LD.
@@ -7,7 +7,7 @@
 export const SITE_URL = (import.meta.env.VITE_PUBLIC_SITE_URL || "https://pinkbakes.com").replace(/\/$/, "");
 export const BRAND = "pinkbakes";
 export const DEFAULT_DESCRIPTION =
-  "pinkbakes — handcrafted cakes for birthdays, anniversaries, weddings, and custom celebrations.";
+  "pinkbakes - handcrafted cakes for birthdays, anniversaries, weddings, and custom celebrations.";
 
 let jsonLdNodes = [];
 
@@ -56,7 +56,7 @@ export function plainText(value, maxLen = 300) {
   let text = String(value ?? "").replace(/<[^>]*>/g, " ");
   text = text.replace(/\s+/g, " ").trim();
   if (text.length > maxLen) {
-    text = text.slice(0, maxLen - 1).trimEnd() + "…";
+    text = text.slice(0, maxLen - 1).trimEnd() + "...";
   }
   return text;
 }

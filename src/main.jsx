@@ -1,12 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Search, UserRound, ShoppingBag, Menu, X,
   Star, Heart, ZoomIn, Rotate3d, Plus, Minus, Trash2, ArrowRight,
   CakeSlice, Sparkles, Leaf, CalendarDays, ShieldCheck, Instagram,
-  MessageCircle, Mail, MapPin, Check, Send
+  MessageCircle, Mail, MapPin, Check, Send,
+  ChevronLeft, ChevronRight, ChevronUp, ChevronDown
 } from "lucide-react";
-import {
+import { logout, adminLogout,
   adminLogin,
   cancelOrder,
   createPaymentSession,
@@ -95,16 +96,20 @@ import {
 } from "./seo";
 import "./styles.css";
 
-/** Decorative category card images (same Unsplash paths used historically). Labels come from the API. */
+/** Lazy-load 3D viewer so its chunk is fetched only when opened. */
+const Product3DViewer = lazy(() => import("./components/Product3DViewer.jsx"));
+
+
+/** Decorative category card images - local public cakes (Collab 3D uses product.image). Labels come from the API. */
 const CATEGORY_IMAGE_FALLBACKS = {
-  "Birthday Cakes": "https://images.unsplash.com/photo-1535141192574-5d4897c12636?auto=format&fit=crop&w=600&q=85",
-  "Anniversary Cakes": "https://images.unsplash.com/photo-1519915028121-7d3463d20b13?auto=format&fit=crop&w=600&q=85",
-  "Wedding Cakes": "https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?auto=format&fit=crop&w=600&q=85",
-  "Chocolate Cakes": "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=600&q=85",
-  "Designer Cakes": "https://images.unsplash.com/photo-1535254973040-607b474cb50d?auto=format&fit=crop&w=600&q=85",
-  "Photo Cakes": "https://images.unsplash.com/photo-1559620192-032c4bc4674e?auto=format&fit=crop&w=600&q=85",
-  "Custom Cakes": "https://images.unsplash.com/photo-1571115177098-24ec42ed204d?auto=format&fit=crop&w=600&q=85",
-  "Eggless Cakes": "https://images.unsplash.com/photo-1563729784474-d77dbb933a9e?auto=format&fit=crop&w=600&q=85",
+  "Birthday Cakes": "/products/cakes/BirthdayCakes_BerryMedley.jpg",
+  "Anniversary Cakes": "/products/cakes/AnniversaryCakes_BlackForest.jpg",
+  "Wedding Cakes": "/products/cakes/WeddingCakes_AlmondMarzipan.jpg",
+  "Chocolate Cakes": "/products/cakes/ChocolateCakes_BlackForest2.jpg",
+  "Designer Cakes": "/products/cakes/DesignerCakes_BerryMedley.jpg",
+  "Photo Cakes": "/products/cakes/PhotoCakes_AlmondMarzipan.jpg",
+  "Custom Cakes": "/products/cakes/CustomCakes_BerryMedley.jpg",
+  "Eggless Cakes": "/products/cakes/EgglessCakes_BerryMedley.jpg",
 };
 
 /** Canonical category names for the admin cake form (aligned with backend catalog.constants). */
@@ -348,6 +353,16 @@ function App() {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelMessage, setCancelMessage] = useState("");
   const [paymentRetryLoading, setPaymentRetryLoading] = useState(false);
+  const [wishlist, setWishlist] = useState(() => {
+    try {
+      const raw = localStorage.getItem("pinkbakes_wishlist");
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr.map(String) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [product3d, setProduct3d] = useState(null);
 
   async function fetchTracking(orderId) {
     const token = localStorage.getItem("pinkbakes_token");
@@ -405,6 +420,15 @@ function App() {
     low_stock_threshold: 5
   });
   const [editingCakeId, setEditingCakeId] = useState(null);
+  const [customBrief, setCustomBrief] = useState({
+    occasion: "",
+    servings: "",
+    flavor: "",
+    theme: "",
+    preferredDate: "",
+    name: "",
+    phone: ""
+  });
 
   function resetCakeForm() {
     setCakeForm({
@@ -635,7 +659,7 @@ function App() {
     if (privateUi) {
       setPageMeta({
         title: adminOpen ? "Admin | pinkbakes" : "pinkbakes",
-        description: "pinkbakes — handcrafted cakes for birthdays, anniversaries, weddings, and custom celebrations.",
+        description: "pinkbakes - handcrafted cakes for birthdays, anniversaries, weddings, and custom celebrations.",
         canonical: SITE_URL + "/",
         robots: "noindex,nofollow",
         jsonLd: [],
@@ -644,8 +668,8 @@ function App() {
     }
 
     setPageMeta({
-      title: "pinkbakes — Cakes for Every Moment",
-      description: "pinkbakes — handcrafted cakes for birthdays, anniversaries, weddings, and custom celebrations.",
+      title: "pinkbakes - Cakes for Every Moment",
+      description: "pinkbakes - handcrafted cakes for birthdays, anniversaries, weddings, and custom celebrations.",
       canonical: "/",
       robots: "index,follow",
       image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1200&q=85",
@@ -672,6 +696,44 @@ function App() {
   function notify(message) {
     setToast(message);
     setTimeout(() => setToast(""), 2200);
+  }
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("pinkbakes_wishlist", JSON.stringify(wishlist));
+    } catch (_) {}
+  }, [wishlist]);
+
+  function toggleWishlist(e, p) {
+    e.stopPropagation();
+    const id = String(p.id);
+    const has = wishlist.includes(id);
+    setWishlist(has ? wishlist.filter((x) => x !== id) : [...wishlist, id]);
+    notify(has ? `Removed "${p.name}" from wishlist` : `Added "${p.name}" to wishlist`);
+  }
+
+  function sendCustomBrief() {
+    const brief = customBrief;
+    const hasOccasion = Boolean(brief.occasion?.trim());
+    const hasTheme = Boolean(brief.theme?.trim());
+    const hasServings = Boolean(brief.servings?.trim());
+    if (!hasOccasion || (!hasTheme && !hasServings)) {
+      notify("Please add occasion and either theme or servings");
+      return;
+    }
+    const lines = [
+      "Hi PinkBakes! Custom cake brief:",
+      `* Name: ${brief.name?.trim() || "-"}`,
+      `* Occasion: ${brief.occasion.trim()}`,
+      `* Servings: ${brief.servings?.trim() || "-"}`,
+      `* Flavor: ${brief.flavor?.trim() || "-"}`,
+      `* Theme: ${brief.theme?.trim() || "-"}`,
+      `* Preferred date: ${brief.preferredDate || "-"}`,
+      `* Phone: ${brief.phone?.trim() || "-"}`
+    ];
+    const msg = lines.join("\n");
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
+    notify("Opening WhatsApp with your cake brief");
   }
 
   function stockLabel(p) {
@@ -765,6 +827,10 @@ function App() {
   }
 
   function handleAdminLogout() {
+    const token = localStorage.getItem("pinkbakes_admin_token");
+    if (token) {
+      adminLogout(token).catch(() => {});
+    }
     localStorage.removeItem("pinkbakes_admin_token");
     setIsAdminLoggedIn(false);
     setAdminReportsView(false);
@@ -1016,7 +1082,7 @@ function App() {
         return;
       }
       if (maxRefundable != null && amountNum > maxRefundable + 1e-9) {
-        setRefundModalError(`Amount cannot exceed max refundable (₹${maxRefundable.toLocaleString("en-IN")}).`);
+        setRefundModalError(`Amount cannot exceed max refundable (Rs.${maxRefundable.toLocaleString("en-IN")}).`);
         return;
       }
       payload.amount = amountStr;
@@ -1193,15 +1259,15 @@ function App() {
         if (authMode === "signup") {
           setVerificationData({
             email: authForm.email,
-            token: data.verification_token || "",
-            link: data.verification_link || "",
-            otp: data.otp || "",
+            token: "",
+            link: "",
+            otp: "",
             user: data.user || null
           });
           setVerificationMethod("email");
           setVerificationCode("");
           setAuthStage("verification");
-          setAuthMessage("Your account was created. Please verify it to sign in.");
+          setAuthMessage(data.message || "Your account was created. Check your email for the verification link and code.");
           setAuthForm(prev => ({ ...prev, password: "" }));
           return;
         }
@@ -1341,13 +1407,13 @@ function App() {
         .then(data => {
           setVerificationData({
             email: verificationData.email,
-            token: data.verification_token || verificationData.token,
-            link: data.verification_link || verificationData.link,
-            otp: data.otp || verificationData.otp,
+            token: "",
+            link: "",
+            otp: "",
             user: verificationData.user,
           });
           setVerificationCode("");
-          setAuthMessage(`A new ${verificationMethod === "email" ? "email link" : "OTP"} has been sent.`);
+          setAuthMessage(data.message || `A new ${verificationMethod === "email" ? "email link" : "OTP"} has been sent. Check your inbox.`);
         })
         .catch(error => setAuthMessage(error.message || "Verification request failed."))
         .finally(() => setAuthLoading(false));
@@ -1355,9 +1421,9 @@ function App() {
     }
 
     if (verificationMethod === "email") {
-      const token = verificationData.token || verificationCode;
+      const token = (verificationCode || verificationData.token || "").trim();
       if (!token) {
-        setAuthMessage("A verification link is missing. Please request a new one.");
+        setAuthMessage("Paste the verification token from your email link, or open the link from your inbox.");
         return;
       }
 
@@ -1395,7 +1461,7 @@ function App() {
 
   function getChatbotReply(inputText) {
     const query = (inputText || "").trim().toLowerCase();
-    if (!query) return "Please type a question and I’ll help you out.";
+    if (!query) return "Please type a question and I'll help you out.";
 
     if (query.includes("hello") || query.includes("hi") || query.includes("hey")) {
       return "Hello! I can suggest cakes, answer pricing questions, and help with custom orders.";
@@ -1418,15 +1484,15 @@ function App() {
     }
 
     if (query.includes("eggless")) {
-      return "We offer eggless options on many of our favorite cakes. Tell me your occasion and I’ll suggest the best match.";
+      return "We offer eggless options on many of our favorite cakes. Tell me your occasion and I'll suggest the best match.";
     }
 
     if (query.includes("custom") || query.includes("order")) {
-      return "You can place a custom cake request through our custom cake section. Share your theme, size, and flavor and we’ll guide you from there.";
+      return "You can place a custom cake request through our custom cake section. Share your theme, size, and flavor and we'll guide you from there.";
     }
 
     if (query.includes("delivery") || query.includes("shipping") || query.includes("time")) {
-      return "We usually prepare cakes within 24–48 hours, and delivery timing depends on your selected size and location.";
+      return "We usually prepare cakes within 24-48 hours, and delivery timing depends on your selected size and location.";
     }
 
     if (query.includes("recommend") || query.includes("best")) {
@@ -1452,6 +1518,10 @@ function App() {
   }
 
   function handleSignOut() {
+    const token = localStorage.getItem("pinkbakes_token");
+    if (token) {
+      logout(token).catch(() => {});
+    }
     localStorage.removeItem("pinkbakes_token");
     setUser(null);
     setOrderHistoryOpen(false);
@@ -1869,7 +1939,7 @@ function App() {
         setCancelReason("");
         const refundStatus = order.refund?.status || order.refunds_summary?.latest_status;
         if (order.status === "CANCELLED" && refundStatus && refundStatus !== "completed") {
-          setCancelMessage("Order cancelled. Refund is processing — we will email you when it completes.");
+          setCancelMessage("Order cancelled. Refund is processing - we will email you when it completes.");
           notify("Order cancelled. Refund processing.");
         } else if (order.status === "CANCELLED" && refundStatus === "completed") {
           setCancelMessage("Order cancelled and refund completed.");
@@ -2070,7 +2140,7 @@ function App() {
       <main>
         <section className="hero" id="home">
           <div className="hero-copy reveal">
-            <span className="eyebrow">PREMIUM • FRESH • HANDCRAFTED</span>
+            <span className="eyebrow">PREMIUM * FRESH * HANDCRAFTED</span>
             <h1>Beautiful Cakes,<br/>Made for Your<br/><em>Beautiful Moments</em></h1>
             <p>From birthdays to anniversaries, we create cakes that make your celebrations sweeter and your memories last longer.</p>
             <div className="hero-buttons">
@@ -2080,7 +2150,7 @@ function App() {
           </div>
           <div className="hero-image">
             <img src="https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1600&q=90" alt="Premium chocolate cake from pinkbakes" width="1600" height="1200" fetchpriority="high" />
-            <div className="hero-note">Life is<br/><em>sweeter</em><br/>with cake <span>♡</span></div>
+            <div className="hero-note">Life is<br/><em>sweeter</em><br/>with cake</div>
           </div>
         </section>
 
@@ -2127,8 +2197,18 @@ function App() {
                   <div className="product-media">
                     <img src={p.image || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1000&q=85"} alt={(p.name || "Cake") + " cake"} loading="lazy" width="600" height="750" />
                     {p.badge && <span className="badge">{p.badge}</span>}
-                    <button className="heart"><Heart size={17}/></button>
-                    <button className="quick-view" onClick={() => openProduct(p)}><ZoomIn size={15}/> Quick View</button>
+                    <button
+                      type="button"
+                      className={wishlist.includes(String(p.id)) ? "heart active" : "heart"}
+                      aria-label={wishlist.includes(String(p.id)) ? "Remove from wishlist" : "Add to wishlist"}
+                      onClick={(e) => toggleWishlist(e, p)}
+                    >
+                      <Heart size={17} fill={wishlist.includes(String(p.id)) ? "currentColor" : "none"} />
+                    </button>
+                    <div className="product-media-actions">
+                      <button type="button" className="quick-view" onClick={() => openProduct(p)}><ZoomIn size={15}/> Quick View</button>
+                      <button type="button" className="view-3d" onClick={(e) => { e.stopPropagation(); setProduct3d(p); }}><Rotate3d size={15}/> 3D View</button>
+                    </div>
                   </div>
                   <div className="product-body">
                     <div className="rating"><Star size={13} fill="currentColor"/>{Number(p.rating || 0).toFixed(1)}</div>
@@ -2160,34 +2240,63 @@ function App() {
           ].map(([Icon,a,b]) => <div className="benefit" key={a}><Icon/><b>{a}</b><span>{b}</span></div>)}
         </section>
 
-        <section className="custom-banner section" id="custom">
+                <section className="custom-banner section" id="custom">
           <div className="custom-image"><img src="https://images.unsplash.com/photo-1557925923-cd4648e211a0?auto=format&fit=crop&w=1100&q=85" alt="Custom celebration cake" loading="lazy" width="1100" height="800" /></div>
           <div className="custom-copy">
-            <span className="eyebrow">DREAM IT • WE'LL BAKE IT</span>
+            <span className="eyebrow">DREAM IT * WE'LL BAKE IT</span>
             <h2>Create Your Custom Cake</h2>
-            <p>Have a special idea in mind? Let us bring it to life with a cake designed just for you.</p>
-            <button className="btn primary" onClick={() => scrollTo("contact")}>Design Your Custom Cake</button>
+            <p>Share a quick cake brief - occasion, size, flavor, and theme - and we'll reply on WhatsApp with ideas and pricing.</p>
+            <form className="custom-brief" onSubmit={(e) => { e.preventDefault(); sendCustomBrief(); }}>
+              <div className="custom-brief-row">
+                <label>Occasion
+                  <select value={customBrief.occasion} onChange={(e) => setCustomBrief({ ...customBrief, occasion: e.target.value })} required>
+                    <option value="">Select occasion</option>
+                    <option>Birthday</option>
+                    <option>Wedding</option>
+                    <option>Anniversary</option>
+                    <option>Baby Shower</option>
+                    <option>Corporate</option>
+                    <option>Other</option>
+                  </select>
+                </label>
+                <label>Servings
+                  <select value={customBrief.servings} onChange={(e) => setCustomBrief({ ...customBrief, servings: e.target.value })}>
+                    <option value="">Select size</option>
+                    <option>6-8</option>
+                    <option>10-12</option>
+                    <option>15-20</option>
+                    <option>25+</option>
+                    <option>Not sure yet</option>
+                  </select>
+                </label>
+              </div>
+              <div className="custom-brief-row">
+                <label>Flavor
+                  <input type="text" placeholder="e.g. Chocolate, Red velvet" value={customBrief.flavor} onChange={(e) => setCustomBrief({ ...customBrief, flavor: e.target.value })} />
+                </label>
+                <label>Preferred date
+                  <input type="date" value={customBrief.preferredDate} onChange={(e) => setCustomBrief({ ...customBrief, preferredDate: e.target.value })} />
+                </label>
+              </div>
+              <label>Theme / idea
+                <textarea rows={2} placeholder="Colors, character, photo cake, message..." value={customBrief.theme} onChange={(e) => setCustomBrief({ ...customBrief, theme: e.target.value })} />
+              </label>
+              <div className="custom-brief-row">
+                <label>Your name
+                  <input type="text" placeholder="Name" value={customBrief.name} onChange={(e) => setCustomBrief({ ...customBrief, name: e.target.value })} />
+                </label>
+                <label>Phone <span className="optional">(optional)</span>
+                  <input type="tel" placeholder="WhatsApp number" value={customBrief.phone} onChange={(e) => setCustomBrief({ ...customBrief, phone: e.target.value })} />
+                </label>
+              </div>
+              <div className="custom-brief-actions">
+                <button type="submit" className="btn primary"><MessageCircle size={15}/> Send brief on WhatsApp</button>
+                <button type="button" className="btn secondary" onClick={() => { setCategory("Custom Cakes"); scrollTo("cakes"); }}>Browse custom cakes</button>
+              </div>
+            </form>
           </div>
           <div className="custom-points">
             <span><Check/> Personalized Designs</span><span><Check/> Any Theme</span><span><Check/> Any Size</span><span><Check/> Delicious Flavours</span>
-          </div>
-        </section>
-
-        <section className="experience section">
-          <div className="section-head center"><span className="eyebrow">A CLOSER LOOK</span><h2>Experience Your Cake</h2><p>Zoom in, rotate the interactive preview, and explore every detail before you order.</p></div>
-          <div className="viewer">
-            <div className="viewer-cake" id="viewerCake">
-              <div className="cake-shadow"></div>
-              <div className="cake-tier top"></div>
-              <div className="cake-tier middle"></div>
-              <div className="cake-tier base"></div>
-              <div className="berries">● ● ● ●</div>
-            </div>
-            <div className="viewer-controls">
-              <button onClick={() => document.getElementById("viewerCake").classList.toggle("spin")}><Rotate3d/> Rotate 3D</button>
-              <button onClick={() => document.getElementById("viewerCake").classList.toggle("zoomed")}><ZoomIn/> Zoom</button>
-              <span>Interactive preview • 360° ready</span>
-            </div>
           </div>
         </section>
 
@@ -2195,31 +2304,48 @@ function App() {
           <div className="section-head center"><span className="eyebrow">KIND WORDS FROM OUR CUSTOMERS</span><h2>What Our Customers Say</h2></div>
           <div className="review-grid">
             {reviews.map(([name,text,tag],i) => <div className="review" key={name}>
-              <div className="avatar">{name[0]}</div><p>“{text}”</p><div className="stars">★★★★★</div><b>{name}</b><small>{tag}</small>
+              <div className="avatar">{name[0]}</div><p>"{text}"</p><div className="stars">*****</div><b>{name}</b><small>{tag}</small>
             </div>)}
           </div>
         </section>
 
         <section className="gallery section" id="gallery">
           <div className="section-head">
-            <div><span className="eyebrow">FOLLOW OUR SWEET JOURNEY</span><h2>Made to Be Shared</h2></div>
-            <button className="outline-pill" onClick={() => scrollTo("contact")}><Instagram size={15}/> Get in touch</button>
+            <div>
+              <span className="eyebrow">REAL CELEBRATION MOMENTS</span>
+              <h2>Made to Be Shared</h2>
+              <p className="gallery-lead">Birthday tables, wedding sweets, and weekend treats - cakes that look as good in photos as they taste in person. See how customers celebrate with pinkbakes.</p>
+            </div>
+            <button
+              className="outline-pill gallery-cta"
+              type="button"
+              onClick={() => {
+                const msg = "Hi PinkBakes! I want to share a cake moment from my celebration.";
+                window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
+              }}
+            >
+              <MessageCircle size={15}/> Share your cake moment
+            </button>
           </div>
           <div className="gallery-grid">
             {[
-              "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=600&q=85",
-              "https://images.unsplash.com/photo-1535254973040-607b474cb50d?auto=format&fit=crop&w=600&q=85",
-              "https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&w=600&q=85",
-              "https://images.unsplash.com/photo-1586788680434-30d324b2d46f?auto=format&fit=crop&w=600&q=85",
-              "https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=600&q=85",
-              "https://images.unsplash.com/photo-1519869325930-281384150729?auto=format&fit=crop&w=600&q=85"
-            ].map((src,i)=><img key={i} src={src} alt="Handcrafted cake from pinkbakes gallery" loading="lazy" width="600" height="600" />)
-            }
+              { src: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=600&q=85", alt: "Chocolate drip birthday cake with candles at a celebration table", caption: "Birthday" },
+              { src: "https://images.unsplash.com/photo-1535254973040-607b474cb50d?auto=format&fit=crop&w=600&q=85", alt: "Elegant layered wedding cake with floral decoration", caption: "Wedding" },
+              { src: "https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&w=600&q=85", alt: "Assorted frosted cupcakes and cake bites for a party spread", caption: "Party treats" },
+              { src: "https://images.unsplash.com/photo-1586788680434-30d324b2d46f?auto=format&fit=crop&w=600&q=85", alt: "Tall celebration cake with fresh berries and cream", caption: "Anniversary" },
+              { src: "https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=600&q=85", alt: "Colorful layered cake slice served for a weekend treat", caption: "Weekend treat" },
+              { src: "https://images.unsplash.com/photo-1519869325930-281384150729?auto=format&fit=crop&w=600&q=85", alt: "Custom decorated cake ready for a special occasion", caption: "Custom order" }
+            ].map((item) => (
+              <figure className="gallery-item" key={item.src}>
+                <img src={item.src} alt={item.alt} loading="lazy" width="600" height="600" />
+                <figcaption className="gallery-caption">{item.caption}</figcaption>
+              </figure>
+            ))}
           </div>
         </section>
 
         <section className="contact-strip section" id="contact">
-          <div><MapPin/><span><b>Visit Our Bakery</b><small>Open daily • 10 AM – 9 PM</small></span></div>
+          <div><MapPin/><span><b>Visit Our Bakery</b><small>Open daily * 10 AM - 9 PM</small></span></div>
           <div><MessageCircle/><span><b>WhatsApp Orders</b><small><a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noreferrer">{WHATSAPP_NUMBER}</a></small></span></div>
           <div><Mail/><span><b>Email Us</b><small><a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a></small></span></div>
         </section>
@@ -2232,10 +2358,15 @@ function App() {
           <div><h4>Company</h4><button type="button" onClick={() => scrollTo("about")}>About Us</button><button type="button" onClick={() => scrollTo("contact")}>Contact</button><button type="button" onClick={() => scrollTo("contact")}>Shipping & Delivery</button><button type="button" onClick={() => scrollTo("contact")}>Refund Policy</button></div>
           <div className="newsletter"><h4>Subscribe for latest updates</h4><form onSubmit={subscribe}><input value={newsletter} onChange={e=>setNewsletter(e.target.value)} placeholder="Your email address" type="email" required/><button aria-label="Subscribe"><ArrowRight/></button></form>{newsletterDone && <span className="subscribed"><Check size={14}/> You're subscribed!</span>}<div className="social"><Instagram/><MessageCircle/><Heart/></div></div>
         </div>
-        <div className="footer-bottom"><span>© 2026 {BRAND_NAME}. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms & Conditions &nbsp; | &nbsp; Shipping & Delivery &nbsp; | &nbsp; Refund Policy</span></div>
+        <div className="footer-bottom"><span>(c) 2026 {BRAND_NAME}. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms & Conditions &nbsp; | &nbsp; Shipping & Delivery &nbsp; | &nbsp; Refund Policy</span></div>
       </footer>
 
       {product && <ProductModal product={product} onClose={closeProduct} onAdd={() => {addToCart(product); closeProduct()}} stockLabel={stockLabel} isOutOfStock={isOutOfStock}/>}
+      {product3d && (
+        <Suspense fallback={null}>
+          <Product3DViewer product={product3d} onClose={() => setProduct3d(null)} />
+        </Suspense>
+      )}
 
       {productNotFound && (
         <div className="modal-backdrop" onClick={closeProduct} role="dialog" aria-label="Cake not found">
@@ -2350,7 +2481,7 @@ function App() {
             <div className="admin-form">
               {adminOrderDetail && (
                 <p className="admin-muted" style={{ margin: 0 }}>
-                  Order {adminOrderDetail.order_number} (#{adminOrderDetail.id}) — status {adminOrderDetail.status}
+                  Order {adminOrderDetail.order_number} (#{adminOrderDetail.id}) - status {adminOrderDetail.status}
                 </p>
               )}
               <label>
@@ -2391,12 +2522,12 @@ function App() {
                       Order {adminOrderDetail.order_number} (#{adminOrderDetail.id})
                     </p>
                     <p className="admin-muted" style={{ margin: 0 }}>
-                      Payment: {info.paymentStatus || "—"}
-                      {info.paymentAmount != null ? ` · original ₹${Number(info.paymentAmount).toLocaleString("en-IN")}` : ""}
+                      Payment: {info.paymentStatus || "-"}
+                      {info.paymentAmount != null ? ` | original Rs.${Number(info.paymentAmount).toLocaleString("en-IN")}` : ""}
                     </p>
                     <p className="admin-muted" style={{ margin: 0 }}>
-                      Max refundable (estimate): {info.maxRefundable != null ? `₹${Number(info.maxRefundable).toLocaleString("en-IN")}` : "—"}
-                      <span className="admin-muted"> — backend is source of truth</span>
+                      Max refundable (estimate): {info.maxRefundable != null ? `Rs.${Number(info.maxRefundable).toLocaleString("en-IN")}` : "-"}
+                      <span className="admin-muted"> - backend is source of truth</span>
                     </p>
                   </div>
                 )}
@@ -2446,8 +2577,8 @@ function App() {
               {restockModalItem && (
                 <p className="admin-muted" style={{ margin: 0 }}>
                   {restockModalItem.name || "Product"} (#{restockModalItem.id})
-                  {" — available "}
-                  {restockModalItem.available_quantity ?? restockModalItem.stock_remaining ?? "—"}
+                  {" - available "}
+                  {restockModalItem.available_quantity ?? restockModalItem.stock_remaining ?? "-"}
                 </p>
               )}
               <label>
@@ -2532,7 +2663,7 @@ function App() {
 
           <div className="admin-content">
             {adminOpsMessage && <div className="admin-error" style={{ marginBottom: 12 }}>{adminOpsMessage}</div>}
-            {adminLoadingSection && <div className="empty">Loading…</div>}
+            {adminLoadingSection && <div className="empty">Loading...</div>}
 
             {!adminReportsView && !adminDeliveryView && !adminCouponsView && adminSection === "dashboard" && (
               <div className="admin-reports-page">
@@ -2553,16 +2684,16 @@ function App() {
                   <div className="report-card" role="button" onClick={() => goAdminSection("employees")}><span>Out for delivery</span><strong>{adminDashboard?.orders?.out_for_delivery ?? 0}</strong></div>
                   <div className="report-card"><span>Delivered</span><strong>{adminDashboard?.orders?.delivered ?? 0}</strong></div>
                   <div className="report-card"><span>Cancelled</span><strong>{adminDashboard?.orders?.cancelled ?? 0}</strong></div>
-                  <div className="report-card" role="button" onClick={() => goAdminSection("reports")}><span>Net revenue</span><strong>₹{Number(adminDashboard?.revenue ?? 0).toLocaleString("en-IN")}</strong></div>
+                  <div className="report-card" role="button" onClick={() => goAdminSection("reports")}><span>Net revenue</span><strong>Rs.{Number(adminDashboard?.revenue ?? 0).toLocaleString("en-IN")}</strong></div>
                   <div className="report-card" role="button" onClick={() => goAdminSection("payments")}><span>Payments OK</span><strong>{adminDashboard?.payments?.successful ?? 0}</strong></div>
                   <div className="report-card" role="button" onClick={() => goAdminSection("refunds")}><span>Refunds pending</span><strong>{adminDashboard?.payments?.refunds_pending ?? 0}</strong></div>
                   <div className="report-card" role="button" onClick={() => goAdminSection("inventory")}><span>Low stock</span><strong>{adminDashboard?.low_stock ?? 0}</strong></div>
                   <div className="report-card" role="button" onClick={() => goAdminSection("coupons")}><span>Active coupons</span><strong>{adminDashboard?.active_coupons ?? 0}</strong></div>
                   <div className="report-card" role="button" onClick={() => goAdminSection("reviews")}><span>Reviews pending</span><strong>{adminDashboard?.reviews?.pending ?? 0}</strong></div>
                   <div className="report-card" role="button" onClick={() => goAdminSection("customers")}><span>Customers</span><strong>{adminDashboard?.customers?.total ?? 0}</strong></div>
-                  <div className="report-card"><span>Gross sales</span><strong>₹{Number(adminDashboard?.sales_summary?.gross_sales ?? 0).toLocaleString("en-IN")}</strong></div>
-                  <div className="report-card"><span>Refunds</span><strong>₹{Number(adminDashboard?.sales_summary?.refunds ?? 0).toLocaleString("en-IN")}</strong></div>
-                  <div className="report-card"><span>Delivery fees</span><strong>₹{Number(adminDashboard?.sales_summary?.delivery_charges ?? 0).toLocaleString("en-IN")}</strong></div>
+                  <div className="report-card"><span>Gross sales</span><strong>Rs.{Number(adminDashboard?.sales_summary?.gross_sales ?? 0).toLocaleString("en-IN")}</strong></div>
+                  <div className="report-card"><span>Refunds</span><strong>Rs.{Number(adminDashboard?.sales_summary?.refunds ?? 0).toLocaleString("en-IN")}</strong></div>
+                  <div className="report-card"><span>Delivery fees</span><strong>Rs.{Number(adminDashboard?.sales_summary?.delivery_charges ?? 0).toLocaleString("en-IN")}</strong></div>
                 </div>
               </div>
             )}
@@ -2587,10 +2718,10 @@ function App() {
                 {adminOrderDetail ? (
                   <div className="report-section">
                     <button type="button" className="btn secondary small" onClick={() => setAdminOrderDetail(null)}>Back</button>
-                    <h4>{adminOrderDetail.order_number} — {adminOrderDetail.status}</h4>
-                    <p>{adminOrderDetail.customer_name} · {adminOrderDetail.customer_email} · {adminOrderDetail.customer_mobile}</p>
+                    <h4>{adminOrderDetail.order_number} - {adminOrderDetail.status}</h4>
+                    <p>{adminOrderDetail.customer_name} | {adminOrderDetail.customer_email} | {adminOrderDetail.customer_mobile}</p>
                     <p>{adminOrderDetail.shipping_address}, {adminOrderDetail.city} {adminOrderDetail.postal_code}</p>
-                    <p>Payment: {adminOrderDetail.payment_status} · Total ₹{Number(adminOrderDetail.total_amount || 0).toLocaleString("en-IN")} · Coupon {adminOrderDetail.coupon_code || "—"}</p>
+                    <p>Payment: {adminOrderDetail.payment_status} | Total Rs.{Number(adminOrderDetail.total_amount || 0).toLocaleString("en-IN")} | Coupon {adminOrderDetail.coupon_code || "-"}</p>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "12px 0" }}>
                       <select id="admin-next-status" key={adminOrderDetail.status} defaultValue="">
                         <option value="">Next status...</option>
@@ -2627,17 +2758,17 @@ function App() {
                         : "Not assigned"}
                     </p>
                     <div className="table-wrap"><table className="report-table"><thead><tr><th>Item</th><th>Qty</th><th>Price</th></tr></thead><tbody>
-                      {(adminOrderDetail.items || []).map((it) => <tr key={it.id}><td>{it.product_name}</td><td>{it.quantity}</td><td>₹{Number(it.subtotal || 0).toLocaleString("en-IN")}</td></tr>)}
+                      {(adminOrderDetail.items || []).map((it) => <tr key={it.id}><td>{it.product_name}</td><td>{it.quantity}</td><td>Rs.{Number(it.subtotal || 0).toLocaleString("en-IN")}</td></tr>)}
                     </tbody></table></div>
                     <h4>History</h4>
-                    <ul>{(adminOrderDetail.status_history || []).map((h) => <li key={h.id}>{h.status} — {h.message} <small>{new Date(h.created_at).toLocaleString()}</small></li>)}</ul>
+                    <ul>{(adminOrderDetail.status_history || []).map((h) => <li key={h.id}>{h.status} - {h.message} <small>{new Date(h.created_at).toLocaleString()}</small></li>)}</ul>
                   </div>
                 ) : (
                   <div className="table-wrap"><table className="report-table"><thead><tr><th>Order</th><th>Customer</th><th>Status</th><th>Payment</th><th>Total</th><th></th></tr></thead><tbody>
                     {adminOrders.length === 0 && (<tr><td colSpan={6}><div className="admin-empty">No orders match filters.</div></td></tr>)}{adminOrders.map((o) => (
                       <tr key={o.id}>
                         <td>{o.order_number}</td><td>{o.customer_name}</td><td>{o.status}</td><td>{o.payment_status}</td>
-                        <td>₹{Number(o.total_amount || 0).toLocaleString("en-IN")}</td>
+                        <td>Rs.{Number(o.total_amount || 0).toLocaleString("en-IN")}</td>
                         <td><button type="button" className="btn secondary small" onClick={() => fetchAdminOrderDetail(o.id).then(setAdminOrderDetail).catch((e) => setAdminOpsMessage(e.message))}>Open</button></td>
                       </tr>
                     ))}
@@ -2652,7 +2783,7 @@ function App() {
                   <button type="button" className="btn secondary small" onClick={() => downloadAdminExport("payments").catch((e) => setAdminOpsMessage(e.message))}>Export CSV</button>
                 </div>
                 <div className="table-wrap"><table className="report-table"><thead><tr><th>Order</th><th>Customer</th><th>Amount</th><th>Status</th><th>Method</th><th>Gateway order</th><th>Failure</th></tr></thead><tbody>
-                  {adminPayments.length === 0 && (<tr><td colSpan={7}><div className="admin-empty">No payments yet.</div></td></tr>)}{adminPayments.map((p) => <tr key={p.id}><td>{p.order_number}</td><td>{p.customer_name}</td><td>₹{Number(p.amount || 0).toLocaleString("en-IN")}</td><td>{p.status}</td><td>{p.payment_method || "—"}</td><td>{p.gateway_order_id}</td><td>{p.failure_reason || "—"}</td></tr>)}
+                  {adminPayments.length === 0 && (<tr><td colSpan={7}><div className="admin-empty">No payments yet.</div></td></tr>)}{adminPayments.map((p) => <tr key={p.id}><td>{p.order_number}</td><td>{p.customer_name}</td><td>Rs.{Number(p.amount || 0).toLocaleString("en-IN")}</td><td>{p.status}</td><td>{p.payment_method || "-"}</td><td>{p.gateway_order_id}</td><td>{p.failure_reason || "-"}</td></tr>)}
                 </tbody></table></div>
               </div>
             )}
@@ -2663,7 +2794,7 @@ function App() {
                   <button type="button" className="btn secondary small" onClick={() => downloadAdminExport("refunds").catch((e) => setAdminOpsMessage(e.message))}>Export CSV</button>
                 </div>
                 <div className="table-wrap"><table className="report-table"><thead><tr><th>ID</th><th>Order</th><th>Amount</th><th>Status</th><th>By</th><th>Reason</th><th>Gateway refund</th></tr></thead><tbody>
-                  {adminRefunds.length === 0 && (<tr><td colSpan={7}><div className="admin-empty">No refunds yet.</div></td></tr>)}{adminRefunds.map((r) => <tr key={r.id}><td>{r.id}</td><td>{r.order}</td><td>₹{Number(r.amount || 0).toLocaleString("en-IN")}</td><td>{r.status}</td><td>{r.initiated_by_type}</td><td>{r.reason || "—"}</td><td>{r.gateway_refund_id || "—"}</td></tr>)}
+                  {adminRefunds.length === 0 && (<tr><td colSpan={7}><div className="admin-empty">No refunds yet.</div></td></tr>)}{adminRefunds.map((r) => <tr key={r.id}><td>{r.id}</td><td>{r.order}</td><td>Rs.{Number(r.amount || 0).toLocaleString("en-IN")}</td><td>{r.status}</td><td>{r.initiated_by_type}</td><td>{r.reason || "-"}</td><td>{r.gateway_refund_id || "-"}</td></tr>)}
                 </tbody></table></div>
               </div>
             )}
@@ -2723,7 +2854,7 @@ function App() {
                     <tr><td colSpan={7}><div className="admin-empty">No customers found.</div></td></tr>
                   )}
                   {adminCustomers.map((c) => (
-                    <tr key={c.id}><td>{c.username}</td><td>{c.email}</td><td>{c.mobile_number || "—"}</td><td>{c.order_count}</td><td>₹{Number(c.total_purchase || 0).toLocaleString("en-IN")}</td><td>{c.is_active ? "Yes" : "No"}</td>
+                    <tr key={c.id}><td>{c.username}</td><td>{c.email}</td><td>{c.mobile_number || "-"}</td><td>{c.order_count}</td><td>Rs.{Number(c.total_purchase || 0).toLocaleString("en-IN")}</td><td>{c.is_active ? "Yes" : "No"}</td>
                       <td style={{ display: "flex", gap: 6 }}>
                         <button type="button" className="btn secondary small" onClick={() => openCustomerDetail(c.id)}>View</button>
                         <button type="button" className="btn secondary small" onClick={() => updateAdminCustomerStatus(c.id, !c.is_active).then(() => { loadAdminSectionData("customers"); if (adminCustomerDetail?.id === c.id) openCustomerDetail(c.id); }).catch((e) => setAdminOpsMessage(e.message))}>{c.is_active ? "Deactivate" : "Activate"}</button>
@@ -2814,7 +2945,7 @@ function App() {
                     <div key={n.id} className="report-card" style={{ textAlign: "left" }}>
                       <strong>{n.title}</strong>
                       <div>{n.body}</div>
-                      <small>{n.event} · {n.reference_type} {n.reference_id} · {new Date(n.created_at).toLocaleString()} · {n.is_read ? "Read" : "Unread"}</small>
+                      <small>{n.event} | {n.reference_type} {n.reference_id} | {new Date(n.created_at).toLocaleString()} | {n.is_read ? "Read" : "Unread"}</small>
                     </div>
                   ))}
                 </div>
@@ -2848,7 +2979,7 @@ function App() {
                       <label>Bakery longitude<input value={adminSettings.business?.bakery_longitude || ""} onChange={(e) => setAdminSettings((p) => ({ ...p, business: { ...p.business, bakery_longitude: e.target.value } }))} /></label>
                       <label>Default delivery charge<input value={adminSettings.business?.default_delivery_charge || ""} onChange={(e) => setAdminSettings((p) => ({ ...p, business: { ...p.business, default_delivery_charge: e.target.value } }))} /></label>
                       <label><input type="checkbox" checked={!!adminSettings.business?.delivery_enabled} onChange={(e) => setAdminSettings((p) => ({ ...p, business: { ...p.business, delivery_enabled: e.target.checked } }))} /> Delivery enabled</label>
-                      <p><small>Contact: {adminSettings.business?.contact_email || "—"} · Secrets are never shown or accepted here.</small></p>
+                      <p><small>Contact: {adminSettings.business?.contact_email || "-"} | Secrets are never shown or accepted here.</small></p>
                       <button type="submit" className="btn primary small">Save operational settings</button>
                     </form>
                   </>
@@ -2884,13 +3015,13 @@ function App() {
                       <div className="report-card"><span>Total reviews</span><strong>{reportSummary.review_stats?.total_reviews ?? 0}</strong></div>
                       <div className="report-card"><span>Average rating</span><strong>{Number(reportSummary.review_stats?.average_rating ?? 0).toFixed(1)}</strong></div>
                       <div className="report-card"><span>Pending reviews</span><strong>{reportSummary.review_stats?.pending_reviews ?? 0}</strong></div>
-                      <div className="report-card"><span>Revenue</span><strong>₹{Number(reportSummary.sales_stats?.total_sales ?? 0).toLocaleString("en-IN")}</strong></div>
+                      <div className="report-card"><span>Revenue</span><strong>Rs.{Number(reportSummary.sales_stats?.total_sales ?? 0).toLocaleString("en-IN")}</strong></div>
                       <div className="report-card"><span>Successful payments</span><strong>{reportSummary.sales_stats?.successful_payments ?? 0}</strong></div>
                       <div className="report-card"><span>Failed payments</span><strong>{reportSummary.sales_stats?.failed_payments ?? 0}</strong></div>
                       <div className="report-card"><span>Pending payments</span><strong>{reportSummary.sales_stats?.pending_payments ?? 0}</strong></div>
                       <div className="report-card"><span>Orders</span><strong>{reportSummary.sales_stats?.total_orders ?? 0}</strong></div>
                       <div className="report-card"><span>Orders with coupon</span><strong>{reportSummary.sales_stats?.orders_with_coupon ?? 0}</strong></div>
-                      <div className="report-card"><span>Coupon discount</span><strong>₹{Number(reportSummary.sales_stats?.total_coupon_discount ?? 0).toLocaleString("en-IN")}</strong></div>
+                      <div className="report-card"><span>Coupon discount</span><strong>Rs.{Number(reportSummary.sales_stats?.total_coupon_discount ?? 0).toLocaleString("en-IN")}</strong></div>
                       <div className="report-card"><span>Coupons used</span><strong>{reportSummary.sales_stats?.coupons_used_count ?? 0}</strong></div>
                     </div>
 
@@ -3018,7 +3149,7 @@ function App() {
                         <div>
                           <strong>{zone.name}</strong>
                           <span>{(zone.postal_codes || []).join(", ")}</span>
-                          <small>Charge {String.fromCharCode(8377)}{Number(zone.delivery_charge || 0)} · Min {String.fromCharCode(8377)}{Number(zone.minimum_order_amount || 0)}</small>
+                          <small>Charge {String.fromCharCode(8377)}{Number(zone.delivery_charge || 0)} | Min {String.fromCharCode(8377)}{Number(zone.minimum_order_amount || 0)}</small>
                         </div>
                       </div>
                       <div className="admin-item-actions">
@@ -3042,7 +3173,7 @@ function App() {
                     <input value={cakeForm.name} onChange={e => setCakeForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Strawberry Delight" />
                   </label>
                   <label>
-                    Price (₹)
+                    Price (Rs.)
                     <input type="number" value={cakeForm.price} onChange={e => setCakeForm(prev => ({ ...prev, price: e.target.value }))} placeholder="1299" />
                   </label>
                   <label>
@@ -3101,7 +3232,7 @@ function App() {
                           <strong>{item.name}</strong>
                           <span>{item.category}</span>
                           <small className="stock-meta">Stock: {item.available_quantity ?? item.stock_remaining ?? 0} ({item.availability || "in_stock"})</small>
-                          <small>₹{item.price.toLocaleString("en-IN")}</small>
+                          <small>Rs.{item.price.toLocaleString("en-IN")}</small>
                         </div>
                       </div>
                       <div className="admin-item-actions">
@@ -3131,12 +3262,12 @@ function App() {
               {adminCustomerDetail && (
                 <>
                   <p><strong>{adminCustomerDetail.first_name || ""} {adminCustomerDetail.last_name || ""}</strong> <span className="admin-muted">@{adminCustomerDetail.username}</span></p>
-                  <p className="admin-muted">{adminCustomerDetail.email} · {adminCustomerDetail.mobile_number || "No mobile"}</p>
+                  <p className="admin-muted">{adminCustomerDetail.email} | {adminCustomerDetail.mobile_number || "No mobile"}</p>
                   <p>Status: <strong>{adminCustomerDetail.is_active ? "Active" : "Inactive"}</strong>
-                    {" · "}Verified: {adminCustomerDetail.is_verified ? "Yes" : "No"}
-                    {" · "}Joined: {adminCustomerDetail.date_joined ? new Date(adminCustomerDetail.date_joined).toLocaleDateString() : "-"}
+                    {" | "}Verified: {adminCustomerDetail.is_verified ? "Yes" : "No"}
+                    {" | "}Joined: {adminCustomerDetail.date_joined ? new Date(adminCustomerDetail.date_joined).toLocaleDateString() : "-"}
                   </p>
-                  <p>Orders: <strong>{adminCustomerDetail.order_count ?? 0}</strong> · Purchase: <strong>₹{Number(adminCustomerDetail.total_purchase || 0).toLocaleString("en-IN")}</strong></p>
+                  <p>Orders: <strong>{adminCustomerDetail.order_count ?? 0}</strong> | Purchase: <strong>Rs.{Number(adminCustomerDetail.total_purchase || 0).toLocaleString("en-IN")}</strong></p>
                   <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                     <button type="button" className="btn primary small" onClick={() => updateAdminCustomerStatus(adminCustomerDetail.id, !adminCustomerDetail.is_active).then(() => { openCustomerDetail(adminCustomerDetail.id); loadAdminSectionData("customers"); setAdminOpsMessage(adminCustomerDetail.is_active ? "Customer deactivated" : "Customer activated"); }).catch((e) => setAdminOpsMessage(e.message))}>
                       {adminCustomerDetail.is_active ? "Deactivate" : "Activate"}
@@ -3154,7 +3285,7 @@ function App() {
                   {(adminCustomerDetail.orders || []).length === 0 ? <div className="admin-empty">No orders.</div> : (
                     <div className="table-wrap"><table className="report-table"><thead><tr><th>Order</th><th>Status</th><th>Total</th></tr></thead><tbody>
                       {(adminCustomerDetail.orders || []).slice(0, 15).map((o) => (
-                        <tr key={o.id}><td>{o.order_number}</td><td>{o.status}</td><td>₹{Number(o.total_amount || 0).toLocaleString("en-IN")}</td></tr>
+                        <tr key={o.id}><td>{o.order_number}</td><td>{o.status}</td><td>Rs.{Number(o.total_amount || 0).toLocaleString("en-IN")}</td></tr>
                       ))}
                     </tbody></table></div>
                   )}
@@ -3169,8 +3300,8 @@ function App() {
         <div className="drawer-head"><h2>Your Cart</h2><button onClick={() => setCartOpen(false)}><X/></button></div>
         {cart.length === 0 ? <div className="empty-cart"><ShoppingBag size={38}/><h3>Your cart is empty</h3><p>Pick a beautiful cake for your next celebration.</p><button className="btn primary" onClick={() => {setCartOpen(false);scrollTo("cakes")}}>Explore Cakes</button></div> :
           <>
-            <div className="cart-items">{cart.map(item => <div className="cart-item" key={item.id}><img src={item.image}/><div><b>{item.name}</b><small>{item.size}</small><strong>₹{(item.price*item.qty).toLocaleString("en-IN")}</strong><div className="qty"><button onClick={()=>changeQty(item.id,-1)}><Minus/></button><span>{item.qty}</span><button onClick={()=>changeQty(item.id,1)}><Plus/></button><button className="delete" onClick={()=>changeQty(item.id,-item.qty)}><Trash2/></button></div></div></div>)}</div>
-            <div className="cart-summary"><div><span>Subtotal</span><b>₹{cartTotal.toLocaleString("en-IN")}</b></div><small>Taxes and delivery calculated at checkout.</small><button className="btn primary checkout" onClick={openCheckout}>Proceed to Checkout <ArrowRight/></button></div>
+            <div className="cart-items">{cart.map(item => <div className="cart-item" key={item.id}><img src={item.image}/><div><b>{item.name}</b><small>{item.size}</small><strong>Rs.{(item.price*item.qty).toLocaleString("en-IN")}</strong><div className="qty"><button onClick={()=>changeQty(item.id,-1)}><Minus/></button><span>{item.qty}</span><button onClick={()=>changeQty(item.id,1)}><Plus/></button><button className="delete" onClick={()=>changeQty(item.id,-item.qty)}><Trash2/></button></div></div></div>)}</div>
+            <div className="cart-summary"><div><span>Subtotal</span><b>Rs.{cartTotal.toLocaleString("en-IN")}</b></div><small>Taxes and delivery calculated at checkout.</small><button className="btn primary checkout" onClick={openCheckout}>Proceed to Checkout <ArrowRight/></button></div>
           </>
         }
       </aside>
@@ -3309,14 +3440,14 @@ function App() {
                 </div>
 
                 <div className="cart-summary" style={{ marginTop: 12, padding: 0, border: "none" }}>
-                  <div><span>Subtotal</span><b>₹{cartTotal.toLocaleString("en-IN")}</b></div>
+                  <div><span>Subtotal</span><b>Rs.{cartTotal.toLocaleString("en-IN")}</b></div>
                   {appliedCoupon ? (
-                    <div><span>Coupon ({appliedCoupon.code})</span><b>-₹{couponDiscountPreview.toLocaleString("en-IN")}</b></div>
+                    <div><span>Coupon ({appliedCoupon.code})</span><b>-Rs.{couponDiscountPreview.toLocaleString("en-IN")}</b></div>
                   ) : null}
-                  <div><span>Delivery</span><b>{deliveryQuote?.eligible ? (String.fromCharCode(8377) + deliveryFeePreview.toLocaleString("en-IN")) : "—"}</b></div>
+                  <div><span>Delivery</span><b>{deliveryQuote?.eligible ? (String.fromCharCode(8377) + deliveryFeePreview.toLocaleString("en-IN")) : "-"}</b></div>
                   {deliveryQuoteMessage ? <div className="auth-error" style={{ color: deliveryQuote?.eligible ? "#2f6b4f" : undefined }}>{deliveryQuoteMessage}</div> : null}
                   {deliveryQuote?.eta_min_minutes ? <small>ETA {deliveryQuote.eta_min_minutes}-{deliveryQuote.eta_max_minutes || "?"} min</small> : null}
-                  <div><span>Total</span><b>₹{checkoutPayable.toLocaleString("en-IN")}</b></div>
+                  <div><span>Total</span><b>Rs.{checkoutPayable.toLocaleString("en-IN")}</b></div>
                 </div>
 
                 {checkoutMessage && <div className="auth-error">{checkoutMessage}</div>}
@@ -3341,7 +3472,7 @@ function App() {
               <div className="auth-form" style={{ gap: 14 }}>
                 <div className="cart-summary" style={{ marginTop: 0, padding: 0, border: "none" }}>
                   <div><span>Order</span><b>{orderSuccess.orderNumber || "PinkBakes Order"}</b></div>
-                  <div><span>Amount</span><b>₹{Number(orderSuccess.amount || 0).toLocaleString("en-IN")}</b></div>
+                  <div><span>Amount</span><b>Rs.{Number(orderSuccess.amount || 0).toLocaleString("en-IN")}</b></div>
                 </div>
                 <div className="empty">Payment ID: {orderSuccess.paymentId || "-"}</div>
                 <div className="auth-row">
@@ -3473,9 +3604,9 @@ function App() {
                     <div><span>Coupon</span><b>{selectedOrder.coupon_code}</b></div>
                   ) : null}
                   {Number(selectedOrder.coupon_discount_amount || selectedOrder.discount_amount || 0) > 0 ? (
-                    <div><span>Coupon discount</span><b>-₹{Number(selectedOrder.coupon_discount_amount || selectedOrder.discount_amount || 0).toLocaleString("en-IN")}</b></div>
+                    <div><span>Coupon discount</span><b>-Rs.{Number(selectedOrder.coupon_discount_amount || selectedOrder.discount_amount || 0).toLocaleString("en-IN")}</b></div>
                   ) : null}
-                  <div><span>Total</span><b>₹{Number(selectedOrder.total_amount || 0).toLocaleString("en-IN")}</b></div>
+                  <div><span>Total</span><b>Rs.{Number(selectedOrder.total_amount || 0).toLocaleString("en-IN")}</b></div>
               {Number(selectedOrder.delivery_fee || 0) > 0 ? (
                 <div><span>Delivery fee</span><b>{String.fromCharCode(8377)}{Number(selectedOrder.delivery_fee || 0).toLocaleString("en-IN")}</b></div>
               ) : (
@@ -3538,7 +3669,7 @@ function App() {
                             {selectedOrder.refunds_summary.latest_status === "completed"
                               ? "Completed"
                               : selectedOrder.refunds_summary.latest_status === "failed"
-                                ? "Failed — contact support"
+                                ? "Failed - contact support"
                                 : "Processing"}
                           </b>
                         </div>
@@ -3566,7 +3697,7 @@ function App() {
                       <div>
                         <b>{item.product_name}</b>
                         <small>Qty: {item.quantity}</small>
-                        <strong>₹{Number(item.subtotal || 0).toLocaleString("en-IN")}</strong>
+                        <strong>Rs.{Number(item.subtotal || 0).toLocaleString("en-IN")}</strong>
                       </div>
                     </div>
                   ))}
@@ -3631,7 +3762,7 @@ function App() {
                           </div>
                         </div>
                         <div className="admin-item-actions">
-                          <strong>₹{Number(order.total_amount || 0).toLocaleString("en-IN")}</strong>
+                          <strong>Rs.{Number(order.total_amount || 0).toLocaleString("en-IN")}</strong>
                           <span>{order.payment_status || "pending"}</span>
                         </div>
                       </button>
@@ -3719,11 +3850,11 @@ function App() {
                 <form className="auth-form" onSubmit={handleResetPasswordSubmit}>
                   <label>
                     New Password
-                    <input type="password" value={resetPasswordForm.password} onChange={e => setResetPasswordForm(prev => ({ ...prev, password: e.target.value }))} placeholder="••••••••" required />
+                    <input type="password" value={resetPasswordForm.password} onChange={e => setResetPasswordForm(prev => ({ ...prev, password: e.target.value }))} placeholder="********" required />
                   </label>
                   <label>
                     Confirm New Password
-                    <input type="password" value={resetPasswordForm.confirm_password} onChange={e => setResetPasswordForm(prev => ({ ...prev, confirm_password: e.target.value }))} placeholder="••••••••" required />
+                    <input type="password" value={resetPasswordForm.confirm_password} onChange={e => setResetPasswordForm(prev => ({ ...prev, confirm_password: e.target.value }))} placeholder="********" required />
                   </label>
                   {authMessage && <div className="auth-error">{authMessage}</div>}
                   <button type="submit" className="btn primary full" disabled={authLoading}>
@@ -3749,7 +3880,7 @@ function App() {
 
                   <div className="auth-note">
                     {verificationMethod === "email"
-                      ? "We’ve created a secure verification link for your email. You can also manually verify by using the generated token or request a fresh link."
+                      ? "We've created a secure verification link for your email. You can also manually verify by using the generated token or request a fresh link."
                       : "Enter the OTP sent to your mobile number to complete verification."}
                   </div>
 
@@ -3759,16 +3890,19 @@ function App() {
                     </a>
                   )}
 
-                  {verificationMethod === "otp" && (
-                    <label>
-                      OTP code
-                      <input value={verificationCode} onChange={e => setVerificationCode(e.target.value)} placeholder="123456" />
-                    </label>
-                  )}
-
-                  {verificationData?.otp && verificationMethod === "otp" && (
-                    <div className="auth-note">Generated OTP: <strong>{verificationData.otp}</strong></div>
-                  )}
+                  <label>
+                    {verificationMethod === "email" ? "Verification token from email" : "OTP code"}
+                    <input
+                      value={verificationCode}
+                      onChange={e => setVerificationCode(e.target.value)}
+                      placeholder={verificationMethod === "email" ? "Paste token from email link" : "Code from email/SMS"}
+                    />
+                  </label>
+                  <div className="auth-note">
+                    {verificationMethod === "email"
+                      ? "Open the verification link in your email, or paste the token from that link here."
+                      : "Enter the one-time code sent to your email/SMS. Codes are never shown in the app."}
+                  </div>
 
                   {authMessage && <div className="auth-error">{authMessage}</div>}
 
@@ -3862,7 +3996,7 @@ function App() {
 
                   <label>
                     Password
-                    <input type="password" value={authForm.password} onChange={e => setAuthForm(prev => ({ ...prev, password: e.target.value }))} placeholder="••••••••" required />
+                    <input type="password" value={authForm.password} onChange={e => setAuthForm(prev => ({ ...prev, password: e.target.value }))} placeholder="********" required />
                   </label>
 
                   {authMessage && <div className="auth-error">{authMessage}</div>}
@@ -4053,12 +4187,12 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
               <span aria-current="page">{detail.name}</span>
             </nav>
             <span className="eyebrow">{(detail.category || "CAKE").toUpperCase()}</span>
-            <div className="rating"><Star size={14} fill="currentColor"/>{Number(detail.average_rating ?? detail.rating ?? 0).toFixed(1)} • {detail.review_count || reviews.length || 0} reviews</div>
+            <div className="rating"><Star size={14} fill="currentColor"/>{Number(detail.average_rating ?? detail.rating ?? 0).toFixed(1)} * {detail.review_count || reviews.length || 0} reviews</div>
             <h1 className="product-title">{detail.name}</h1>
             <p className="modal-desc">{detail.description || detail.short_description || "Freshly baked for your special celebration."}</p>
             <div className="modal-price-row">
-              <span className="modal-price">₹{Number(currentPrice || 0).toLocaleString("en-IN")}</span>
-              {Number(detail.discount || 0) > 0 && <span className="strike">₹{Number(detail.price || 0).toLocaleString("en-IN")}</span>}
+              <span className="modal-price">Rs.{Number(currentPrice || 0).toLocaleString("en-IN")}</span>
+              {Number(detail.discount || 0) > 0 && <span className="strike">Rs.{Number(detail.price || 0).toLocaleString("en-IN")}</span>}
             </div>
             {Number(detail.discount || 0) > 0 && <small className="discount-badge">{detail.discount}% OFF</small>}
             <label>Choose Size</label><div className="option-row">{["0.5 kg","1 kg","1.5 kg","2 kg"].map(x=><button className={size===x?"selected-option":""} key={x} onClick={()=>setSize(x)}>{x}</button>)}</div>
@@ -4066,7 +4200,7 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
             <label>Message on Cake</label><input className="cake-message" placeholder="Happy Birthday..."/>
             <label>Delivery Date</label><input className="cake-message" type="date"/>
             <button className="btn primary full" disabled={isOutOfStock ? isOutOfStock(detail) : false} onClick={onAdd}>{(isOutOfStock && isOutOfStock(detail)) ? "Out of Stock" : <>Add to Cart <ShoppingBag size={17}/></>}</button>
-            <div className="secure"><ShieldCheck/> Freshly made • Secure checkout • Delivery support</div>
+            <div className="secure"><ShieldCheck/> Freshly made * Secure checkout * Delivery support</div>
 
             <div className="review-panel">
               <h3>Customer Reviews</h3>
@@ -4090,9 +4224,9 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
               <div className="review-list">
                 {reviews.length === 0 ? <div className="empty">No reviews yet. Be the first to rate this cake.</div> : reviews.map(review => (
                   <div className="review-item" key={review.id || `${review.user || review.name}-${review.created_at}`}>
-                    <div className="stars">{'★'.repeat(review.rating || 0)}{'☆'.repeat(5 - (review.rating || 0))} <small>{review.rating}/5</small></div>
-                    <p>“{review.comment || review.text}”</p>
-                    <small>— {review.user_name || review.name || 'Customer'} • {new Date(review.created_at).toLocaleDateString()}</small>
+                    <div className="stars">{'*'.repeat(review.rating || 0)}{'-'.repeat(5 - (review.rating || 0))} <small>{review.rating}/5</small></div>
+                    <p>"{review.comment || review.text}"</p>
+                    <small>- {review.user_name || review.name || 'Customer'} * {new Date(review.created_at).toLocaleDateString()}</small>
                   </div>
                 ))}
               </div>
@@ -4103,5 +4237,6 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
     </div>
   </div>
 }
+
 
 createRoot(document.getElementById("root")).render(<App />);

@@ -28,6 +28,33 @@ async function requestJson(url, options = {}) {
 }
 
 
+
+/** Client TTL cache for stable public catalog data only.
+ * Never used for checkout, payment, inventory mutations, coupons, or auth.
+ * Invalidated on admin product create/update/delete.
+ */
+const _catalogCache = new Map();
+const CATALOG_TTL_MS = 30_000;
+
+function _cacheGet(key) {
+  const hit = _catalogCache.get(key);
+  if (!hit) return null;
+  if (Date.now() > hit.expires) {
+    _catalogCache.delete(key);
+    return null;
+  }
+  return hit.value;
+}
+
+function _cacheSet(key, value, ttlMs = CATALOG_TTL_MS) {
+  _catalogCache.set(key, { value, expires: Date.now() + ttlMs });
+  return value;
+}
+
+export function invalidateCatalogClientCache() {
+  _catalogCache.clear();
+}
+
 function buildQuery(params = {}) {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -157,13 +184,21 @@ export async function fetchAdminReportActivity(params = {}) {
 
 
 export async function fetchCategories() {
-  return requestJson(`${API_BASE_URL}/api/catalog/categories/`, { method: "GET" });
+  const key = "categories";
+  const cached = _cacheGet(key);
+  if (cached) return cached;
+  const data = await requestJson(`${API_BASE_URL}/api/catalog/categories/`, { method: "GET" });
+  return _cacheSet(key, data, 60_000);
 }
 
 export async function fetchProducts(params = {}) {
   const qs = buildQuery(params);
   const url = `${API_BASE_URL}/api/catalog/products/${qs ? `?${qs}` : ""}`;
-  return requestJson(url, { method: "GET" });
+  const key = `products:${qs || "all"}`;
+  const cached = _cacheGet(key);
+  if (cached) return cached;
+  const data = await requestJson(url, { method: "GET" });
+  return _cacheSet(key, data, CATALOG_TTL_MS);
 }
 
 export async function fetchProduct(id) {
@@ -275,32 +310,41 @@ export async function fetchOrder(orderId, token) {
 }
 
 export async function createProduct(payload, token) {
-  return requestJson(`${API_BASE_URL}/api/catalog/admin/products/`, {
+  const __data = await requestJson(`${API_BASE_URL}/api/catalog/admin/products/`, {
     method: "POST",
     headers: {
       Authorization: `Token ${token}`,
     },
     body: JSON.stringify(payload),
   });
+
+  invalidateCatalogClientCache();
+  return __data;
 }
 
 export async function updateProduct(id, payload, token) {
-  return requestJson(`${API_BASE_URL}/api/catalog/admin/products/${id}/`, {
+  const __data = await requestJson(`${API_BASE_URL}/api/catalog/admin/products/${id}/`, {
     method: "PUT",
     headers: {
       Authorization: `Token ${token}`,
     },
     body: JSON.stringify(payload),
   });
+
+  invalidateCatalogClientCache();
+  return __data;
 }
 
 export async function deleteProduct(id, token) {
-  return requestJson(`${API_BASE_URL}/api/catalog/admin/products/${id}/`, {
+  const __data = await requestJson(`${API_BASE_URL}/api/catalog/admin/products/${id}/`, {
     method: "DELETE",
     headers: {
       Authorization: `Token ${token}`,
     },
   });
+
+  invalidateCatalogClientCache();
+  return __data;
 }
 
 export async function validateCart(payload) {
@@ -752,4 +796,24 @@ export async function downloadAdminExport(entity, params = {}) {
   a.click();
   a.remove();
   URL.revokeObjectURL(objectUrl);
+}
+
+
+export async function logout(token) {
+  return requestJson(`${API_BASE_URL}/api/accounts/logout/`, {
+    method: "POST",
+    headers: {
+      Authorization: `Token ${token}`,
+    },
+  });
+}
+
+
+export async function adminLogout(token) {
+  return requestJson(`${API_BASE_URL}/api/catalog/admin/logout/`, {
+    method: "POST",
+    headers: {
+      Authorization: `Token ${token}`,
+    },
+  });
 }
