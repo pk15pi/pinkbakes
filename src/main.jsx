@@ -7,6 +7,7 @@ import {
   MessageCircle, Mail, MapPin, Check, Send,
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown
 } from "lucide-react";
+import { CHATBOT_QUICK_PROMPTS, matchChatbotFaq } from "./chatbotFaq";
 import { logout, adminLogout,
   adminLogin,
   cancelOrder,
@@ -141,6 +142,10 @@ function getNextOrderStatuses(current) {
 const BRAND_NAME = "pinkbakes";
 const WHATSAPP_NUMBER = "6033430700";
 const CONTACT_EMAIL = "pinkbakes@pinkbakes.com";
+const BAKERY_LOCATION = {
+  label: "pinkbakes Bakery",
+  hours: "Open daily | 10 AM - 9 PM",
+};
 
 const normalizeProduct = (product) => {
   const base = product || {};
@@ -193,6 +198,7 @@ function App() {
   const [productNotFound, setProductNotFound] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [toast, setToast] = useState("");
+  const [bakeryLocationOpen, setBakeryLocationOpen] = useState(false);
   const [newsletter, setNewsletter] = useState("");
   const [newsletterDone, setNewsletterDone] = useState(false);
   const [catalog, setCatalog] = useState([]);
@@ -338,10 +344,11 @@ function App() {
   });
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
+  const chatMessagesRef = useRef(null);
   const [chatMessages, setChatMessages] = useState([
     {
       sender: "bot",
-      text: "Hi! I can help with cake suggestions, pricing, custom orders, and delivery questions."
+      text: "Hi! I'm PinkBakes Assistant — your free Help Desk. Ask about ordering, delivery, cancel/refund, eggless & custom cakes, coupons, or payments. Tap a quick question below anytime."
     }
   ]);
   const [trackingOrder, setTrackingOrder] = useState(null);
@@ -698,6 +705,43 @@ function App() {
     setTimeout(() => setToast(""), 2200);
   }
 
+  function resolveBakeryCoords() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("Location is not supported on this device."));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        (err) => reject(new Error(err.message || "Unable to read your current location.")),
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+      );
+    });
+  }
+
+  async function shareBakeryLocationOnWhatsApp() {
+    try {
+      const { lat, lng } = await resolveBakeryCoords();
+      const mapsUrl = getMapsUrl(lat, lng);
+      const msg = "Visit " + BAKERY_LOCATION.label + " - my current location: " + mapsUrl;
+      window.open("https://wa.me/?text=" + encodeURIComponent(msg), "_blank", "noopener,noreferrer");
+      setBakeryLocationOpen(false);
+    } catch (e) {
+      notify(e.message || "Location permission is required to share.");
+    }
+  }
+
+  async function openBakeryInGoogleMaps() {
+    try {
+      const { lat, lng } = await resolveBakeryCoords();
+      window.open(getMapsUrl(lat, lng), "_blank", "noopener,noreferrer");
+      setBakeryLocationOpen(false);
+    } catch (e) {
+      notify(e.message || "Location permission is required to open Maps.");
+    }
+  }
+
+
   useEffect(() => {
     try {
       localStorage.setItem("pinkbakes_wishlist", JSON.stringify(wishlist));
@@ -731,7 +775,7 @@ function App() {
       `* Preferred date: ${brief.preferredDate || "-"}`,
       `* Phone: ${brief.phone?.trim() || "-"}`
     ];
-    const msg = lines.join("\n");
+    const msg = lines.join(' | ');
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
     notify("Opening WhatsApp with your cake brief");
   }
@@ -791,7 +835,10 @@ function App() {
 
   function scrollTo(id) {
     setMobileOpen(false);
-    document.getElementById(id)?.scrollIntoView({behavior: "smooth"});
+    const el = document.getElementById(id);
+    if (!el) return;
+    // Contact strip sits under sticky header; start alignment keeps #contact in view.
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function subscribe(e) {
@@ -1460,61 +1507,79 @@ function App() {
   }
 
   function getChatbotReply(inputText) {
-    const query = (inputText || "").trim().toLowerCase();
-    if (!query) return "Please type a question and I'll help you out.";
+    const names = (catalog || []).map((item) => item.name).filter(Boolean);
+    return matchChatbotFaq(inputText, names).answer;
+  }
 
-    if (query.includes("hello") || query.includes("hi") || query.includes("hey")) {
-      return "Hello! I can suggest cakes, answer pricing questions, and help with custom orders.";
+  function scrollChatToBottom() {
+    const el = chatMessagesRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }
+
+  useEffect(() => {
+    if (!chatOpen) return;
+    // Scroll .chatbot-messages after open / FAQ reply paint (Shipping, Return, Help Desk).
+    const id = requestAnimationFrame(() => {
+      scrollChatToBottom();
+      requestAnimationFrame(scrollChatToBottom);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [chatOpen, chatMessages]);
+
+  function sendChatMessage(text) {
+    const trimmed = (text || "").trim();
+    if (!trimmed) return;
+    setChatMessages((prev) => [...prev, { sender: "user", text: trimmed }]);
+    setChatInput("");
+    const response = getChatbotReply(trimmed);
+    setTimeout(() => {
+      setChatMessages((prev) => [...prev, { sender: "bot", text: response }]);
+      // After bot reply paints, scroll .chatbot-messages so the latest answer is visible.
+      requestAnimationFrame(() => {
+        scrollChatToBottom();
+        requestAnimationFrame(scrollChatToBottom);
+      });
+    }, 220);
+  }
+
+  function openHelpDesk() {
+    setChatOpen(true);
+    // Open alone (no seeded FAQ): still show the latest messages at the bottom.
+    requestAnimationFrame(() => {
+      scrollChatToBottom();
+      requestAnimationFrame(scrollChatToBottom);
+    });
+  }
+
+  /** Open the same Help Desk / PinkBakes Assistant and optionally seed an FAQ question. */
+  function openHelpDeskTopic(prompt) {
+    setChatOpen(true);
+    const trimmed = (prompt || "").trim();
+    if (trimmed) {
+      // Defer so the dock opens before the seeded message lands.
+      setTimeout(() => sendChatMessage(trimmed), 0);
+    } else {
+      requestAnimationFrame(() => {
+        scrollChatToBottom();
+        requestAnimationFrame(scrollChatToBottom);
+      });
     }
+  }
 
-    if (query.includes("price") || query.includes("budget") || query.includes("cost")) {
-      return `Our signature cakes start from ${formatCurrency(1099)} and custom designs are priced based on size and finish.`;
+  function openFooterAdmin() {
+    if (isAdminLoggedIn) {
+      setAdminOpen(true);
+      setAdminSection("dashboard");
+      try { window.history.pushState({}, "", "/admin"); } catch (_) { /* ignore */ }
+    } else {
+      openAdminLogin();
     }
-
-    if (query.includes("birthday")) {
-      return "Birthday cakes are very popular here. Try our Chocolate Truffle, Vanilla Dream, or Berry Bliss for a festive favorite.";
-    }
-
-    if (query.includes("anniversary") || query.includes("wedding")) {
-      return "For anniversary or wedding celebrations, our Red Velvet and Rose Garden cakes are elegant choices for a memorable moment.";
-    }
-
-    if (query.includes("chocolate")) {
-      return "Our Chocolate Truffle and Midnight Mocha cakes are top picks if you want a rich chocolate experience.";
-    }
-
-    if (query.includes("eggless")) {
-      return "We offer eggless options on many of our favorite cakes. Tell me your occasion and I'll suggest the best match.";
-    }
-
-    if (query.includes("custom") || query.includes("order")) {
-      return "You can place a custom cake request through our custom cake section. Share your theme, size, and flavor and we'll guide you from there.";
-    }
-
-    if (query.includes("delivery") || query.includes("shipping") || query.includes("time")) {
-      return "We usually prepare cakes within 24-48 hours, and delivery timing depends on your selected size and location.";
-    }
-
-    if (query.includes("recommend") || query.includes("best")) {
-      const topChoices = catalog.slice(0, 3).map(item => item.name).join(", ");
-      return topChoices ? `Popular picks right now: ${topChoices}.` : "Popular picks right now include Chocolate Truffle, Red Velvet, and Vanilla Dream.";
-    }
-
-    return "I can help with cake recommendations, budgeting, custom orders, and delivery. Try asking about birthdays, chocolate cakes, or pricing.";
   }
 
   function handleChatSubmit(e) {
     e.preventDefault();
-    const trimmed = chatInput.trim();
-    if (!trimmed) return;
-
-    setChatMessages(prev => [...prev, { sender: "user", text: trimmed }]);
-    setChatInput("");
-
-    const response = getChatbotReply(trimmed);
-    setTimeout(() => {
-      setChatMessages(prev => [...prev, { sender: "bot", text: response }]);
-    }, 250);
+    sendChatMessage(chatInput);
   }
 
   function handleSignOut() {
@@ -2114,25 +2179,6 @@ function App() {
             <span className="cart-count">{cartCount}</span>
           </button>
 
-          <button
-            type="button"
-            className="header-action admin-login-btn"
-            onClick={() => {
-              if (isAdminLoggedIn) {
-                setAdminOpen(true);
-                setAdminSection("dashboard");
-                try { window.history.pushState({}, "", "/admin"); } catch (_) { /* ignore */ }
-              } else {
-                openAdminLogin();
-              }
-            }}
-            aria-label={isAdminLoggedIn ? "Open admin panel" : "Admin Login"}
-            title={isAdminLoggedIn ? "Open admin panel" : "Admin Login"}
-          >
-            <span className="action-icon"><ShieldCheck size={16} /></span>
-            <span className="action-label">{isAdminLoggedIn ? "Admin" : "Admin Login"}</span>
-          </button>
-
           <button type="button" className="order-top" onClick={() => scrollTo("cakes")}>Order Now</button>
         </div>
       </header>
@@ -2345,9 +2391,58 @@ function App() {
         </section>
 
         <section className="contact-strip section" id="contact">
-          <div><MapPin/><span><b>Visit Our Bakery</b><small>Open daily * 10 AM - 9 PM</small></span></div>
-          <div><MessageCircle/><span><b>WhatsApp Orders</b><small><a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noreferrer">{WHATSAPP_NUMBER}</a></small></span></div>
-          <div><Mail/><span><b>Email Us</b><small><a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a></small></span></div>
+          <button
+            type="button"
+            className="contact-card"
+            onClick={() => setBakeryLocationOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={bakeryLocationOpen}
+          >
+            <span className="contact-card-icon contact-card-icon-bakery" aria-hidden="true">
+              <MapPin size={22}/>
+            </span>
+            <span className="contact-card-body">
+              <span className="contact-card-eyebrow">Come taste the sweetness</span>
+              <b>Visit Our Bakery</b>
+              <small>{BAKERY_LOCATION.hours}</small>
+              <span className="contact-card-note">Share location or open maps</span>
+            </span>
+            <span className="contact-card-pill">Visit</span>
+          </button>
+
+          <a
+            className="contact-card"
+            href={`https://wa.me/${WHATSAPP_NUMBER}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span className="contact-card-icon contact-card-icon-wa" aria-hidden="true">
+              <MessageCircle size={22}/>
+            </span>
+            <span className="contact-card-body">
+              <span className="contact-card-eyebrow">Fastest replies</span>
+              <b>WhatsApp Orders</b>
+              <small>+91 {WHATSAPP_NUMBER}</small>
+              <span className="contact-card-note">Custom cakes, status, and help</span>
+            </span>
+            <span className="contact-card-pill">Chat now</span>
+          </a>
+
+          <a
+            className="contact-card"
+            href={`mailto:${CONTACT_EMAIL}`}
+          >
+            <span className="contact-card-icon contact-card-icon-mail" aria-hidden="true">
+              <Mail size={22}/>
+            </span>
+            <span className="contact-card-body">
+              <span className="contact-card-eyebrow">We write back</span>
+              <b>Email Us</b>
+              <small>{CONTACT_EMAIL}</small>
+              <span className="contact-card-note">Quotes, invoices, and feedback</span>
+            </span>
+            <span className="contact-card-pill">Send email</span>
+          </a>
         </section>
       </main>
 
@@ -2355,11 +2450,58 @@ function App() {
         <div className="footer-top">
           <div className="footer-brand"><div className="brand-mark"><CakeSlice size={21}/></div><strong>{BRAND_NAME}</strong><small>CAKES FOR EVERY MOMENT</small><p>Handcrafted cakes made for life's sweetest celebrations.</p></div>
           <div><h4>Explore</h4><button onClick={() => scrollTo("cakes")}>Cakes</button><button onClick={() => scrollTo("categories")}>Categories</button><button onClick={() => scrollTo("custom")}>Custom Cakes</button><button onClick={() => scrollTo("gallery")}>Gallery</button></div>
-          <div><h4>Company</h4><button type="button" onClick={() => scrollTo("about")}>About Us</button><button type="button" onClick={() => scrollTo("contact")}>Contact</button><button type="button" onClick={() => scrollTo("contact")}>Shipping & Delivery</button><button type="button" onClick={() => scrollTo("contact")}>Refund Policy</button></div>
-          <div className="newsletter"><h4>Subscribe for latest updates</h4><form onSubmit={subscribe}><input value={newsletter} onChange={e=>setNewsletter(e.target.value)} placeholder="Your email address" type="email" required/><button aria-label="Subscribe"><ArrowRight/></button></form>{newsletterDone && <span className="subscribed"><Check size={14}/> You're subscribed!</span>}<div className="social"><Instagram/><MessageCircle/><Heart/></div></div>
+          <div><h4>Company</h4><button type="button" onClick={() => scrollTo("about")}>About Us</button><button type="button" onClick={() => scrollTo("contact")}>Contact</button><button type="button" onClick={() => openHelpDeskTopic("How long does delivery take?")}>Shipping & Delivery</button><button type="button" onClick={() => openHelpDeskTopic("What is your refund policy?")}>Refund Policy</button><button type="button" onClick={openHelpDesk}>Help Desk – PinkBakes Assistant</button></div>
+          <div className="newsletter"><h4>Subscribe for latest updates</h4><form onSubmit={subscribe}><input value={newsletter} onChange={e=>setNewsletter(e.target.value)} placeholder="Your email address" type="email" required/><button aria-label="Subscribe"><ArrowRight/></button></form>{newsletterDone && <span className="subscribed"><Check size={14}/> You're subscribed!</span>}<div className="social"><span className="social-icon" title="Instagram (link not configured)" aria-label="Instagram unavailable"><Instagram/></span><a className="social-icon" href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp PinkBakes" title="WhatsApp"><MessageCircle/></a><span className="social-icon" title="Favorites" aria-hidden="true"><Heart/></span></div></div>
         </div>
-        <div className="footer-bottom"><span>(c) 2026 {BRAND_NAME}. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms & Conditions &nbsp; | &nbsp; Shipping & Delivery &nbsp; | &nbsp; Refund Policy</span></div>
+        <div className="footer-bottom"><span>(c) 2026 {BRAND_NAME}. All rights reserved.</span><span className="footer-bottom-links"><button type="button" className="footer-help-link" onClick={() => openHelpDeskTopic("How is my data used?")}>Privacy Policy</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-help-link" onClick={() => openHelpDeskTopic("Where are terms and policies?")}>Terms & Conditions</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-help-link" onClick={() => openHelpDeskTopic("How long does delivery take?")}>Shipping & Delivery</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-help-link" onClick={() => openHelpDeskTopic("What is your refund policy?")}>Refund Policy</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-help-link" onClick={openHelpDesk}>HELP DESK – PinkBakes Assistant</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-admin-link" onClick={openFooterAdmin} aria-label={isAdminLoggedIn ? "Open admin panel" : "Admin Login"} title={isAdminLoggedIn ? "Open admin panel" : "Admin Login"}>{isAdminLoggedIn ? "Admin" : "Admin Login"}</button></span></div>
       </footer>
+
+      
+      {bakeryLocationOpen && (
+        <div className="bakery-visit-backdrop" onClick={() => setBakeryLocationOpen(false)} role="dialog" aria-modal="true" aria-labelledby="bakery-visit-title">
+          <div className="bakery-visit-card" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="bakery-visit-close" onClick={() => setBakeryLocationOpen(false)} aria-label="Close"><X size={18}/></button>
+            <div className="bakery-visit-hero">
+              <div className="bakery-visit-hero-glow" aria-hidden="true" />
+              <div className="bakery-visit-badge"><CakeSlice size={22}/></div>
+              <p className="bakery-visit-eyebrow">Come taste the sweetness</p>
+              <h3 id="bakery-visit-title">Visit Our Bakery</h3>
+              <p className="bakery-visit-place">{BAKERY_LOCATION.label}</p>
+            </div>
+            <div className="bakery-visit-body">
+              <div className="bakery-visit-meta">
+                <div className="bakery-visit-chip">
+                  <CalendarDays size={15}/>
+                  <span>{BAKERY_LOCATION.hours}</span>
+                </div>
+                <div className="bakery-visit-chip soft">
+                  <MapPin size={15}/>
+                  <span>Uses your current location</span>
+                </div>
+              </div>
+              <p className="bakery-visit-hint">Share your pin on WhatsApp or open maps so friends can find you near the bakery.</p>
+              <div className="bakery-visit-actions">
+                <button type="button" className="bakery-visit-tile bakery-visit-wa" onClick={shareBakeryLocationOnWhatsApp}>
+                  <span className="bakery-visit-tile-icon"><MessageCircle size={22}/></span>
+                  <span className="bakery-visit-tile-copy">
+                    <strong>Share on WhatsApp</strong>
+                    <small>Send your live location link</small>
+                  </span>
+                  <ArrowRight size={16} className="bakery-visit-tile-arrow"/>
+                </button>
+                <button type="button" className="bakery-visit-tile bakery-visit-maps" onClick={openBakeryInGoogleMaps}>
+                  <span className="bakery-visit-tile-icon"><MapPin size={22}/></span>
+                  <span className="bakery-visit-tile-copy">
+                    <strong>Open in Google Maps</strong>
+                    <small>Navigate from where you are</small>
+                  </span>
+                  <ArrowRight size={16} className="bakery-visit-tile-arrow"/>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {product && <ProductModal product={product} onClose={closeProduct} onAdd={() => {addToCart(product); closeProduct()}} stockLabel={stockLabel} isOutOfStock={isOutOfStock}/>}
       {product3d && (
@@ -3148,7 +3290,7 @@ function App() {
                       <div className="admin-cake-details">
                         <div>
                           <strong>{zone.name}</strong>
-                          <span>{(zone.postal_codes || []).join(", ")}</span>
+                          <span>{(zone.postal_codes || []).join(' | ')}</span>
                           <small>Charge {String.fromCharCode(8377)}{Number(zone.delivery_charge || 0)} | Min {String.fromCharCode(8377)}{Number(zone.minimum_order_amount || 0)}</small>
                         </div>
                       </div>
@@ -4040,46 +4182,64 @@ function App() {
         </div>
       )}
 
-      {!chatOpen && (
-        <button type="button" className="chatbot-launch" onClick={() => setChatOpen(true)} aria-label="Open bakery chatbot">
-          <MessageCircle size={18} />
-          <span>Chat</span>
-        </button>
-      )}
-
-      {chatOpen && (
-        <div className="chatbot-panel" role="dialog" aria-label="PinkBakes chatbot">
-          <div className="chatbot-header">
-            <div>
-              <span className="eyebrow">HELP DESK</span>
-              <strong>PinkBakes Assistant</strong>
-            </div>
-            <button type="button" className="chatbot-close" onClick={() => setChatOpen(false)} aria-label="Close chatbot">
-              <X size={16} />
-            </button>
-          </div>
-
-          <div className="chatbot-messages">
-            {chatMessages.map((message, index) => (
-              <div key={`${message.sender}-${index}`} className={`chatbot-message ${message.sender}`}>
-                {message.text}
+      <div className="chatbot-dock">
+        {chatOpen && (
+          <div className="chatbot-panel" role="dialog" aria-modal="true" aria-label="PinkBakes Help Desk">
+            <div className="chatbot-header">
+              <div className="chatbot-header-brand">
+                <span className="chatbot-avatar" aria-hidden="true"><CakeSlice size={18}/></span>
+                <div>
+                  <span className="chatbot-eyebrow">HELP DESK</span>
+                  <strong>PinkBakes Assistant</strong>
+                  <small className="chatbot-online">Online - FAQ answers instantly</small>
+                </div>
               </div>
-            ))}
-          </div>
+              <button type="button" className="chatbot-close" onClick={() => setChatOpen(false)} aria-label="Close chatbot">
+                <X size={16} />
+              </button>
+            </div>
 
-          <form className="chatbot-form" onSubmit={handleChatSubmit}>
-            <input
-              value={chatInput}
-              onChange={e => setChatInput(e.target.value)}
-              placeholder="Ask about cakes, pricing, or custom orders..."
-              aria-label="Type a message to the chatbot"
-            />
-            <button type="submit" aria-label="Send message">
-              <Send size={16} />
-            </button>
-          </form>
-        </div>
-      )}
+            <div className="chatbot-messages" ref={chatMessagesRef}>
+              {chatMessages.map((message, index) => (
+                <div key={`${message.sender}-${index}`} className={`chatbot-message ${message.sender}`}>
+                  {message.text}
+                </div>
+              ))}
+            </div>
+
+            <div className="chatbot-quick" aria-label="Quick questions">
+              {CHATBOT_QUICK_PROMPTS.map((prompt) => (
+                <button key={prompt} type="button" className="chatbot-chip" onClick={() => sendChatMessage(prompt)}>
+                  {prompt}
+                </button>
+              ))}
+            </div>
+
+            <form className="chatbot-form" onSubmit={handleChatSubmit}>
+              <input
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                placeholder="Ask about orders, delivery, refunds..."
+                aria-label="Type a message to the chatbot"
+              />
+              <button type="submit" aria-label="Send message">
+                <Send size={16} />
+              </button>
+            </form>
+          </div>
+        )}
+
+        <button
+          type="button"
+          className={`chatbot-launch${chatOpen ? " is-open" : ""}`}
+          onClick={() => setChatOpen((open) => !open)}
+          aria-label={chatOpen ? "Close bakery chatbot" : "Open PinkBakes Assistant"}
+          aria-expanded={chatOpen}
+        >
+          {chatOpen ? <X size={22} /> : <MessageCircle size={22} />}
+          {!chatOpen && <span>Help</span>}
+        </button>
+      </div>
 
       {toast && <div className="toast"><Check size={17}/>{toast}</div>}
     </div>

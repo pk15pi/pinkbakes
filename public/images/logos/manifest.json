@@ -1,0 +1,330 @@
+[
+  {
+    "file": "pinkbakes-logo-theme-01-cream-gold.png",
+    "theme": "cream-gold",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-02-blush-rose.png",
+    "theme": "blush-rose",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-03-dusty-pink.png",
+    "theme": "dusty-pink",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-04-burgundy.png",
+    "theme": "burgundy",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-05-champagne.png",
+    "theme": "champagne",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-06-ivory-bronze.png",
+    "theme": "ivory-bronze",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-07-cocoa-gold.png",
+    "theme": "cocoa-gold",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-08-lavender-cream.png",
+    "theme": "lavender-cream",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-09-sage-mint.png",
+    "theme": "sage-mint",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-10-emerald-cream.png",
+    "theme": "emerald-cream",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-11-teal-gold.png",
+    "theme": "teal-gold",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-12-navy-gold.png",
+    "theme": "navy-gold",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-13-midnight-rose.png",
+    "theme": "midnight-rose",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-14-charcoal-gold.png",
+    "theme": "charcoal-gold",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-15-black-white.png",
+    "theme": "black-white",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-16-pure-white-minimal.png",
+    "theme": "pure-white-minimal",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-17-soft-peach.png",
+    "theme": "soft-peach",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-18-coral-cream.png",
+    "theme": "coral-cream",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-19-terracotta.png",
+    "theme": "terracotta",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-20-cinnamon.png",
+    "theme": "cinnamon",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-21-honey-amber.png",
+    "theme": "honey-amber",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-22-sunflower-cream.png",
+    "theme": "sunflower-cream",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-23-plum-gold.png",
+    "theme": "plum-gold",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-24-lilac-silver.png",
+    "theme": "lilac-silver",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-25-sky-blue-cream.png",
+    "theme": "sky-blue-cream",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-26-powder-blue-gold.png",
+    "theme": "powder-blue-gold",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-27-mint-chocolate.png",
+    "theme": "mint-chocolate",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-28-olive-cream.png",
+    "theme": "olive-cream",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-29-forest-gold.png",
+    "theme": "forest-gold",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-30-wine-cream.png",
+    "theme": "wine-cream",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-31-raspberry.png",
+    "theme": "raspberry",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-32-fuchsia-cream.png",
+    "theme": "fuchsia-cream",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-33-pastel-rainbow-soft.png",
+    "theme": "pastel-rainbow-soft",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-34-monochrome-pink.png",
+    "theme": "monochrome-pink",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-35-monochrome-gold.png",
+    "theme": "monochrome-gold",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-36-warm-neutral.png",
+    "theme": "warm-neutral",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-37-cool-neutral.png",
+    "theme": "cool-neutral",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-38-wedding-white-gold.png",
+    "theme": "wedding-white-gold",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-39-festive-red-gold.png",
+    "theme": "festive-red-gold",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-40-diwali-deep-gold.png",
+    "theme": "diwali-deep-gold",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-41-christmas-green-gold.png",
+    "theme": "christmas-green-gold",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-42-valentine-hot-pink.png",
+    "theme": "valentine-hot-pink",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-43-autumn-rust.png",
+    "theme": "autumn-rust",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-44-spring-blossom.png",
+    "theme": "spring-blossom",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-45-summer-citrus.png",
+    "theme": "summer-citrus",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-46-winter-frost.png",
+    "theme": "winter-frost",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-47-neon-soft-pink.png",
+    "theme": "neon-soft-pink",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-48-royal-purple-gold.png",
+    "theme": "royal-purple-gold",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-49-sand-desert.png",
+    "theme": "sand-desert",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-logo-theme-50-rose-quartz.png",
+    "theme": "rose-quartz",
+    "kind": "theme"
+  },
+  {
+    "file": "pinkbakes-wm-light-01.png",
+    "theme": "white",
+    "kind": "watermark",
+    "opacity": 0.22
+  },
+  {
+    "file": "pinkbakes-wm-light-02.png",
+    "theme": "white",
+    "kind": "watermark",
+    "opacity": 0.18
+  },
+  {
+    "file": "pinkbakes-wm-light-03.png",
+    "theme": "soft-ivory",
+    "kind": "watermark",
+    "opacity": 0.2
+  },
+  {
+    "file": "pinkbakes-wm-light-04.png",
+    "theme": "pale-gold",
+    "kind": "watermark",
+    "opacity": 0.2
+  },
+  {
+    "file": "pinkbakes-wm-dark-01.png",
+    "theme": "charcoal",
+    "kind": "watermark",
+    "opacity": 0.22
+  },
+  {
+    "file": "pinkbakes-wm-dark-02.png",
+    "theme": "cocoa",
+    "kind": "watermark",
+    "opacity": 0.2
+  },
+  {
+    "file": "pinkbakes-wm-dark-03.png",
+    "theme": "warm-grey",
+    "kind": "watermark",
+    "opacity": 0.18
+  },
+  {
+    "file": "pinkbakes-wm-dark-04.png",
+    "theme": "deep-rose-brown",
+    "kind": "watermark",
+    "opacity": 0.2
+  },
+  {
+    "file": "pinkbakes-wm-light-05-ghost-color.png",
+    "theme": "ghost-color",
+    "kind": "watermark",
+    "opacity": 0.2
+  },
+  {
+    "file": "pinkbakes-wm-badge-light-01.png",
+    "theme": "badge-white",
+    "kind": "watermark-badge",
+    "opacity": 0.22
+  },
+  {
+    "file": "pinkbakes-wm-badge-dark-01.png",
+    "theme": "badge-charcoal",
+    "kind": "watermark-badge",
+    "opacity": 0.22
+  },
+  {
+    "file": "pinkbakes-wm-badge-light-02.png",
+    "theme": "badge-ivory",
+    "kind": "watermark-badge",
+    "opacity": 0.18
+  },
+  {
+    "file": "pinkbakes-wm-badge-dark-02.png",
+    "theme": "badge-cocoa",
+    "kind": "watermark-badge",
+    "opacity": 0.18
+  }
+]

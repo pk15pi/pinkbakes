@@ -6,3 +6,7 @@ node_modules
 functions/node_modules/
 functions/.env
 
+ 
+# Windows reserved device name junk - breaks git add . 
+NUL.css 
+NUL
