@@ -1,5 +1,5 @@
 export const appConfig = {
-  apiBaseUrl: import.meta.env.VITE_API_URL || "http://127.0.0.1:8000",
+  apiBaseUrl: import.meta.env.VITE_API_URL || "https://api.pinkbakes.com",
   publicSiteUrl: (import.meta.env.VITE_PUBLIC_SITE_URL || "https://pinkbakes.com").replace(/\/$/, ""),
   razorpayKeyId: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_default_key",
   googleMaps: {
