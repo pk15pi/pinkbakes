@@ -68,7 +68,7 @@ The project follows the premium cream / blush / chocolate / gold visual directio
 ## Deploy to Firebase Hosting (pinkbakes.com)
 
 1. Set frontend env (`VITE_API_URL`, `VITE_PUBLIC_SITE_URL=https://pinkbakes.com`) and run `npm run build`.
-2. Sitemap proxy: copy `functions/.env.example` to `functions/.env` and set `API_ORIGIN` to your Django API origin (no trailing slash). Then `cd functions && npm install`.
+2. Sitemap proxy: copy `functions/.env.example` to `functions/.env` and set `API_ORIGIN=https://api.pinkbakes.com`. Then `cd functions && npm install`.
 3. Deploy Hosting + the `sitemap` function (Blaze plan required for Functions):
 
 ```bash

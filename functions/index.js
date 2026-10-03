@@ -6,7 +6,7 @@
  * thin HTTPS function GETs ${API_ORIGIN}/sitemap.xml and returns the XML body.
  *
  * Required env (functions/.env for deploy, or Cloud Functions env config):
- *   API_ORIGIN=https://YOUR_DJANGO_API_HOST   (no trailing slash)
+ *   API_ORIGIN=https://api.pinkbakes.com
  *
  * Static public/robots.txt is kept on Hosting (same disallow + Sitemap URL).
  */
@@ -19,7 +19,7 @@ setGlobalOptions({
 });
 
 function apiOrigin() {
-  return String(process.env.API_ORIGIN || "http://127.0.0.1:8000").replace(/\/$/, "");
+  return String(process.env.API_ORIGIN || "https://api.pinkbakes.com").replace(/\/$/, "");
 }
 
 /**
