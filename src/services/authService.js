@@ -55,6 +55,11 @@ export function invalidateCatalogClientCache() {
   _catalogCache.clear();
 }
 
+/** Normalize list API responses: bare array or paginated { results: [...] }. */
+export function asListResponse(data) {
+  return Array.isArray(data) ? data : (data?.results || []);
+}
+
 function buildQuery(params = {}) {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -188,7 +193,7 @@ export async function fetchCategories() {
   const cached = _cacheGet(key);
   if (cached) return cached;
   const data = await requestJson(`${API_BASE_URL}/api/catalog/categories/`, { method: "GET" });
-  return _cacheSet(key, data, 60_000);
+  return _cacheSet(key, asListResponse(data), 60_000);
 }
 
 export async function fetchProducts(params = {}) {
@@ -198,7 +203,7 @@ export async function fetchProducts(params = {}) {
   const cached = _cacheGet(key);
   if (cached) return cached;
   const data = await requestJson(url, { method: "GET" });
-  return _cacheSet(key, data, CATALOG_TTL_MS);
+  return _cacheSet(key, asListResponse(data), CATALOG_TTL_MS);
 }
 
 export async function fetchProduct(id) {

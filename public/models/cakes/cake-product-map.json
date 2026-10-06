@@ -1,0 +1,170 @@
+[
+  {
+    "product_id": 1,
+    "product_name": "Chocolate Truffle Cake",
+    "product_slug": "chocolate-truffle-cake",
+    "model_path": "/models/cakes/tiny_treats/cake_chocolate.gltf",
+    "model_source": "Isa Lousberg / https://opengameart.org/content/tiny-treats-baked-goods-set",
+    "notes": "Semantic: chocolate cake model matches chocolate truffle product"
+  },
+  {
+    "product_id": 2,
+    "product_name": "Confetti Celebration Cake",
+    "product_slug": "confetti-celebration-cake",
+    "model_path": "/models/cakes/poly_pizza/Isa_Lousberg_Cake_Birthday_JCT2SAoBud.glb",
+    "model_source": "Isa Lousberg / https://poly.pizza/m/JCT2SAoBud",
+    "notes": "Semantic: birthday cake GLB for celebration/birthday product; prefer .glb over tiny_treats .gltf"
+  },
+  {
+    "product_id": 3,
+    "product_name": "Vanilla Dream Birthday Cake",
+    "product_slug": "vanilla-dream-birthday-cake",
+    "model_path": "/models/cakes/poly_pizza/Isa_Lousberg_Cake_Birthday_Cut_BzSIf8WuEG.glb",
+    "model_source": "Isa Lousberg / https://poly.pizza/m/BzSIf8WuEG",
+    "notes": "Semantic: birthday cut cake for birthday product; prefer .glb"
+  },
+  {
+    "product_id": 4,
+    "product_name": "Rainbow Sprinkle Birthday Cake",
+    "product_slug": "rainbow-sprinkle-birthday-cake",
+    "model_path": "/models/cakes/poly_pizza/Isa_Lousberg_Cake_Birthday_Slice_YxYKsrZnwd.glb",
+    "model_source": "Isa Lousberg / https://poly.pizza/m/YxYKsrZnwd",
+    "notes": "Semantic: festive birthday slice for sprinkle birthday cake; prefer .glb"
+  },
+  {
+    "product_id": 5,
+    "product_name": "Chocolate Fudge Birthday Cake",
+    "product_slug": "chocolate-fudge-birthday-cake",
+    "model_path": "/models/cakes/kenney_food/cake-birthday.glb",
+    "model_source": "Kenney / https://kenney.nl/assets/food-kit",
+    "notes": "Semantic: birthday cake model for chocolate-fudge birthday product; prefer Kenney .glb"
+  },
+  {
+    "product_id": 6,
+    "product_name": "Rose Garden Anniversary Cake",
+    "product_slug": "rose-garden-anniversary-cake",
+    "model_path": "/models/cakes/tiny_treats/cake_strawberry_cut.gltf",
+    "model_source": "Isa Lousberg / https://opengameart.org/content/tiny-treats-baked-goods-set",
+    "notes": "Semantic: fruit/floral garnish cake approximates rose-garden anniversary styling"
+  },
+  {
+    "product_id": 7,
+    "product_name": "Golden Heart Anniversary Cake",
+    "product_slug": "golden-heart-anniversary-cake",
+    "model_path": "/models/cakes/kenney_food/cake.glb",
+    "model_source": "Kenney / https://kenney.nl/assets/food-kit",
+    "notes": "Generic celebratory whole cake for anniversary (no heart-specific asset)"
+  },
+  {
+    "product_id": 8,
+    "product_name": "Classic Tiered Wedding Cake",
+    "product_slug": "classic-tiered-wedding-cake",
+    "model_path": "/models/cakes/poly_pizza/Polygonal_Mind_Cake_Character_gpZIDI2FVD.glb",
+    "model_source": "Polygonal Mind / https://poly.pizza/m/gpZIDI2FVD",
+    "notes": "Distinctive whole-cake form as stand-in (no true tiered wedding GLB in set)"
+  },
+  {
+    "product_id": 9,
+    "product_name": "Floral Elegance Wedding Cake",
+    "product_slug": "floral-elegance-wedding-cake",
+    "model_path": "/models/cakes/poly_pizza/Isa_Lousberg_Cake_Strawberry_Slic_oV5ntwdWx0.glb",
+    "model_source": "Isa Lousberg / https://poly.pizza/m/oV5ntwdWx0",
+    "notes": "Semantic: strawberry/floral garnish slice for floral wedding cake; prefer .glb"
+  },
+  {
+    "product_id": 10,
+    "product_name": "Midnight Mocha Cake",
+    "product_slug": "midnight-mocha-cake",
+    "model_path": "/models/cakes/tiny_treats/cake_chocolate_slice.gltf",
+    "model_source": "Isa Lousberg / https://opengameart.org/content/tiny-treats-baked-goods-set",
+    "notes": "Semantic: chocolate slice approximates mocha/chocolate category"
+  },
+  {
+    "product_id": 11,
+    "product_name": "Belgian Dark Chocolate Cake",
+    "product_slug": "belgian-dark-chocolate-cake",
+    "model_path": "/models/cakes/tiny_treats/cake_chocolate_cut.gltf",
+    "model_source": "Isa Lousberg / https://opengameart.org/content/tiny-treats-baked-goods-set",
+    "notes": "Semantic: chocolate cut model for dark chocolate cake"
+  },
+  {
+    "product_id": 12,
+    "product_name": "Red Velvet Designer Cake",
+    "product_slug": "red-velvet-designer-cake",
+    "model_path": "/models/cakes/poly_pizza/Kenney_Cake_Birthday_38GEFBlOXw.glb",
+    "model_source": "Kenney / https://poly.pizza/m/38GEFBlOXw",
+    "notes": "Designer/festive birthday cake look as nearest match (no red-velvet-specific asset)"
+  },
+  {
+    "product_id": 13,
+    "product_name": "Berry Bliss Designer Cake",
+    "product_slug": "berry-bliss-designer-cake",
+    "model_path": "/models/cakes/poly_pizza/Isa_Lousberg_Cake_Strawberry_OJ0MYdSpn1.glb",
+    "model_source": "Isa Lousberg / https://poly.pizza/m/OJ0MYdSpn1",
+    "notes": "Semantic: strawberry cake model matches berry product; prefer .glb"
+  },
+  {
+    "product_id": 14,
+    "product_name": "Unicorn Fantasy Cake",
+    "product_slug": "unicorn-fantasy-cake",
+    "model_path": "/models/cakes/tiny_treats/cake_birthday.gltf",
+    "model_source": "Isa Lousberg / https://opengameart.org/content/tiny-treats-baked-goods-set",
+    "notes": "Semantic: festive birthday cake style for fantasy/designer celebration look"
+  },
+  {
+    "product_id": 15,
+    "product_name": "Custom Photo Print Cake",
+    "product_slug": "custom-photo-print-cake",
+    "model_path": "/models/cakes/poly_pizza/Kenney_Cake_KGFyP16ebH.glb",
+    "model_source": "Kenney / https://poly.pizza/m/KGFyP16ebH",
+    "notes": "Generic whole cake for photo-custom product (no photo-print 3D)"
+  },
+  {
+    "product_id": 16,
+    "product_name": "Family Memory Photo Cake",
+    "product_slug": "family-memory-photo-cake",
+    "model_path": "/models/cakes/tiny_treats/cake_birthday_cut.gltf",
+    "model_source": "Isa Lousberg / https://opengameart.org/content/tiny-treats-baked-goods-set",
+    "notes": "Birthday cut cake as celebration stand-in for photo/memory cake"
+  },
+  {
+    "product_id": 17,
+    "product_name": "Build-Your-Own Celebration Cake",
+    "product_slug": "build-your-own-celebration-cake",
+    "model_path": "/models/cakes/tiny_treats/cake_birthday_slice.gltf",
+    "model_source": "Isa Lousberg / https://opengameart.org/content/tiny-treats-baked-goods-set",
+    "notes": "Birthday slice as modular celebration stand-in for custom build-your-own"
+  },
+  {
+    "product_id": 18,
+    "product_name": "Theme Party Custom Cake",
+    "product_slug": "theme-party-custom-cake",
+    "model_path": "/models/cakes/tiny_treats/cake_strawberry_slice.gltf",
+    "model_source": "Isa Lousberg / https://opengameart.org/content/tiny-treats-baked-goods-set",
+    "notes": "Decorated fruit cake slice as theme-party custom stand-in"
+  },
+  {
+    "product_id": 19,
+    "product_name": "Eggless Butterscotch Delight",
+    "product_slug": "eggless-butterscotch-delight",
+    "model_path": "/models/cakes/kenney_food/cake.glb",
+    "model_source": "Kenney / https://kenney.nl/assets/food-kit",
+    "notes": "Shared generic cake model; no butterscotch-specific asset (weak semantic)"
+  },
+  {
+    "product_id": 20,
+    "product_name": "Eggless Pineapple Cream Cake",
+    "product_slug": "eggless-pineapple-cream-cake",
+    "model_path": "/models/cakes/tiny_treats/cake_strawberry.gltf",
+    "model_source": "Isa Lousberg / https://opengameart.org/content/tiny-treats-baked-goods-set",
+    "notes": "Fruit-topped cake as nearest fruit-cream stand-in; no pineapple-specific asset (weak semantic)"
+  },
+  {
+    "product_id": 21,
+    "product_name": "Eggless Black Forest Cake",
+    "product_slug": "eggless-black-forest-cake",
+    "model_path": "/models/cakes/tiny_treats/cake_chocolate.gltf",
+    "model_source": "Isa Lousberg / https://opengameart.org/content/tiny-treats-baked-goods-set",
+    "notes": "Semantic: Black Forest is chocolate-based; shares chocolate cake model (few chocolate assets)"
+  }
+]

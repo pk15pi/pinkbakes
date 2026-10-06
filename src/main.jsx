@@ -23,6 +23,7 @@ import { logout, adminLogout,
   fetchProduct,
   fetchProductBySlug,
   fetchProductReviews,
+  asListResponse,
   fetchCategories,
   fetchProducts,
   forgotPassword,
@@ -180,6 +181,9 @@ const normalizeProduct = (product) => {
     stock_remaining: Number(base.stock_remaining ?? base.available_quantity ?? 0),
     is_low_stock: Boolean(base.is_low_stock),
     low_stock_threshold: Number(base.low_stock_threshold ?? 5),
+    category: typeof base.category === "object" && base.category
+      ? String(base.category.name || base.category.slug || "").trim()
+      : String(base.category || "").trim(),
     status: base.status || "published",
     badge: base.badge || (discount ? `${discount}% OFF` : ""),
     main_image: image,
@@ -509,9 +513,9 @@ function App() {
     ])
       .then(([data, categoriesData]) => {
         if (cancelled) return;
-        const items = Array.isArray(data) ? data : [];
+        const items = asListResponse(data);
         setCatalog(items.map(normalizeProduct));
-        const fromApi = Array.isArray(categoriesData) ? categoriesData : [];
+        const fromApi = asListResponse(categoriesData);
         if (fromApi.length) {
           setShopCategories(fromApi.map((c) => ({
             name: c.name,
@@ -688,10 +692,13 @@ function App() {
   }, [product, productNotFound, adminOpen, authOpen, cartOpen, checkoutOpen, orderHistoryOpen, catalogLoading]);
 
   const filtered = useMemo(() => {
-    return catalog.filter(p =>
-      (category === "All Cakes" || p.category === category) &&
-      p.name.toLowerCase().includes(search.toLowerCase())
-    );
+    const needle = (search || "").toLowerCase();
+    const selected = (category || "").trim().toLowerCase();
+    return catalog.filter((p) => {
+      const pc = String(p.category || "").trim().toLowerCase();
+      const catOk = category === "All Cakes" || pc === selected;
+      return catOk && String(p.name || "").toLowerCase().includes(needle);
+    });
   }, [category, search, catalog]);
 
   const cartCount = cart.reduce((n, item) => n + item.qty, 0);
@@ -1200,7 +1207,7 @@ function App() {
         closeRestockModal();
         if (source === "products") {
           return fetchProducts().then((data) => {
-            const list = Array.isArray(data) ? data : (data.results || []);
+            const list = asListResponse(data);
             setCatalog(list.map(normalizeProduct));
             notify("Stock updated");
           });
@@ -2236,7 +2243,7 @@ function App() {
           </div>
 
           <div className="product-grid">
-            {catalogLoading ? <div className="empty">Loading cakes...</div> : filtered.map(p => {
+            {catalogLoading && catalog.length === 0 ? <div className="empty">Loading cakes...</div> : filtered.map(p => {
               const priceAfterDiscount = p.discounted_price || Number((p.price * (100 - (p.discount || 0)) / 100).toFixed(2));
               return (
                 <article className="product-card" key={p.id}>
@@ -2275,7 +2282,15 @@ function App() {
               );
             })}
           </div>
-          {!catalogLoading && filtered.length === 0 && <div className="empty">No cakes are currently available.</div>}
+          {!catalogLoading && filtered.length === 0 && (
+            <div className="empty">
+              {catalog.length === 0
+                ? "No cakes are currently available."
+                : category === "All Cakes"
+                  ? "No cakes match your search."
+                  : `No cakes match "${category}" right now.`}
+            </div>
+          )}
           {catalogError && !catalogLoading && <div className="empty">{catalogError}</div>}
         </section>
 
@@ -2450,10 +2465,10 @@ function App() {
         <div className="footer-top">
           <div className="footer-brand"><div className="brand-mark"><CakeSlice size={21}/></div><strong>{BRAND_NAME}</strong><small>CAKES FOR EVERY MOMENT</small><p>Handcrafted cakes made for life's sweetest celebrations.</p></div>
           <div><h4>Explore</h4><button onClick={() => scrollTo("cakes")}>Cakes</button><button onClick={() => scrollTo("categories")}>Categories</button><button onClick={() => scrollTo("custom")}>Custom Cakes</button><button onClick={() => scrollTo("gallery")}>Gallery</button></div>
-          <div><h4>Company</h4><button type="button" onClick={() => scrollTo("about")}>About Us</button><button type="button" onClick={() => scrollTo("contact")}>Contact</button><button type="button" onClick={() => openHelpDeskTopic("How long does delivery take?")}>Shipping & Delivery</button><button type="button" onClick={() => openHelpDeskTopic("What is your refund policy?")}>Refund Policy</button><button type="button" onClick={openHelpDesk}>Help Desk – PinkBakes Assistant</button></div>
+          <div><h4>Company</h4><button type="button" onClick={() => scrollTo("about")}>About Us</button><button type="button" onClick={() => scrollTo("contact")}>Contact</button></div>
           <div className="newsletter"><h4>Subscribe for latest updates</h4><form onSubmit={subscribe}><input value={newsletter} onChange={e=>setNewsletter(e.target.value)} placeholder="Your email address" type="email" required/><button aria-label="Subscribe"><ArrowRight/></button></form>{newsletterDone && <span className="subscribed"><Check size={14}/> You're subscribed!</span>}<div className="social"><span className="social-icon" title="Instagram (link not configured)" aria-label="Instagram unavailable"><Instagram/></span><a className="social-icon" href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp PinkBakes" title="WhatsApp"><MessageCircle/></a><span className="social-icon" title="Favorites" aria-hidden="true"><Heart/></span></div></div>
         </div>
-        <div className="footer-bottom"><span>(c) 2026 {BRAND_NAME}. All rights reserved.</span><span className="footer-bottom-links"><button type="button" className="footer-help-link" onClick={() => openHelpDeskTopic("How is my data used?")}>Privacy Policy</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-help-link" onClick={() => openHelpDeskTopic("Where are terms and policies?")}>Terms & Conditions</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-help-link" onClick={() => openHelpDeskTopic("How long does delivery take?")}>Shipping & Delivery</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-help-link" onClick={() => openHelpDeskTopic("What is your refund policy?")}>Refund Policy</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-help-link" onClick={openHelpDesk}>HELP DESK – PinkBakes Assistant</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-admin-link" onClick={openFooterAdmin} aria-label={isAdminLoggedIn ? "Open admin panel" : "Admin Login"} title={isAdminLoggedIn ? "Open admin panel" : "Admin Login"}>{isAdminLoggedIn ? "Admin" : "Admin Login"}</button></span></div>
+        <div className="footer-bottom"><span>(c) 2026 {BRAND_NAME}. All rights reserved.</span><span className="footer-bottom-links"><button type="button" className="footer-help-link" onClick={() => openHelpDeskTopic("How is my data used?")}>Privacy Policy</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-help-link" onClick={() => openHelpDeskTopic("What are the terms of service?")}>Terms & Conditions</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-help-link" onClick={() => openHelpDeskTopic("What is your shipping and delivery policy?")}>Shipping & Delivery</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-help-link" onClick={() => openHelpDeskTopic("What is your refund policy?")}>Refund Policy</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-help-link" onClick={openHelpDesk}>HELP DESK – PinkBakes Assistant</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-admin-link" onClick={openFooterAdmin} aria-label={isAdminLoggedIn ? "Open admin panel" : "Admin Login"} title={isAdminLoggedIn ? "Open admin panel" : "Admin Login"}>{isAdminLoggedIn ? "Admin" : "Admin Login"}</button></span></div>
       </footer>
 
       

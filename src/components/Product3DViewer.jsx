@@ -1,10 +1,30 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { X, ZoomIn, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
+import { resolveProductModelUrl } from "../productModelMap.js";
+
+const GlbModelCanvas = lazy(() => import("./GlbModelCanvas.jsx"));
+
+function CssRotateFallback({ product, rotX, rotY, scale, pointerHandlers }) {
+  const img = product.image || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1000&q=85";
+  return (
+    <div className="product-3d-stage" {...pointerHandlers}>
+      <div
+        className="product-3d-orbit"
+        style={{ transform: `perspective(900px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(${scale})` }}
+      >
+        <img src={img} alt={(product.name || "Cake") + " 3D view"} draggable={false} />
+      </div>
+    </div>
+  );
+}
 
 function Product3DViewer({ product, onClose }) {
   const [rotX, setRotX] = useState(12);
   const [rotY, setRotY] = useState(-18);
   const [scale, setScale] = useState(1.35);
+  const [modelUrl, setModelUrl] = useState(null);
+  const [modelReady, setModelReady] = useState(false);
+  const [useGlb, setUseGlb] = useState(false);
   const dragging = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
 
@@ -15,6 +35,35 @@ function Product3DViewer({ product, onClose }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  // product fields -> cake-product-map.json (product_id / slug) -> null (CSS fallback)
+  useEffect(() => {
+    let cancelled = false;
+    setModelUrl(null);
+    setModelReady(false);
+    setUseGlb(false);
+    resolveProductModelUrl(product)
+      .then((url) => {
+        if (cancelled) return;
+        if (url) {
+          setModelUrl(url);
+          setUseGlb(true);
+        }
+        setModelReady(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setModelUrl(null);
+        setUseGlb(false);
+        setModelReady(true);
+      });
+    return () => { cancelled = true; };
+  }, [product]);
+
+  const onGlbError = useCallback(() => {
+    setUseGlb(false);
+    setModelUrl(null);
+  }, []);
 
   function onPointerDown(e) {
     dragging.current = true;
@@ -35,7 +84,17 @@ function Product3DViewer({ product, onClose }) {
     dragging.current = false;
   }
 
-  const img = product.image || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1000&q=85";
+  const pointerHandlers = {
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    onPointerCancel: onPointerUp,
+  };
+
+  const showGlb = modelReady && useGlb && modelUrl;
+  const hint = showGlb
+    ? "Drag to orbit | 3D model — controls tilt and zoom"
+    : "Drag to rotate | Use controls to tilt and zoom";
 
   return (
     <div className="modal-backdrop product-3d-modal" onClick={onClose} role="dialog" aria-modal="true" aria-label="3D cake view">
@@ -44,24 +103,33 @@ function Product3DViewer({ product, onClose }) {
           <div>
             <span className="eyebrow">3D VIEW</span>
             <h2>{product.name}</h2>
-            <p>Drag to rotate | Use controls to tilt and zoom</p>
+            <p>{hint}</p>
           </div>
           <button type="button" className="modal-close" onClick={onClose} aria-label="Close"><X /></button>
         </div>
-        <div
-          className="product-3d-stage"
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-        >
-          <div
-            className="product-3d-orbit"
-            style={{ transform: `perspective(900px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(${scale})` }}
-          >
-            <img src={img} alt={(product.name || "Cake") + " 3D view"} draggable={false} />
+
+        {showGlb ? (
+          <div className="product-3d-stage product-3d-stage--glb" {...pointerHandlers}>
+            <Suspense fallback={<div className="product-3d-loading">Loading 3D model…</div>}>
+              <GlbModelCanvas
+                url={modelUrl}
+                rotX={rotX}
+                rotY={rotY}
+                scale={scale}
+                onError={onGlbError}
+              />
+            </Suspense>
           </div>
-        </div>
+        ) : (
+          <CssRotateFallback
+            product={product}
+            rotX={rotX}
+            rotY={rotY}
+            scale={scale}
+            pointerHandlers={pointerHandlers}
+          />
+        )}
+
         <div className="product-3d-controls">
           <button type="button" onClick={() => setRotY((v) => v - 20)} aria-label="Rotate left"><ChevronLeft size={18} /> Left</button>
           <button type="button" onClick={() => setRotY((v) => v + 20)} aria-label="Rotate right">Right <ChevronRight size={18} /></button>

@@ -67,17 +67,16 @@ The project follows the premium cream / blush / chocolate / gold visual directio
 
 ## Deploy to Firebase Hosting (pinkbakes.com)
 
-1. Set frontend env (`VITE_API_URL`, `VITE_PUBLIC_SITE_URL=https://pinkbakes.com`) and run `npm run build`.
-2. Sitemap proxy: copy `functions/.env.example` to `functions/.env` and set `API_ORIGIN=https://api.pinkbakes.com`. Then `cd functions && npm install`.
-3. Deploy Hosting + the `sitemap` function (Blaze plan required for Functions):
+1. Set frontend env (`VITE_API_URL`, `VITE_PUBLIC_SITE_URL=https://pinkbakes.com`) and run `npm run build` (or `npm run deploy:hosting`).
+2. Static SEO files under `public/` are copied into `dist/` by Vite and served by Hosting (not the SPA fallback):
+   - `public/robots.txt` — `Sitemap: https://pinkbakes.com/sitemap.xml`
+   - `public/sitemap.xml` — homepage + published product URLs (snapshot from Django; refresh from `https://api.pinkbakes.com/sitemap.xml` when the catalog changes)
+3. Deploy Hosting:
 
 ```bash
-npm run deploy
-# or separately:
-# npm run deploy:hosting
-# npm run deploy:functions
+npm run deploy:hosting
+# optional full deploy still includes functions (unused for sitemap unless you re-enable the rewrite):
+# npm run deploy
 ```
 
-`firebase.json` rewrites `/sitemap.xml` to the `sitemap` Cloud Function before the SPA `**` -> `/index.html` fallback. The function GETs `${API_ORIGIN}/sitemap.xml` and returns `application/xml`.
-
-Static `public/robots.txt` is served as a normal Hosting file (not the SPA). Its `Sitemap:` line is `https://pinkbakes.com/sitemap.xml`. Keep Django `PUBLIC_SITE_URL=https://pinkbakes.com` so `<loc>` URLs in the sitemap match the public site.
+`firebase.json` SPA rewrite is `**` → `/index.html` only. Exact files like `/sitemap.xml` and `/robots.txt` in `dist/` take precedence over that rewrite. Keep Django `PUBLIC_SITE_URL=https://pinkbakes.com` so `<loc>` URLs stay correct if you regenerate the snapshot from the API.
