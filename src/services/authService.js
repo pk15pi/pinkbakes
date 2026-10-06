@@ -652,18 +652,37 @@ export async function refundAdminOrder(orderId, payload = {}) {
 
 export async function fetchAdminPayments(params = {}) {
   const qs = buildQuery(params);
-  return requestJson(`${API_BASE_URL}/api/admin/payments/${qs ? `?${qs}` : ""}`, {
+  const url = qs
+    ? `${API_BASE_URL}/api/admin/payments/?${qs}`
+    : `${API_BASE_URL}/api/admin/payments/`;
+  const data = await requestJson(url, {
     method: "GET",
     headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
   });
+  // Normalize so callers always get { results, count } even if shape drifts.
+  const results = asListResponse(data);
+  return {
+    ...(data && typeof data === "object" && !Array.isArray(data) ? data : {}),
+    results,
+    count: data?.count ?? results.length,
+  };
 }
 
 export async function fetchAdminRefunds(params = {}) {
   const qs = buildQuery(params);
-  return requestJson(`${API_BASE_URL}/api/admin/refunds/${qs ? `?${qs}` : ""}`, {
+  const url = qs
+    ? `${API_BASE_URL}/api/admin/refunds/?${qs}`
+    : `${API_BASE_URL}/api/admin/refunds/`;
+  const data = await requestJson(url, {
     method: "GET",
     headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
   });
+  const results = asListResponse(data);
+  return {
+    ...(data && typeof data === "object" && !Array.isArray(data) ? data : {}),
+    results,
+    count: data?.count ?? results.length,
+  };
 }
 
 export async function fetchAdminCustomers(params = {}) {

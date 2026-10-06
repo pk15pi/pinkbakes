@@ -955,9 +955,9 @@ function App() {
         setAdminOrdersMeta({ count: d.count || 0, page: d.page || 1 });
       }).catch((e) => setAdminOpsMessage(e.message || "Orders failed")));
     } else if (section === "payments") {
-      tasks.push(fetchAdminPayments({ page: 1, page_size: 25 }).then((d) => setAdminPayments(d.results || [])).catch((e) => setAdminOpsMessage(e.message || "Payments failed")));
+      tasks.push(fetchAdminPayments({ page: 1, page_size: 25 }).then((d) => setAdminPayments(asListResponse(d))).catch((e) => { setAdminPayments([]); setAdminOpsMessage(e.message || "Payments failed"); }));
     } else if (section === "refunds") {
-      tasks.push(fetchAdminRefunds({ page: 1, page_size: 25 }).then((d) => setAdminRefunds(d.results || [])).catch((e) => setAdminOpsMessage(e.message || "Refunds failed")));
+      tasks.push(fetchAdminRefunds({ page: 1, page_size: 25 }).then((d) => setAdminRefunds(asListResponse(d))).catch((e) => { setAdminRefunds([]); setAdminOpsMessage(e.message || "Refunds failed"); }));
     } else if (section === "inventory") {
       tasks.push(fetchAdminInventory().then((d) => setAdminInventory(Array.isArray(d) ? d : (d.results || []))).catch((e) => setAdminOpsMessage(e.message || "Inventory failed")));
     } else if (section === "customers") {
@@ -2940,7 +2940,7 @@ function App() {
                   <button type="button" className="btn secondary small" onClick={() => downloadAdminExport("payments").catch((e) => setAdminOpsMessage(e.message))}>Export CSV</button>
                 </div>
                 <div className="table-wrap"><table className="report-table"><thead><tr><th>Order</th><th>Customer</th><th>Amount</th><th>Status</th><th>Method</th><th>Gateway order</th><th>Failure</th></tr></thead><tbody>
-                  {adminPayments.length === 0 && (<tr><td colSpan={7}><div className="admin-empty">No payments yet.</div></td></tr>)}{adminPayments.map((p) => <tr key={p.id}><td>{p.order_number}</td><td>{p.customer_name}</td><td>Rs.{Number(p.amount || 0).toLocaleString("en-IN")}</td><td>{p.status}</td><td>{p.payment_method || "-"}</td><td>{p.gateway_order_id}</td><td>{p.failure_reason || "-"}</td></tr>)}
+                  {adminPayments.length === 0 && (<tr><td colSpan={7}><div className="admin-empty">No payments yet.</div></td></tr>)}{adminPayments.map((p) => <tr key={p.id != null ? `pay-${p.id}` : `order-${p.order_id}`}><td>{p.order_number || "-"}</td><td>{p.customer_name || "-"}</td><td>Rs.{Number(p.amount || 0).toLocaleString("en-IN")}</td><td>{p.status}{p.source === "order_derived" ? " (from order)" : ""}</td><td>{p.payment_method || "-"}</td><td>{p.gateway_order_id || "-"}</td><td>{p.failure_reason || "-"}</td></tr>)}
                 </tbody></table></div>
               </div>
             )}
@@ -2951,7 +2951,7 @@ function App() {
                   <button type="button" className="btn secondary small" onClick={() => downloadAdminExport("refunds").catch((e) => setAdminOpsMessage(e.message))}>Export CSV</button>
                 </div>
                 <div className="table-wrap"><table className="report-table"><thead><tr><th>ID</th><th>Order</th><th>Amount</th><th>Status</th><th>By</th><th>Reason</th><th>Gateway refund</th></tr></thead><tbody>
-                  {adminRefunds.length === 0 && (<tr><td colSpan={7}><div className="admin-empty">No refunds yet.</div></td></tr>)}{adminRefunds.map((r) => <tr key={r.id}><td>{r.id}</td><td>{r.order}</td><td>Rs.{Number(r.amount || 0).toLocaleString("en-IN")}</td><td>{r.status}</td><td>{r.initiated_by_type}</td><td>{r.reason || "-"}</td><td>{r.gateway_refund_id || "-"}</td></tr>)}
+                  {adminRefunds.length === 0 && (<tr><td colSpan={7}><div className="admin-empty">No refunds yet.</div></td></tr>)}{adminRefunds.map((r) => <tr key={r.id}><td>{r.id}</td><td>{r.order_number || r.order_id || r.order || "-"}</td><td>Rs.{Number(r.amount || 0).toLocaleString("en-IN")}</td><td>{r.status}</td><td>{r.initiated_by_type || "-"}</td><td>{r.reason || "-"}</td><td>{r.gateway_refund_id || "-"}</td></tr>)}
                 </tbody></table></div>
               </div>
             )}
@@ -3161,7 +3161,7 @@ function App() {
                 ) : (
                   <>
                     <div className="report-summary-grid">
-                      <div className="report-card"><span>Total users</span><strong>{reportSummary.user_stats?.total_users ?? 0}</strong></div>
+                      <div className="report-card"><span>Customers</span><strong>{reportSummary.user_stats?.total_users ?? 0}</strong></div>
                       <div className="report-card"><span>Verified users</span><strong>{reportSummary.user_stats?.verified_users ?? 0}</strong></div>
                       <div className="report-card"><span>Unverified users</span><strong>{reportSummary.user_stats?.unverified_users ?? 0}</strong></div>
                       <div className="report-card"><span>New this week</span><strong>{reportSummary.user_stats?.new_users_this_week ?? 0}</strong></div>
