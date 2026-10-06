@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   Search, UserRound, ShoppingBag, Menu, X,
@@ -23,6 +23,7 @@ import { logout, adminLogout,
   fetchOrders,
   fetchProduct,
   fetchProductBySlug,
+  fetchProductDetail,
   fetchProductReviews,
   asListResponse,
   fetchCategories,
@@ -251,6 +252,43 @@ const normalizeProduct = (product) => {
 
 const formatCurrency = (value) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(value || 0));
 
+function mapShopCategories(fromApi, items) {
+  if (fromApi && fromApi.length) {
+    return fromApi.map((c) => ({
+      name: c.name,
+      product_count: Number(c.product_count || 0),
+      image: c.image || CATEGORY_IMAGE_FALLBACKS[c.name] || CATEGORY_IMAGE_FALLBACKS["Birthday Cakes"],
+    }));
+  }
+  const seen = new Map();
+  (items || []).forEach((raw) => {
+    const p = normalizeProduct(raw);
+    const name = (p.category || "").trim();
+    if (!name) return;
+    if (!seen.has(name)) {
+      seen.set(name, {
+        name,
+        product_count: 1,
+        image: p.image || CATEGORY_IMAGE_FALLBACKS[name] || CATEGORY_IMAGE_FALLBACKS["Birthday Cakes"],
+      });
+    } else {
+      seen.get(name).product_count += 1;
+    }
+  });
+  return Array.from(seen.values());
+}
+
+function catalogLoadErrorMessage(error) {
+  if (error?.timeout) return "Loading cakes took too long. Please retry.";
+  if (error?.status) return error.message || "Unable to load cakes. Please try again.";
+  return "Unable to load cakes. Check your connection and retry.";
+}
+
+function hasCakeContent(item) {
+  if (!item) return false;
+  return Boolean(item.image || item.description || item.short_description || Number(item.price) > 0 || item.slug || item.id);
+}
+
 function App() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cart, setCart] = useState([]);
@@ -266,7 +304,10 @@ function App() {
   const [newsletterDone, setNewsletterDone] = useState(false);
   const [catalog, setCatalog] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [catalogError, setCatalogError] = useState("");
+  const catalogRequestRef = useRef(0);
+  const catalogAbortRef = useRef(null);
   const [shopCategories, setShopCategories] = useState([]);
   const [adminOpen, setAdminOpen] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
@@ -565,56 +606,73 @@ function App() {
     });
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadCatalog = useCallback(() => {
+    catalogAbortRef.current?.abort();
+    const controller = new AbortController();
+    catalogAbortRef.current = controller;
+    const requestId = ++catalogRequestRef.current;
+    const isCurrent = () => catalogRequestRef.current === requestId && !controller.signal.aborted;
+
     setCatalogLoading(true);
-    Promise.all([
-      fetchProducts(),
-      fetchCategories().catch(() => []),
-    ])
-      .then(([data, categoriesData]) => {
-        if (cancelled) return;
-        const items = asListResponse(data);
-        setCatalog(items.map(normalizeProduct));
-        const fromApi = asListResponse(categoriesData);
-        if (fromApi.length) {
-          setShopCategories(fromApi.map((c) => ({
-            name: c.name,
-            product_count: Number(c.product_count || 0),
-            image: c.image || CATEGORY_IMAGE_FALLBACKS[c.name] || CATEGORY_IMAGE_FALLBACKS["Birthday Cakes"],
-          })));
-        } else {
-          // Derive categories from loaded products if categories endpoint is empty/unavailable
-          const seen = new Map();
-          items.forEach((raw) => {
-            const p = normalizeProduct(raw);
-            const name = (p.category || "").trim();
-            if (!name) return;
-            if (!seen.has(name)) {
-              seen.set(name, {
-                name,
-                product_count: 1,
-                image: p.image || CATEGORY_IMAGE_FALLBACKS[name] || CATEGORY_IMAGE_FALLBACKS["Birthday Cakes"],
-              });
-            } else {
-              seen.get(name).product_count += 1;
-            }
-          });
-          setShopCategories(Array.from(seen.values()));
-        }
+    setCategoriesLoading(true);
+    setCatalogError("");
+
+    let productsSettled = false;
+    let categoriesApplied = false;
+    let loadedItems = [];
+    const watchdog = setTimeout(() => {
+      if (!isCurrent()) return;
+      if (!productsSettled) {
+        setCatalogLoading(false);
+        setCatalogError((current) => current || "Loading cakes took too long. Please retry.");
+      }
+      if (!categoriesApplied) {
+        setShopCategories(mapShopCategories([], loadedItems));
+        setCategoriesLoading(false);
+      }
+    }, 10000);
+
+    const productsTask = fetchProducts({}, { signal: controller.signal })
+      .then((data) => ({ ok: true, items: asListResponse(data) }))
+      .catch((error) => ({ ok: false, error }));
+
+    const categoriesTask = fetchCategories({ signal: controller.signal })
+      .then((data) => ({ ok: true, items: asListResponse(data) }))
+      .catch(() => ({ ok: false, items: [] }));
+
+    productsTask.then((result) => {
+      if (!isCurrent()) return;
+      productsSettled = true;
+      if (result.ok) {
+        loadedItems = result.items;
+        setCatalog(result.items.map(normalizeProduct));
         setCatalogError("");
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setCatalog([]);
-        setShopCategories([]);
-        setCatalogError("Unable to load cakes. Please try again.");
-      })
-      .finally(() => {
-        if (!cancelled) setCatalogLoading(false);
-      });
-    return () => { cancelled = true; };
+      } else if (result.error?.name !== "AbortError") {
+        setCatalogError(catalogLoadErrorMessage(result.error));
+      }
+      setCatalogLoading(false);
+    });
+
+    Promise.all([productsTask, categoriesTask]).then(([productsResult, categoriesResult]) => {
+      if (!isCurrent()) return;
+      clearTimeout(watchdog);
+      categoriesApplied = true;
+      const items = productsResult.ok ? productsResult.items : loadedItems;
+      const fromApi = categoriesResult.ok ? categoriesResult.items : [];
+      // Categories are derived from products when that endpoint is empty or fails.
+      setShopCategories(mapShopCategories(fromApi, items));
+      setCategoriesLoading(false);
+      if (productsResult.ok) setCatalogError("");
+    });
   }, []);
+
+  useEffect(() => {
+    loadCatalog();
+    return () => {
+      catalogRequestRef.current += 1;
+      catalogAbortRef.current?.abort();
+    };
+  }, [loadCatalog]);
 
   const openProduct = (p, { pushUrl = true } = {}) => {
     if (!p) return;
@@ -2333,13 +2391,13 @@ function App() {
           <div><strong>{BRAND_NAME}</strong><small>CAKES FOR EVERY MOMENT</small></div>
         </div>
         <nav className={mobileOpen ? "nav mobile-visible" : "nav"}>
-          <button onClick={() => scrollTo("home")}>Home</button>
-          <button onClick={() => scrollTo("cakes")}>Cakes</button>
-          <button onClick={() => scrollTo("categories")}>Categories</button>
-          <button onClick={() => scrollTo("custom")}>Custom Cakes</button>
-          <button onClick={() => scrollTo("about")}>About Us</button>
-          <button onClick={() => scrollTo("gallery")}>Gallery</button>
-          <button onClick={() => scrollTo("contact")}>Contact</button>
+          <button onClick={() => { setMobileOpen(false); scrollTo("home"); }}>Home</button>
+          <button onClick={() => { setMobileOpen(false); scrollTo("cakes"); }}>Cakes</button>
+          <button onClick={() => { setMobileOpen(false); scrollTo("categories"); }}>Categories</button>
+          <button onClick={() => { setMobileOpen(false); scrollTo("custom"); }}>Custom Cakes</button>
+          <button onClick={() => { setMobileOpen(false); scrollTo("about"); }}>About Us</button>
+          <button onClick={() => { setMobileOpen(false); scrollTo("gallery"); }}>Gallery</button>
+          <button onClick={() => { setMobileOpen(false); scrollTo("contact"); }}>Contact</button>
         </nav>
         <div className="header-actions">
           <button type="button" className="icon-btn search-toggle" onClick={() => document.getElementById("search")?.focus()} aria-label="Search cakes" title="Search cakes">
@@ -2372,7 +2430,7 @@ function App() {
             <span className="cart-count">{cartCount}</span>
           </button>
 
-          <button type="button" className="order-top" onClick={() => scrollTo("cakes")}>Order Now</button>
+          <button type="button" className="order-top" onClick={() => { setMobileOpen(false); scrollTo("cakes"); }}>Order Now</button>
         </div>
       </header>
 
@@ -2399,10 +2457,19 @@ function App() {
             <h2>Find the Perfect Cake for Every Occasion</h2>
           </div>
           <div className="category-grid">
-            {catalogLoading && shopCategories.length === 0 ? (
+            {categoriesLoading && shopCategories.length === 0 ? (
               <div className="empty">Loading categories...</div>
             ) : shopCategories.length === 0 ? (
-              <div className="empty">Categories will appear once cakes are published.</div>
+              <div className="empty">
+                {catalogError && !catalogLoading ? (
+                  <>
+                    <p>{catalogError}</p>
+                    <button type="button" className="btn secondary" onClick={loadCatalog}>Retry</button>
+                  </>
+                ) : (
+                  "Categories will appear once cakes are published."
+                )}
+              </div>
             ) : shopCategories.map(({ name, image: img }) => (
               <button key={name} className="category-card" onClick={() => {setCategory(name); scrollTo("cakes")}}>
                 <img src={img || CATEGORY_IMAGE_FALLBACKS[name] || CATEGORY_IMAGE_FALLBACKS["Birthday Cakes"]} alt={name} loading="lazy" width="600" height="400" /><span>{name}</span>
@@ -2468,7 +2535,7 @@ function App() {
               );
             })}
           </div>
-          {!catalogLoading && filtered.length === 0 && (
+          {!catalogLoading && filtered.length === 0 && !catalogError && (
             <div className="empty">
               {catalog.length === 0
                 ? "No cakes are currently available."
@@ -2477,7 +2544,12 @@ function App() {
                   : `No cakes match "${category}" right now.`}
             </div>
           )}
-          {catalogError && !catalogLoading && <div className="empty">{catalogError}</div>}
+          {catalogError && !catalogLoading && (
+            <div className="empty">
+              <p>{catalogError}</p>
+              <button type="button" className="btn secondary" onClick={loadCatalog}>Retry</button>
+            </div>
+          )}
         </section>
 
         <section className="benefits section" id="about">
@@ -2709,7 +2781,7 @@ function App() {
         </div>
       )}
 
-      {product && <ProductModal product={product} onClose={closeProduct} onAdd={() => {addToCart(product); closeProduct()}} stockLabel={stockLabel} isOutOfStock={isOutOfStock}/>}
+      {product && <ProductModal key={product.id || product.slug || product.name} product={product} onClose={closeProduct} onAdd={() => {addToCart(product); closeProduct()}} stockLabel={stockLabel} isOutOfStock={isOutOfStock}/>}
       {product3d && (
         <Suspense fallback={null}>
           <Product3DViewer product={product3d} onClose={() => setProduct3d(null)} />
@@ -4476,52 +4548,80 @@ function App() {
 }
 
 function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
-  const [detail, setDetail] = useState(normalizeProduct(product));
+  const [detail, setDetail] = useState(() => normalizeProduct(product));
   const [reviews, setReviews] = useState([]);
   const [image,setImage] = useState(product.gallery?.[0] || product.image || "");
   const [zoom,setZoom] = useState(false);
   const [threeD,setThreeD] = useState(false);
   const [size,setSize] = useState("1 kg");
   const [eggless,setEggless] = useState(false);
-  const [loading,setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
   const [reviewForm,setReviewForm] = useState({ rating: 5, comment: "" });
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState("");
+  const detailRequestRef = useRef(0);
+  const detailAbortRef = useRef(null);
 
-  useEffect(() => {
-    let active = true;
+  const refreshDetail = useCallback(() => {
+    detailAbortRef.current?.abort();
+    const controller = new AbortController();
+    detailAbortRef.current = controller;
+    const requestId = ++detailRequestRef.current;
+    const seeded = normalizeProduct(product);
+    const seededReady = hasCakeContent(seeded);
+    setDetail(seeded);
+    setImage(seeded.gallery?.[0] || seeded.image || "");
+    setDetailError("");
+    setDetailLoading(!seededReady);
 
-    setLoading(true);
-    fetchProduct(product.id)
-      .then(data => {
-        if (!active) return;
+    const watchdog = setTimeout(() => {
+      if (detailRequestRef.current !== requestId || seededReady) return;
+      setDetailLoading(false);
+      setDetailError((current) => current || "Loading cake details took too long.");
+    }, 10000);
+
+    fetchProductDetail(product, { signal: controller.signal })
+      .then((data) => {
+        if (detailRequestRef.current !== requestId) return;
         const normalized = normalizeProduct(data);
         setDetail(normalized);
         setImage(normalized.gallery?.[0] || normalized.image || "");
+        setDetailError("");
       })
-      .catch(() => {
-        if (!active) return;
-        setDetail({
-          ...normalizeProduct(product),
-          description: "This cake is no longer available.",
-          short_description: "This cake is no longer available.",
-        });
+      .catch((error) => {
+        if (detailRequestRef.current !== requestId || error?.name === "AbortError") return;
+        setDetailError(
+          error?.timeout
+            ? "Loading cake details took too long."
+            : error?.status === 404
+              ? "Latest cake details are unavailable."
+              : "Couldn't load the latest cake details."
+        );
       })
       .finally(() => {
-        if (active) setLoading(false);
+        clearTimeout(watchdog);
+        if (detailRequestRef.current === requestId) setDetailLoading(false);
       });
 
+    if (product?.id == null || product.id === "") return;
     fetchProductReviews(product.id)
-      .then(data => {
-        if (!active) return;
+      .then((data) => {
+        if (detailRequestRef.current !== requestId) return;
         setReviews(Array.isArray(data) ? data : []);
       })
       .catch(() => {
-        if (active) setReviews([]);
+        if (detailRequestRef.current === requestId) setReviews([]);
       });
+  }, [product]);
 
-    return () => { active = false; };
-  }, [product.id]);
+  useEffect(() => {
+    refreshDetail();
+    return () => {
+      detailRequestRef.current += 1;
+      detailAbortRef.current?.abort();
+    };
+  }, [refreshDetail]);
 
   function handleReviewSubmit(e) {
     e.preventDefault();
@@ -4566,8 +4666,21 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
         {threeD && <div className="mini-3d"><div className="cake-3d-shape"></div><span>Drag-ready 3D preview</span></div>}
       </div>
       <div className="modal-info">
-        {loading ? <div className="empty">Loading cake details...</div> : (
+        {!hasCakeContent(detail) ? (
+          detailLoading ? <div className="empty">Loading cake details...</div> : (
+            <div className="empty">
+              <p>{detailError || "Couldn't load cake details."}</p>
+              <button type="button" className="btn secondary" onClick={refreshDetail}>Retry</button>
+            </div>
+          )
+        ) : (
           <>
+            {detailError && (
+              <div className="detail-status" role="alert">
+                <span>{detailError}</span>
+                <button type="button" onClick={refreshDetail}>Retry</button>
+              </div>
+            )}
             <nav className="product-breadcrumbs" aria-label="Breadcrumb" style={{fontSize: "0.85rem", marginBottom: "0.75rem", opacity: 0.85}}>
               <a href="/" onClick={(e) => { e.preventDefault(); onClose(); }}>Home</a>
               <span aria-hidden="true"> / </span>

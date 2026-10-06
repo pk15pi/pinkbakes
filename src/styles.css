@@ -920,3 +920,117 @@ button.btn.primary.full:disabled {
 }
 .policy-page-nav button.is-current{background:#a67a43;border-color:#a67a43;color:#fff}
 
+/* Tablet header: hamburger starts below desktop (~1024) so actions stay on screen.
+   max-width 720 keeps the existing phone header. */
+@media (max-width: 1023px) and (min-width: 721px) {
+  .header{
+    height:74px;
+    padding:0 16px;
+    gap:8px;
+    max-width:100%;
+  }
+  .mobile-menu{
+    display:grid;
+    place-items:center;
+    width:40px;
+    height:40px;
+    flex:0 0 40px;
+  }
+  .brand{
+    min-width:0;
+    flex:1 1 auto;
+    overflow:hidden;
+  }
+  .brand strong,
+  .brand small{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .brand small{letter-spacing:1px}
+  .nav{
+    position:absolute;
+    left:0;
+    right:0;
+    top:74px;
+    background:#fff;
+    display:none;
+    flex:none;
+    flex-direction:column;
+    align-items:flex-start;
+    justify-content:flex-start;
+    gap:4px;
+    padding:12px 18px 16px;
+    box-shadow:0 12px 20px #0001;
+    z-index:60;
+  }
+  .nav button{
+    white-space:nowrap;
+    font-size:14px;
+    padding:8px 0;
+    width:100%;
+    text-align:left;
+  }
+  .nav.mobile-visible{display:flex}
+  .header-actions{
+    flex:0 0 auto;
+    gap:6px;
+    margin-left:auto;
+  }
+  .header-action{padding:0 10px}
+  .action-label{white-space:nowrap}
+  .order-top{padding:10px 14px;white-space:nowrap}
+  /* Header already shows Sign in; the corner float covers the hero buttons on shorter tablet windows. */
+  .auth-float{display:none}
+}
+
+/* Single-line desktop labels. Spacing stays the original layout at 1280 and up. */
+@media (min-width: 1280px) {
+  .nav button,
+  .action-label,
+  .order-top{white-space:nowrap}
+}
+
+/* Keep the desktop nav inline, but stop labels and actions wrapping off the 74px bar. */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .header{padding:0 16px}
+  .brand{min-width:160px}
+  .brand small{letter-spacing:1px}
+  .nav{gap:12px}
+  .nav button{white-space:nowrap}
+  .header-actions{gap:6px;flex-shrink:0}
+  .header-action{padding:0 10px}
+  .action-label,.order-top{white-space:nowrap}
+  .order-top{padding:11px 14px}
+}
+
+.empty p{margin:0 0 12px}
+.empty .btn{margin-top:4px}
+.category-grid > .empty,
+.product-grid > .empty{grid-column:1 / -1}
+.detail-status{
+  margin:0 0 14px;
+  padding:10px 12px;
+  border-radius:12px;
+  background:#fff6ee;
+  border:1px solid #f0dfca;
+  color:#6a5344;
+  font-size:12px;
+  line-height:1.4;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  text-align:left;
+}
+.detail-status button{
+  border:1px solid #d9b37d;
+  border-radius:999px;
+  padding:6px 12px;
+  font-size:11px;
+  font-weight:700;
+  background:#fff;
+  color:#5a4337;
+  white-space:nowrap;
+}
+.detail-status button:hover{background:#fff7ef}
