@@ -21,7 +21,9 @@ async function requestJson(url, options = {}) {
         ? firstError
         : "Request failed";
 
-    throw new Error(message || "Request failed");
+    const error = new Error(message || "Request failed");
+    error.status = response.status;
+    throw error;
   }
 
   return data;
@@ -58,6 +60,77 @@ export function invalidateCatalogClientCache() {
 /** Normalize list API responses: bare array or paginated { results: [...] }. */
 export function asListResponse(data) {
   return Array.isArray(data) ? data : (data?.results || []);
+}
+
+/** Public catalog reads only. One retry on timeout, network, or 5xx. 4xx is returned as-is. */
+const CATALOG_TIMEOUT_MS = 8000;
+const CATALOG_RETRIES = 1;
+
+function isAbortError(error) {
+  return error?.name === "AbortError";
+}
+
+function delay(ms, signal) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    if (!signal) return;
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+    if (signal.aborted) {
+      onAbort();
+      return;
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+async function requestCatalogJson(url, options = {}) {
+  const {
+    timeoutMs = CATALOG_TIMEOUT_MS,
+    retries = CATALOG_RETRIES,
+    signal: externalSignal,
+    ...rest
+  } = options;
+  let lastError;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    if (externalSignal?.aborted) {
+      throw lastError || new DOMException("Aborted", "AbortError");
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const onExternalAbort = () => controller.abort();
+    externalSignal?.addEventListener("abort", onExternalAbort, { once: true });
+
+    try {
+      return await requestJson(url, { ...rest, signal: controller.signal });
+    } catch (error) {
+      lastError = error;
+      if (externalSignal?.aborted) throw error;
+
+      const timedOut = isAbortError(error) || controller.signal.aborted;
+      const status = error?.status;
+      const retryable = timedOut || !status || status >= 500;
+      if (!retryable || attempt === retries) {
+        if (timedOut) {
+          const timeoutError = new Error("Request timed out. Please try again.");
+          timeoutError.status = 0;
+          timeoutError.timeout = true;
+          throw timeoutError;
+        }
+        throw error;
+      }
+      await delay(350 * (attempt + 1), externalSignal);
+    } finally {
+      clearTimeout(timer);
+      externalSignal?.removeEventListener("abort", onExternalAbort);
+    }
+  }
+
+  throw lastError;
 }
 
 function buildQuery(params = {}) {
@@ -188,34 +261,56 @@ export async function fetchAdminReportActivity(params = {}) {
 }
 
 
-export async function fetchCategories() {
+export async function fetchCategories(options = {}) {
   const key = "categories";
   const cached = _cacheGet(key);
   if (cached) return cached;
-  const data = await requestJson(`${API_BASE_URL}/api/catalog/categories/`, { method: "GET" });
+  const data = await requestCatalogJson(`${API_BASE_URL}/api/catalog/categories/`, { method: "GET", signal: options.signal });
   return _cacheSet(key, asListResponse(data), 60_000);
 }
 
-export async function fetchProducts(params = {}) {
+export async function fetchProducts(params = {}, options = {}) {
   const qs = buildQuery(params);
   const url = `${API_BASE_URL}/api/catalog/products/${qs ? `?${qs}` : ""}`;
   const key = `products:${qs || "all"}`;
   const cached = _cacheGet(key);
   if (cached) return cached;
-  const data = await requestJson(url, { method: "GET" });
+  const data = await requestCatalogJson(url, { method: "GET", signal: options.signal });
   return _cacheSet(key, asListResponse(data), CATALOG_TTL_MS);
 }
 
-export async function fetchProduct(id) {
-  return requestJson(`${API_BASE_URL}/api/catalog/products/${id}/`, { method: "GET" });
+export async function fetchProduct(id, options = {}) {
+  return requestCatalogJson(`${API_BASE_URL}/api/catalog/products/${id}/`, { method: "GET", signal: options.signal });
 }
 
-export async function fetchProductBySlug(slug) {
-  return requestJson(`${API_BASE_URL}/api/catalog/products/slug/${encodeURIComponent(slug)}/`, { method: "GET" });
+export async function fetchProductBySlug(slug, options = {}) {
+  return requestCatalogJson(`${API_BASE_URL}/api/catalog/products/slug/${encodeURIComponent(slug)}/`, { method: "GET", signal: options.signal });
+}
+
+/** Detail by numeric id, falling back to slug when the id route 404s. */
+export async function fetchProductDetail(product, options = {}) {
+  const id = product?.id;
+  const slug = String(product?.slug || "").trim();
+  const idText = id == null ? "" : String(id).trim();
+  const hasId = idText !== "" && idText !== "undefined" && idText !== "null";
+
+  if (hasId) {
+    try {
+      return await fetchProduct(idText, options);
+    } catch (error) {
+      if (!(error?.status === 404 && slug)) throw error;
+    }
+  }
+
+  if (slug) return fetchProductBySlug(slug, options);
+
+  const missing = new Error("Missing product id");
+  missing.status = 400;
+  throw missing;
 }
 
 export async function fetchProductReviews(productId) {
-  return requestJson(`${API_BASE_URL}/api/catalog/products/${productId}/reviews/`, { method: "GET" });
+  return requestCatalogJson(`${API_BASE_URL}/api/catalog/products/${productId}/reviews/`, { method: "GET" });
 }
 
 export async function submitReview(productId, payload, token) {
