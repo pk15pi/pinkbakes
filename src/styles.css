@@ -804,10 +804,17 @@ button.btn.primary.full:disabled {
 .auth-float-badge:hover{transform:translateY(-2px);box-shadow:0 18px 36px rgba(126,87,43,.22)}
 /* Legal links share the bottom bar. Column links use .footer-top button{display:block},
    which used to match these too and stacked them on the right over the Help pill. */
+.footer h4{font-size:12px}
+.footer-top button{font-size:13px;line-height:1.45}
+.footer-brand small{font-size:10px;letter-spacing:1.6px}
+.footer-brand p{font-size:13px;line-height:1.6}
+.newsletter input,.subscribed{font-size:13px}
 .footer-bottom{
   padding-bottom:2px;
   /* Help FAB is fixed at right:22px and about 97px wide; 5.5vw is the footer inset. */
   padding-right:max(4.75rem, calc(8.75rem - 5.5vw));
+  font-size:12px;
+  line-height:1.5;
 }
 .footer-bottom-links{
   display:flex;
@@ -815,9 +822,9 @@ button.btn.primary.full:disabled {
   align-items:center;
   justify-content:flex-end;
   column-gap:0;
-  row-gap:6px;
-  flex:1 1 12rem;
-  min-width:min(100%, 12rem);
+  row-gap:8px;
+  flex:1 1 16rem;
+  min-width:min(100%, 16rem);
   max-width:100%;
 }
 .footer .footer-bottom .footer-help-link,
