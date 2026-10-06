@@ -1689,6 +1689,15 @@ function App() {
     });
     return () => cancelAnimationFrame(id);
   }, [chatOpen, chatMessages]);
+  // Escape closes Help Desk while open (same as X); listener removed on close/unmount.
+  useEffect(() => {
+    if (!chatOpen) return;
+    const onKey = (event) => {
+      if (event.key === "Escape") setChatOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [chatOpen]);
 
   function sendChatMessage(text) {
     const trimmed = (text || "").trim();
@@ -4402,7 +4411,7 @@ function App() {
         </div>
       )}
 
-      <div className="chatbot-dock">
+      <div className={`chatbot-dock${chatOpen ? " is-open" : ""}`}>
         {chatOpen && (
           <div className="chatbot-panel" role="dialog" aria-modal="true" aria-label="PinkBakes Help Desk">
             <div className="chatbot-header">

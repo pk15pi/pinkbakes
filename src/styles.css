@@ -782,8 +782,20 @@ button.btn.primary.full:disabled {
 }
 @keyframes chatbotPop{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
 @media(max-width:480px){
-  .chatbot-dock{right:12px;bottom:12px}
-  .chatbot-panel{width:calc(100vw - 24px);height:min(70vh,560px)}
+  .chatbot-dock{
+    right:12px;
+    bottom:max(12px, env(safe-area-inset-bottom, 0px));
+  }
+  /* Open panel: lift dock + cap height so footer legal row + copyright stay reachable (~390). */
+  .chatbot-dock.is-open{
+    bottom:max(72px, calc(env(safe-area-inset-bottom, 0px) + 64px));
+  }
+  .chatbot-panel{
+    width:calc(100vw - 24px);
+    height:auto;
+    max-height:min(52vh, calc(100dvh - 200px - env(safe-area-inset-bottom, 0px)));
+  }
+  .chatbot-messages{min-height:0}
   .chatbot-launch span{display:none}
   .chatbot-launch{width:56px;padding:0}
 }
