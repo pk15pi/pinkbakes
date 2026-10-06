@@ -282,6 +282,7 @@ function App() {
   const [adminOrderDetail, setAdminOrderDetail] = useState(null);
   const [adminPayments, setAdminPayments] = useState([]);
   const [adminRefunds, setAdminRefunds] = useState([]);
+  const [adminRefundFilter, setAdminRefundFilter] = useState("");
   const [adminCustomers, setAdminCustomers] = useState([]);
   const [adminCustomerSearch, setAdminCustomerSearch] = useState("");
   const [adminEmployees, setAdminEmployees] = useState([]);
@@ -941,6 +942,65 @@ function App() {
     loadAdminSectionData(section);
   }
 
+
+  const REFUND_PENDING_STATUSES = ["requested", "pending", "processing"];
+
+  function isRefundPendingStatus(status) {
+    return REFUND_PENDING_STATUSES.includes(String(status || "").toLowerCase());
+  }
+
+  function refundOrderLabel(r) {
+    if (!r) return "-";
+    if (r.order_number) return r.order_number;
+    if (r.order_id != null && r.order_id !== "") return String(r.order_id);
+    if (r.order && typeof r.order === "object" && r.order.order_number) return r.order.order_number;
+    if (r.order != null && r.order !== "") return String(r.order);
+    return "-";
+  }
+
+  function buildRefundTableRows(refunds) {
+    const list = Array.isArray(refunds) ? refunds : [];
+    if (list.length === 0) {
+      return (
+        <tr key="empty"><td colSpan={7}><div className="admin-empty">No refunds yet.</div></td></tr>
+      );
+    }
+    // When showing all, group pending (requested|pending|processing) above the rest.
+    const groupClientSide = !adminRefundFilter;
+    const pending = groupClientSide ? list.filter((r) => isRefundPendingStatus(r.status)) : [];
+    const other = groupClientSide ? list.filter((r) => !isRefundPendingStatus(r.status)) : list;
+    const renderRow = (r) => (
+      <tr key={r.id}>
+        <td>{r.id}</td>
+        <td>{refundOrderLabel(r)}</td>
+        <td>Rs.{Number(r.amount || 0).toLocaleString("en-IN")}</td>
+        <td>{r.status}</td>
+        <td>{r.initiated_by_type || "-"}</td>
+        <td>{r.reason || "-"}</td>
+        <td>{r.gateway_refund_id || "-"}</td>
+      </tr>
+    );
+    if (!groupClientSide) return other.map(renderRow);
+    const rows = [];
+    if (pending.length) {
+      rows.push(
+        <tr key="pending-group-hdr">
+          <td colSpan={7}><strong>Pending</strong> <span className="eyebrow">(requested / pending / processing)</span></td>
+        </tr>
+      );
+      pending.forEach((r) => rows.push(renderRow(r)));
+    }
+    if (other.length) {
+      rows.push(
+        <tr key="other-group-hdr">
+          <td colSpan={7}><strong>{pending.length ? "Completed / other" : "Refunds"}</strong></td>
+        </tr>
+      );
+      other.forEach((r) => rows.push(renderRow(r)));
+    }
+    return rows;
+  }
+
   function loadAdminSectionData(section, preset) {
     const token = localStorage.getItem("pinkbakes_admin_token");
     if (!token) return;
@@ -957,7 +1017,9 @@ function App() {
     } else if (section === "payments") {
       tasks.push(fetchAdminPayments({ page: 1, page_size: 25 }).then((d) => setAdminPayments(asListResponse(d))).catch((e) => { setAdminPayments([]); setAdminOpsMessage(e.message || "Payments failed"); }));
     } else if (section === "refunds") {
-      tasks.push(fetchAdminRefunds({ page: 1, page_size: 25 }).then((d) => setAdminRefunds(asListResponse(d))).catch((e) => { setAdminRefunds([]); setAdminOpsMessage(e.message || "Refunds failed"); }));
+      const refundParams = { page: 1, page_size: 25 };
+      if (adminRefundFilter) refundParams.status = adminRefundFilter;
+      tasks.push(fetchAdminRefunds(refundParams).then((d) => setAdminRefunds(asListResponse(d))).catch((e) => { setAdminRefunds([]); setAdminOpsMessage(e.message || "Refunds failed"); }));
     } else if (section === "inventory") {
       tasks.push(fetchAdminInventory().then((d) => setAdminInventory(Array.isArray(d) ? d : (d.results || []))).catch((e) => setAdminOpsMessage(e.message || "Inventory failed")));
     } else if (section === "customers") {
@@ -2948,10 +3010,33 @@ function App() {
             {!adminReportsView && !adminDeliveryView && adminSection === "refunds" && (
               <div className="admin-reports-page">
                 <div className="report-topbar"><div><span className="eyebrow">REFUNDS</span><h3>Refunds</h3></div>
+                  <select
+                    value={adminRefundFilter}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setAdminRefundFilter(v);
+                      setAdminLoadingSection(true);
+                      const params = { page: 1, page_size: 25 };
+                      if (v) params.status = v;
+                      fetchAdminRefunds(params)
+                        .then((d) => setAdminRefunds(asListResponse(d)))
+                        .catch((err) => { setAdminRefunds([]); setAdminOpsMessage(err.message || "Refunds failed"); })
+                        .finally(() => setAdminLoadingSection(false));
+                    }}
+                  >
+                    <option value="">All</option>
+                    <option value="pending_group">Pending group</option>
+                    <option value="requested">Requested</option>
+                    <option value="pending">Pending</option>
+                    <option value="processing">Processing</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
                   <button type="button" className="btn secondary small" onClick={() => downloadAdminExport("refunds").catch((e) => setAdminOpsMessage(e.message))}>Export CSV</button>
                 </div>
                 <div className="table-wrap"><table className="report-table"><thead><tr><th>ID</th><th>Order</th><th>Amount</th><th>Status</th><th>By</th><th>Reason</th><th>Gateway refund</th></tr></thead><tbody>
-                  {adminRefunds.length === 0 && (<tr><td colSpan={7}><div className="admin-empty">No refunds yet.</div></td></tr>)}{adminRefunds.map((r) => <tr key={r.id}><td>{r.id}</td><td>{r.order_number || r.order_id || r.order || "-"}</td><td>Rs.{Number(r.amount || 0).toLocaleString("en-IN")}</td><td>{r.status}</td><td>{r.initiated_by_type || "-"}</td><td>{r.reason || "-"}</td><td>{r.gateway_refund_id || "-"}</td></tr>)}
+                  {buildRefundTableRows(adminRefunds)}
                 </tbody></table></div>
               </div>
             )}
