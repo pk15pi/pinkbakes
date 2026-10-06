@@ -889,11 +889,34 @@ button.btn.primary.full:disabled {
   .header-action{padding:0 10px}
   .action-label{white-space:nowrap}
   .order-top{padding:10px 14px;white-space:nowrap}
-  .auth-float{left:16px;bottom:88px}
+  /* Header already shows Sign in; the corner float covers the hero buttons on shorter tablet windows. */
+  .auth-float{display:none}
+}
+
+/* Single-line desktop labels. Spacing stays the original layout at 1280 and up. */
+@media (min-width: 1280px) {
+  .nav button,
+  .action-label,
+  .order-top{white-space:nowrap}
+}
+
+/* Keep the desktop nav inline, but stop labels and actions wrapping off the 74px bar. */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .header{padding:0 16px}
+  .brand{min-width:160px}
+  .brand small{letter-spacing:1px}
+  .nav{gap:12px}
+  .nav button{white-space:nowrap}
+  .header-actions{gap:6px;flex-shrink:0}
+  .header-action{padding:0 10px}
+  .action-label,.order-top{white-space:nowrap}
+  .order-top{padding:11px 14px}
 }
 
 .empty p{margin:0 0 12px}
 .empty .btn{margin-top:4px}
+.category-grid > .empty,
+.product-grid > .empty{grid-column:1 / -1}
 .detail-status{
   margin:0 0 14px;
   padding:10px 12px;
