@@ -8,6 +8,7 @@ import {
   ChevronLeft, ChevronRight, ChevronUp, ChevronDown
 } from "lucide-react";
 import { CHATBOT_QUICK_PROMPTS, matchChatbotFaq } from "./chatbotFaq";
+import { POLICIES, POLICY_SLUGS, policyFromPath } from "./policies";
 import { logout, adminLogout,
   adminLogin,
   cancelOrder,
@@ -147,6 +148,63 @@ const BAKERY_LOCATION = {
   label: "pinkbakes Bakery",
   hours: "Open daily | 10 AM - 9 PM",
 };
+const STICKY_HEADER_OFFSET = 80;
+
+function PolicyPage({ policy, onClose, onOpen }) {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    const onKey = (event) => {
+      if (event.key === "Escape") onCloseRef.current();
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
+  return (
+    <div className="policy-page" role="dialog" aria-modal="true" aria-labelledby="policy-page-title">
+      <div className="policy-page-bar">
+        <button type="button" className="policy-page-brand" onClick={onClose}>{BRAND_NAME}</button>
+        <button type="button" className="policy-page-close" onClick={onClose} aria-label="Close policy">
+          <X size={18}/>
+        </button>
+      </div>
+      <article className="policy-page-sheet">
+        <p className="policy-page-kicker">pinkbakes</p>
+        <h1 id="policy-page-title">{policy.title}</h1>
+        <p className="policy-page-updated">Updated {policy.updated}</p>
+        <p className="policy-page-summary">{policy.summary}</p>
+        {policy.sections.map((section) => (
+          <section key={section.heading}>
+            <h2>{section.heading}</h2>
+            {section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+          </section>
+        ))}
+        <p className="policy-page-contact">
+          Email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+          {" "}or WhatsApp <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noreferrer">+91 {WHATSAPP_NUMBER}</a>.
+        </p>
+        <nav className="policy-page-nav" aria-label="Other policies">
+          {POLICY_SLUGS.map((slug) => (
+            <button
+              key={slug}
+              type="button"
+              className={slug === policy.slug ? "is-current" : ""}
+              onClick={() => onOpen(slug)}
+            >
+              {POLICIES[slug].title}
+            </button>
+          ))}
+        </nav>
+      </article>
+    </div>
+  );
+}
 
 const normalizeProduct = (product) => {
   const base = product || {};
@@ -203,6 +261,7 @@ function App() {
   const [cartOpen, setCartOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [bakeryLocationOpen, setBakeryLocationOpen] = useState(false);
+  const [policySlug, setPolicySlug] = useState(() => policyFromPath(window.location.pathname)?.slug || null);
   const [newsletter, setNewsletter] = useState("");
   const [newsletterDone, setNewsletterDone] = useState(false);
   const [catalog, setCatalog] = useState([]);
@@ -349,6 +408,7 @@ function App() {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const chatMessagesRef = useRef(null);
+  const scrollRoomRef = useRef(null);
   const [chatMessages, setChatMessages] = useState([
     {
       sender: "bot",
@@ -622,6 +682,14 @@ function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, [catalogLoading, catalog]);
 
+  useEffect(() => {
+    const syncPolicy = () => {
+      setPolicySlug(policyFromPath(window.location.pathname)?.slug || null);
+    };
+    window.addEventListener("popstate", syncPolicy);
+    return () => window.removeEventListener("popstate", syncPolicy);
+  }, []);
+
   // Document head: public vs private surfaces + product detail.
   useEffect(() => {
     const path = window.location.pathname || "/";
@@ -667,6 +735,24 @@ function App() {
       return;
     }
 
+    const policy = POLICIES[policySlug] || policyFromPath(path);
+    if (policy && !privateUi) {
+      setPageMeta({
+        title: `${policy.title} | pinkbakes`,
+        description: policy.summary,
+        canonical: policy.path,
+        robots: "index,follow",
+        jsonLd: [
+          buildOrganizationJsonLd({ email: CONTACT_EMAIL, telephone: WHATSAPP_NUMBER }),
+          buildBreadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: policy.title, path: policy.path },
+          ]),
+        ],
+      });
+      return;
+    }
+
     if (privateUi) {
       setPageMeta({
         title: adminOpen ? "Admin | pinkbakes" : "pinkbakes",
@@ -689,7 +775,7 @@ function App() {
         buildWebSiteJsonLd(),
       ],
     });
-  }, [product, productNotFound, adminOpen, authOpen, cartOpen, checkoutOpen, orderHistoryOpen, catalogLoading]);
+  }, [product, productNotFound, adminOpen, authOpen, cartOpen, checkoutOpen, orderHistoryOpen, catalogLoading, policySlug]);
 
   const filtered = useMemo(() => {
     const needle = (search || "").toLowerCase();
@@ -844,8 +930,16 @@ function App() {
     setMobileOpen(false);
     const el = document.getElementById(id);
     if (!el) return;
-    // Contact strip sits under sticky header; start alignment keeps #contact in view.
-    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Contact is the last in-page section. Without extra room below the footer,
+    // the browser is already at max scroll and scrollIntoView cannot move it.
+    const room = scrollRoomRef.current;
+    if (room) room.style.height = "0px";
+    const absTop = el.getBoundingClientRect().top + window.scrollY;
+    const target = Math.max(0, absTop - STICKY_HEADER_OFFSET);
+    const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    const extra = Math.ceil(target - maxScroll);
+    if (room && extra > 1) room.style.height = `${extra}px`;
+    window.scrollTo({ top: target, behavior: "smooth" });
   }
 
   function subscribe(e) {
@@ -1572,6 +1666,27 @@ function App() {
         requestAnimationFrame(scrollChatToBottom);
       });
     }
+  }
+
+  function openPolicy(slug) {
+    const policy = POLICIES[slug];
+    if (!policy) return;
+    setChatOpen(false);
+    setPolicySlug(slug);
+    try {
+      if ((policyFromPath(window.location.pathname)?.slug || null) !== slug) {
+        window.history.pushState({ policy: slug }, "", policy.path);
+      }
+    } catch (_) { /* ignore */ }
+  }
+
+  function closePolicy() {
+    setPolicySlug(null);
+    try {
+      if (policyFromPath(window.location.pathname)) {
+        window.history.pushState({}, "", "/");
+      }
+    } catch (_) { /* ignore */ }
   }
 
   function openFooterAdmin() {
@@ -2468,8 +2583,13 @@ function App() {
           <div><h4>Company</h4><button type="button" onClick={() => scrollTo("about")}>About Us</button><button type="button" onClick={() => scrollTo("contact")}>Contact</button></div>
           <div className="newsletter"><h4>Subscribe for latest updates</h4><form onSubmit={subscribe}><input value={newsletter} onChange={e=>setNewsletter(e.target.value)} placeholder="Your email address" type="email" required/><button aria-label="Subscribe"><ArrowRight/></button></form>{newsletterDone && <span className="subscribed"><Check size={14}/> You're subscribed!</span>}<div className="social"><span className="social-icon" title="Instagram (link not configured)" aria-label="Instagram unavailable"><Instagram/></span><a className="social-icon" href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp PinkBakes" title="WhatsApp"><MessageCircle/></a><span className="social-icon" title="Favorites" aria-hidden="true"><Heart/></span></div></div>
         </div>
-        <div className="footer-bottom"><span>(c) 2026 {BRAND_NAME}. All rights reserved.</span><span className="footer-bottom-links"><button type="button" className="footer-help-link" onClick={() => openHelpDeskTopic("How is my data used?")}>Privacy Policy</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-help-link" onClick={() => openHelpDeskTopic("What are the terms of service?")}>Terms & Conditions</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-help-link" onClick={() => openHelpDeskTopic("What is your shipping and delivery policy?")}>Shipping & Delivery</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-help-link" onClick={() => openHelpDeskTopic("What is your refund policy?")}>Refund Policy</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-help-link" onClick={openHelpDesk}>HELP DESK – PinkBakes Assistant</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-admin-link" onClick={openFooterAdmin} aria-label={isAdminLoggedIn ? "Open admin panel" : "Admin Login"} title={isAdminLoggedIn ? "Open admin panel" : "Admin Login"}>{isAdminLoggedIn ? "Admin" : "Admin Login"}</button></span></div>
+        <div className="footer-bottom"><span>(c) 2026 {BRAND_NAME}. All rights reserved.</span><span className="footer-bottom-links"><button type="button" className="footer-help-link" onClick={() => openPolicy("privacy")}>Privacy Policy</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-help-link" onClick={() => openPolicy("terms")}>Terms & Conditions</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-help-link" onClick={() => openPolicy("shipping")}>Shipping & Delivery</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-help-link" onClick={() => openPolicy("refund")}>Refund Policy</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-help-link" onClick={openHelpDesk}>HELP DESK – PinkBakes Assistant</button><span className="footer-sep" aria-hidden="true"> | </span><button type="button" className="footer-admin-link" onClick={openFooterAdmin} aria-label={isAdminLoggedIn ? "Open admin panel" : "Admin Login"} title={isAdminLoggedIn ? "Open admin panel" : "Admin Login"}>{isAdminLoggedIn ? "Admin" : "Admin Login"}</button></span></div>
+        <div id="footer-scroll-room" ref={scrollRoomRef} aria-hidden="true" />
       </footer>
+
+      {policySlug && POLICIES[policySlug] && (
+        <PolicyPage policy={POLICIES[policySlug]} onClose={closePolicy} onOpen={openPolicy} />
+      )}
 
       
       {bakeryLocationOpen && (

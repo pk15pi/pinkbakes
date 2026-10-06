@@ -865,3 +865,46 @@ button.btn.primary.full:disabled {
   .footer-bottom-links{flex:0 1 auto;width:100%;min-width:0;justify-content:flex-start}
 }
 
+#footer-scroll-room{height:0}
+
+.policy-page{
+  position:fixed;inset:0;z-index:220;overflow:auto;
+  background:#fbf8f3;color:#2d211b;
+}
+.policy-page-bar{
+  position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;
+  height:64px;padding:0 5.5%;background:rgba(255,252,247,.96);
+  border-bottom:1px solid #eee5dc;backdrop-filter:blur(12px);
+}
+.policy-page-brand{
+  font-family:"Playfair Display",serif;font-size:18px;color:#2d211b;
+}
+.policy-page-close{
+  width:36px;height:36px;border-radius:50%;display:grid;place-items:center;
+  background:#fff;border:1px solid #f0dfca;color:#5a4337;
+}
+.policy-page-sheet{
+  width:min(760px,100%);margin:0 auto;padding:36px 22px 72px;
+}
+.policy-page-kicker{
+  margin:0;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#94704f;font-weight:700;
+}
+.policy-page-sheet h1{
+  margin:8px 0 0;font:500 36px/1.15 "Playfair Display",serif;color:#30221b;
+}
+.policy-page-updated{margin:10px 0 0;font-size:13px;color:#8d7d70}
+.policy-page-summary{margin:18px 0 0;font-size:16px;line-height:1.6;color:#3f352e}
+.policy-page-sheet section{margin-top:28px}
+.policy-page-sheet h2{
+  margin:0 0 8px;font:600 18px/1.3 "Playfair Display",serif;color:#3d2a1f;
+}
+.policy-page-sheet section p{margin:0 0 10px;font-size:15px;line-height:1.7;color:#4a3b32}
+.policy-page-contact{margin-top:28px;font-size:15px;line-height:1.6}
+.policy-page-contact a{color:#8a5f32;font-weight:700}
+.policy-page-nav{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.policy-page-nav button{
+  border:1px solid #ead9c8;border-radius:999px;padding:8px 12px;
+  background:#fff;color:#5a4337;font-size:13px;
+}
+.policy-page-nav button.is-current{background:#a67a43;border-color:#a67a43;color:#fff}
+
