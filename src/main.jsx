@@ -4278,7 +4278,7 @@ function App() {
 
       {authOpen && (
         <div className="auth-page-shell" onClick={() => setAuthOpen(false)}>
-          <div className="auth-page-card" onClick={e => e.stopPropagation()}>
+          <div className="auth-page-card" role="dialog" aria-modal="true" aria-labelledby="auth-dialog-title" onClick={e => e.stopPropagation()}>
             <div className="auth-visual-panel">
               <div className="auth-brand-row">
                 <div className="brand-mark"><CakeSlice size={20}/></div>
@@ -4308,7 +4308,7 @@ function App() {
 
               <div className="auth-header">
                 <span className="eyebrow">ACCOUNT</span>
-                <h3>
+                <h3 id="auth-dialog-title">
                   {authStage === "verification" ? "Verify your account"
                     : authFlow === "forgot" ? "Forgot Password"
                     : authFlow === "reset" ? "Reset Your Password"

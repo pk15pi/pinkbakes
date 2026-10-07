@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^node -e \"const s=require\\('fs'\\)\\.readFileSync\\('src/styles\\.css','utf8'\\); for\\(const m of s\\.matchAll\\(/@media\\[\\^\\{\\}\\]\\+\\\\\\\\\\{\\(\\?:\\[\\^\\{\\}\\]\\|\\\\\\\\\\{\\[\\^\\{\\}\\]\\*\\\\\\\\\\}\\)\\*\\\\\\\\\\}/g\\)\\)\\{if\\(/auth-page\\|auth-form\\|auth-row\\|cart-drawer\\|cart-item\\|product-grid\\|hero\\|footer\\|header\\|chatbot/\\.test\\(m\\[0\\]\\)\\) console\\.log\\(m\\[0\\]\\.slice\\(0,6000\\)\\+'\\\\\\\\n---'\\)\\}; for\\(const n of \\['auth-page-shell','auth-page-card','auth-form-panel','auth-header','auth-toggle','auth-form','auth-row','auth-error','cart-drawer','cart-item','cart-summary','product-grid','product-detail','product-layout','product-gallery','detail-layout','footer','hero','mobile-menu','nav\\.mobile-visible','chatbot-panel'\\]\\) \\{const r=new RegExp\\('\\\\\\\\\\\\\\\\\\.'\\+n\\.replace\\(/\\[\\.\\*\\+\\?\\^\\$\\{\\}\\(\\)\\|\\[\\\\\\\\\\]\\\\\\\\\\\\\\\\\\]/g,'\\\\\\\\\\\\\\\\\\$&'\\)\\+'\\[\\^\\{\\}\\]\\*\\\\\\\\\\\\\\\\\\{\\[\\^\\{\\}\\]\\*\\\\\\\\\\\\\\\\\\}','g'\\); for\\(const x of s\\.matchAll\\(r\\)\\) if\\(x\\[0\\]\\.length<1800\\) console\\.log\\(x\\[0\\]\\)\\}\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
