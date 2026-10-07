@@ -250,7 +250,19 @@ const normalizeProduct = (product) => {
   };
 };
 
-const cartUnitPrice = (item) => Number(item?.discounted_price ?? item?.price ?? 0);
+const cartUnitPrice = (item) => {
+  const list = Number(item?.price ?? 0);
+  const discount = Number(item?.discount ?? 0);
+  // Match catalog card: prefer discounted_price, else apply discount %, else list.
+  const fromField = Number(item?.discounted_price);
+  if (Number.isFinite(fromField) && fromField > 0 && !(discount > 0 && list > 0 && fromField >= list)) {
+    return fromField;
+  }
+  if (discount > 0 && list > 0) {
+    return Number(((list * (100 - discount)) / 100).toFixed(2));
+  }
+  return Number.isFinite(fromField) && fromField > 0 ? fromField : list;
+};
 const CART_QTY_MAX = 40;
 const cartQtyCap = (item) => {
   const stock = Number(item?.available_quantity ?? item?.stock_remaining ?? 0);
@@ -955,22 +967,31 @@ function App() {
   }
 
   function addToCart(p) {
-    if (isOutOfStock(p)) {
+    const product = normalizeProduct(p);
+    if (isOutOfStock(product)) {
       notify("This cake is currently out of stock.");
       return;
     }
-    const available = Number(p.available_quantity ?? p.stock_remaining ?? 0);
+    const available = Number(product.available_quantity ?? product.stock_remaining ?? 0);
     setCart(prev => {
-      const found = prev.find(x => x.id === p.id);
+      const found = prev.find(x => x.id === product.id);
       const nextQty = found ? found.qty + 1 : 1;
       if (available > 0 && nextQty > available) {
-        notify(`Only ${available} units of "${p.name}" are currently available.`);
+        notify(`Only ${available} units of "${product.name}" are currently available.`);
         return prev;
       }
-      if (found) return prev.map(x => x.id === p.id ? {...x, qty: nextQty} : x);
-      return [...prev, {...p, qty: 1, size: "1 kg"}];
+      // Always refresh sale/list fields from the product so cartUnitPrice stays correct.
+      const priced = {
+        ...found,
+        ...product,
+        qty: nextQty,
+        size: found?.size || "1 kg",
+        discounted_price: cartUnitPrice(product),
+      };
+      if (found) return prev.map(x => x.id === product.id ? priced : x);
+      return [...prev, priced];
     });
-    notify(`${p.name} added to your cart`);
+    notify(`${product.name} added to your cart`);
   }
 
   async function changeQty(id, delta) {
@@ -2809,7 +2830,7 @@ function App() {
         </div>
       )}
 
-      {product && <ProductModal key={product.id || product.slug || product.name} product={product} onClose={closeProduct} onAdd={() => {addToCart(product); closeProduct()}} stockLabel={stockLabel} isOutOfStock={isOutOfStock}/>}
+      {product && <ProductModal key={product.id || product.slug || product.name} product={product} onClose={closeProduct} onAdd={(item) => {addToCart(item || product); closeProduct()}} stockLabel={stockLabel} isOutOfStock={isOutOfStock}/>}
       {product3d && (
         <Suspense fallback={null}>
           <Product3DViewer product={product3d} onClose={() => setProduct3d(null)} />
@@ -4735,7 +4756,7 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
             <label>Preference</label><div className="option-row"><button className={!eggless?"selected-option":""} onClick={()=>setEggless(false)}>Regular</button><button className={eggless?"selected-option":""} onClick={()=>setEggless(true)}>Eggless</button></div>
             <label>Message on Cake</label><input className="cake-message" placeholder="Happy Birthday..."/>
             <label>Delivery Date</label><input className="cake-message" type="date"/>
-            <button className="btn primary full" disabled={isOutOfStock ? isOutOfStock(detail) : false} onClick={onAdd}>{(isOutOfStock && isOutOfStock(detail)) ? "Out of Stock" : <>Add to Cart <ShoppingBag size={17}/></>}</button>
+            <button className="btn primary full" disabled={isOutOfStock ? isOutOfStock(detail) : false} onClick={() => onAdd(detail)}>{(isOutOfStock && isOutOfStock(detail)) ? "Out of Stock" : <>Add to Cart <ShoppingBag size={17}/></>}</button>
             <div className="secure"><ShieldCheck/> Freshly made * Secure checkout * Delivery support</div>
 
             <div className="review-panel">
