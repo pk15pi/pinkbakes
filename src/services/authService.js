@@ -14,12 +14,19 @@ async function requestJson(url, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
+    const detailOrMessage =
+      (typeof data.detail === "string" && data.detail)
+      || (Array.isArray(data.detail) && data.detail[0])
+      || (typeof data.message === "string" && data.message)
+      || (Array.isArray(data.message) && data.message[0])
+      || null;
     const firstError = Object.values(data)[0];
-    const message = Array.isArray(firstError)
-      ? firstError[0]
-      : typeof firstError === "string"
-        ? firstError
-        : "Request failed";
+    const message = detailOrMessage
+      || (Array.isArray(firstError)
+        ? firstError[0]
+        : typeof firstError === "string"
+          ? firstError
+          : "Request failed");
 
     const error = new Error(message || "Request failed");
     error.status = response.status;

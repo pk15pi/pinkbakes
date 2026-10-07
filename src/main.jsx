@@ -250,6 +250,14 @@ const normalizeProduct = (product) => {
   };
 };
 
+const cartUnitPrice = (item) => Number(item?.discounted_price ?? item?.price ?? 0);
+const CART_QTY_MAX = 40;
+const cartQtyCap = (item) => {
+  const stock = Number(item?.available_quantity ?? item?.stock_remaining ?? 0);
+  if (stock > 0) return Math.min(stock, CART_QTY_MAX);
+  return CART_QTY_MAX;
+};
+
 const formatCurrency = (value) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(value || 0));
 
 function mapShopCategories(fromApi, items) {
@@ -329,6 +337,7 @@ function App() {
   const [authStage, setAuthStage] = useState("form");
   const [authLoading, setAuthLoading] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [pendingCheckout, setPendingCheckout] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutMessage, setCheckoutMessage] = useState("");
   const [couponCodeInput, setCouponCodeInput] = useState("");
@@ -847,7 +856,7 @@ function App() {
   }, [category, search, catalog]);
 
   const cartCount = cart.reduce((n, item) => n + item.qty, 0);
-  const cartTotal = cart.reduce((n, item) => n + item.price * item.qty, 0);
+  const cartTotal = cart.reduce((n, item) => n + cartUnitPrice(item) * item.qty, 0);
   const couponDiscountPreview = Number(appliedCoupon?.discount_amount || 0);
   const deliveryFeePreview = deliveryQuote?.eligible ? Number(deliveryQuote.delivery_fee || 0) : 0;
   const checkoutPayable = Math.max(0, cartTotal - couponDiscountPreview + (deliveryQuote?.eligible ? deliveryFeePreview : 0));
@@ -972,10 +981,20 @@ function App() {
       setCart(prev => prev.filter(x => x.id !== id));
       return;
     }
+    const maxAllowed = cartQtyCap(current);
+    if (delta > 0 && current.qty >= maxAllowed) {
+      const stock = Number(current.available_quantity ?? current.stock_remaining ?? 0);
+      notify(
+        stock > 0 && stock < CART_QTY_MAX
+          ? `Only ${stock} units available.`
+          : `Maximum quantity is ${CART_QTY_MAX}.`
+      );
+      return;
+    }
     try {
       const result = await validateCart({ items: [{ id, quantity: nextQty }] });
-      if (!result.valid) {
-        notify(result.detail || "Not enough stock for that quantity.");
+      if (!result?.valid || result.ok === false) {
+        notify(result?.detail || result?.message || "Not enough stock for that quantity.");
         return;
       }
       const available = result.items?.[0]?.available ?? current.available_quantity;
@@ -1545,6 +1564,10 @@ function App() {
         setAuthOpen(false);
         resetAuthForm();
         notify("Welcome back!");
+        if (pendingCheckout) {
+          setPendingCheckout(false);
+          openCheckout(data.user);
+        }
       })
       .catch(error => {
         setAuthMessage(error.message || "Something went wrong.");
@@ -1595,6 +1618,10 @@ function App() {
         setAuthOpen(false);
         resetAuthForm();
         notify("Logged in with OTP!");
+        if (pendingCheckout) {
+          setPendingCheckout(false);
+          openCheckout(data.user);
+        }
       })
       .catch(error => {
         setAuthMessage(error.message || "OTP login failed.");
@@ -2079,8 +2106,9 @@ function App() {
       .catch((error) => setAdminDeliveryMessage(error.message || "Could not update zone."));
   }
 
-  function openCheckout() {
-    if (!user) {
+  function openCheckout(authedOverride) {
+    if (!(authedOverride || user)) {
+      setPendingCheckout(true);
       setAuthOpen(true);
       setAuthMode("signin");
       setAuthMessage("Please sign in to continue to checkout.");
@@ -2430,7 +2458,7 @@ function App() {
             <span className="cart-count">{cartCount}</span>
           </button>
 
-          <button type="button" className="order-top" onClick={() => { setMobileOpen(false); scrollTo("cakes"); }}>Order Now</button>
+          <button type="button" className="order-top" onClick={() => { setMobileOpen(false); openCheckout(); }}>Order Now</button>
         </div>
       </header>
 
@@ -2442,7 +2470,7 @@ function App() {
             <p>From birthdays to anniversaries, we create cakes that make your celebrations sweeter and your memories last longer.</p>
             <div className="hero-buttons">
               <button className="btn primary" onClick={() => scrollTo("cakes")}>Explore Cakes <ArrowRight size={16}/></button>
-              <button className="btn secondary" onClick={() => scrollTo("custom")}>Order Your Cake</button>
+              <button className="btn secondary" onClick={() => openCheckout()}>Order Your Cake</button>
             </div>
           </div>
           <div className="hero-image">
@@ -3743,7 +3771,7 @@ function App() {
         <div className="drawer-head"><h2>Your Cart</h2><button onClick={() => setCartOpen(false)}><X/></button></div>
         {cart.length === 0 ? <div className="empty-cart"><ShoppingBag size={38}/><h3>Your cart is empty</h3><p>Pick a beautiful cake for your next celebration.</p><button className="btn primary" onClick={() => {setCartOpen(false);scrollTo("cakes")}}>Explore Cakes</button></div> :
           <>
-            <div className="cart-items">{cart.map(item => <div className="cart-item" key={item.id}><img src={item.image}/><div><b>{item.name}</b><small>{item.size}</small><strong>Rs.{(item.price*item.qty).toLocaleString("en-IN")}</strong><div className="qty"><button onClick={()=>changeQty(item.id,-1)}><Minus/></button><span>{item.qty}</span><button onClick={()=>changeQty(item.id,1)}><Plus/></button><button className="delete" onClick={()=>changeQty(item.id,-item.qty)}><Trash2/></button></div></div></div>)}</div>
+            <div className="cart-items">{cart.map(item => <div className="cart-item" key={item.id}><img src={item.image}/><div><b>{item.name}</b><small>{item.size}</small><strong>Rs.{(cartUnitPrice(item)*item.qty).toLocaleString("en-IN")}</strong><div className="qty"><button onClick={()=>changeQty(item.id,-1)}><Minus/></button><span>{item.qty}</span><button onClick={()=>changeQty(item.id,1)} disabled={item.qty >= cartQtyCap(item)} title={item.qty >= cartQtyCap(item) ? `Maximum quantity is ${cartQtyCap(item)}` : undefined}><Plus/></button><button className="delete" onClick={()=>changeQty(item.id,-item.qty)}><Trash2/></button></div></div></div>)}</div>
             <div className="cart-summary"><div><span>Subtotal</span><b>Rs.{cartTotal.toLocaleString("en-IN")}</b></div><small>Taxes and delivery calculated at checkout.</small><button className="btn primary checkout" onClick={openCheckout}>Proceed to Checkout <ArrowRight/></button></div>
           </>
         }
@@ -4362,6 +4390,8 @@ function App() {
                     setAuthStage("form");
                     setAuthMode("signin");
                     setAuthMessage("");
+                    setPendingCheckout(false);
+                    notify("Sign in is required to place an order.");
                   }}>
                     Continue as guest
                   </button>
@@ -4392,6 +4422,8 @@ function App() {
                     setAuthMessage("");
                     setVerificationCode("");
                     setAuthMode("signin");
+                    setPendingCheckout(false);
+                    notify("Sign in is required to place an order.");
                   }}>
                     Continue as guest
                   </button>
@@ -4452,6 +4484,8 @@ function App() {
                     setAuthOpen(false);
                     setAuthStage("form");
                     setAuthMessage("");
+                    setPendingCheckout(false);
+                    notify("Sign in is required to place an order.");
                   }}>
                     Continue as guest
                   </button>
