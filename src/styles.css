@@ -786,16 +786,23 @@ button.btn.primary.full:disabled {
     right:12px;
     bottom:max(12px, env(safe-area-inset-bottom, 0px));
   }
-  /* Open panel: stronger lift + shorter panel so Privacy/Terms/Shipping/Refund + copyright
-     stay reachable below panel chrome (input/send/X) on ~390 / max-width 480. */
+  /* Open panel (~390 / max-width 480): lift + shorter panel so Privacy/Terms/Shipping/Refund
+     + copyright stay clear of input/send. Hide Sign-in chip + FAB X (they covered legal);
+     panel .chatbot-close + Escape still dismiss. */
+  .site:has(.chatbot-dock.is-open) .auth-float{
+    display:none;
+  }
   .chatbot-dock.is-open{
-    bottom:max(148px, calc(env(safe-area-inset-bottom, 0px) + 136px));
+    bottom:max(160px, calc(env(safe-area-inset-bottom, 0px) + 148px));
+  }
+  .chatbot-dock.is-open .chatbot-launch{
+    display:none;
   }
   .chatbot-panel{
     width:calc(100vw - 24px);
     /* Definite height (not auto) so flex messages scroll inside the capped panel. */
-    height:min(46vh, calc(100dvh - 268px - env(safe-area-inset-bottom, 0px)));
-    max-height:min(46vh, calc(100dvh - 268px - env(safe-area-inset-bottom, 0px)));
+    height:min(44vh, calc(100dvh - 280px - env(safe-area-inset-bottom, 0px)));
+    max-height:min(44vh, calc(100dvh - 280px - env(safe-area-inset-bottom, 0px)));
   }
   .chatbot-messages{
     min-height:0;
