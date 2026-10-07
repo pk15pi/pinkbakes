@@ -793,7 +793,7 @@ button.btn.primary.full:disabled {
     display:none;
   }
   .chatbot-dock.is-open{
-    bottom:max(160px, calc(env(safe-area-inset-bottom, 0px) + 148px));
+    bottom:max(200px, calc(env(safe-area-inset-bottom, 0px) + 188px));
   }
   .chatbot-dock.is-open .chatbot-launch{
     display:none;
@@ -801,8 +801,8 @@ button.btn.primary.full:disabled {
   .chatbot-panel{
     width:calc(100vw - 24px);
     /* Definite height (not auto) so flex messages scroll inside the capped panel. */
-    height:min(44vh, calc(100dvh - 280px - env(safe-area-inset-bottom, 0px)));
-    max-height:min(44vh, calc(100dvh - 280px - env(safe-area-inset-bottom, 0px)));
+    height:min(40vh, calc(100dvh - 320px - env(safe-area-inset-bottom, 0px)));
+    max-height:min(40vh, calc(100dvh - 320px - env(safe-area-inset-bottom, 0px)));
   }
   .chatbot-messages{
     min-height:0;
