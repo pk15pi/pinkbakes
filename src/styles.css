@@ -700,7 +700,7 @@ button.btn.primary.full:disabled {
 
 /* PinkBakes floating Help Desk chatbot */
 .chatbot-dock{
-  position:fixed;right:22px;bottom:22px;z-index:190;
+  position:fixed;right:22px;bottom:22px;z-index:75;
   display:flex;flex-direction:column;align-items:flex-end;gap:12px;
   pointer-events:none;
 }
@@ -1158,6 +1158,226 @@ button.btn.primary.full:disabled {
   }
 }
 
+@media (max-width: 1023px) and (min-width: 721px) {
+  .mobile-menu {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+  }
+
+  .header .header-action,
+  .header .icon-btn,
+  .header .order-top,
+  .nav button,
+  .btn,
+  .text-link,
+  .chip,
+  .outline-pill,
+  .product-media-actions .quick-view,
+  .product-media-actions .view-3d,
+  .detail-status button,
+  .option-row button,
+  .qty button,
+  .viewer-buttons button,
+  .product-3d-controls button,
+  .policy-page-nav button,
+  .auth-close,
+  .modal-close,
+  .bakery-visit-close,
+  .policy-page-close,
+  .chatbot-close,
+  .chatbot-form button,
+  .newsletter form button {
+    min-height: 44px;
+  }
+
+  .chip {
+    padding: 9px 12px;
+  }
+
+  .heart,
+  .auth-close,
+  .modal-close,
+  .bakery-visit-close,
+  .newsletter form button {
+    min-width: 44px;
+  }
+
+  .heart {
+    width: 44px;
+    height: 44px;
+  }
+
+  .qty button,
+  .auth-close,
+  .modal-close,
+  .bakery-visit-close,
+  .policy-page-close,
+  .chatbot-close,
+  .chatbot-form button {
+    min-width: 44px;
+  }
+
+  .searchbox,
+  .newsletter form {
+    height: 44px;
+  }
+
+  .searchbox input,
+  .newsletter input,
+  .custom-brief input,
+  .custom-brief select,
+  .custom-brief textarea,
+  .cake-message,
+  .review-form input,
+  .review-form select,
+  .review-form textarea,
+  .chatbot-form input {
+    min-width: 0;
+    max-width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .searchbox input,
+  .newsletter input,
+  .custom-brief select {
+    width: 100%;
+  }
+
+  .footer-top > div:not(.footer-brand):not(.newsletter) button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px 0;
+    font-size: 13px;
+    text-align: left;
+  }
+
+  .footer .footer-bottom .footer-help-link,
+  .footer .footer-bottom .footer-admin-link,
+  .policy-page-brand {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .social a.social-icon {
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .nav {
+    max-height: calc(100vh - 74px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - 74px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 1023px) and (min-width: 721px) and (max-height: 560px) {
+  .auth-page-shell {
+    display: grid;
+    align-content: start;
+    justify-items: center;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: max(8px, env(safe-area-inset-top, 0px)) 12px max(8px, env(safe-area-inset-bottom, 0px));
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .auth-page-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: min(100%, 560px);
+    max-height: calc(100vh - max(16px, env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px)));
+    max-height: calc(100dvh - max(16px, env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px)));
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .auth-visual-panel {
+    display: none;
+  }
+
+  .auth-form-panel {
+    min-width: 0;
+    padding: 12px 16px 18px;
+  }
+
+  .auth-close {
+    position: sticky;
+    top: 8px;
+    float: right;
+    z-index: 2;
+    width: 44px;
+    height: 44px;
+    margin-bottom: -44px;
+  }
+
+  .auth-header {
+    margin-top: 30px;
+  }
+
+  .auth-header h3 {
+    font-size: clamp(25px, 5vw, 32px);
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+
+  .auth-toggle,
+  .auth-form {
+    margin-top: 14px;
+  }
+
+  .auth-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .auth-form button {
+    min-height: 44px;
+  }
+
+  .bakery-visit-backdrop {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-y: auto;
+    padding: max(8px, env(safe-area-inset-top, 0px)) 12px max(8px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .bakery-visit-card {
+    display: flex;
+    flex-direction: column;
+    width: min(440px, 100%);
+    max-height: calc(100vh - max(16px, env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px)));
+    max-height: calc(100dvh - max(16px, env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px)));
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .bakery-visit-close {
+    position: sticky;
+    top: 8px;
+    align-self: flex-end;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    margin: 8px 8px -44px;
+  }
+
+  .bakery-visit-hero,
+  .bakery-visit-body {
+    flex: 0 0 auto;
+  }
+}
+
 @media (max-width: 720px) and (max-height: 560px) {
   .auth-page-shell {
     padding-top: max(6px, env(safe-area-inset-top, 0px));
@@ -1233,6 +1453,7 @@ button.btn.primary.full:disabled {
 
   .footer-bottom {
     overflow-wrap: anywhere;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
 
   .chatbot-panel {
@@ -1309,5 +1530,216 @@ button.btn.primary.full:disabled {
     min-height: 44px;
     padding: 8px 12px;
     font-size: 10px;
+  }
+
+  .nav {
+    max-height: calc(100vh - 65px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - 65px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .bakery-visit-backdrop {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-y: auto;
+    padding: max(8px, env(safe-area-inset-top, 0px)) 12px max(8px, env(safe-area-inset-bottom, 0px));
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .bakery-visit-card {
+    display: flex;
+    flex-direction: column;
+    width: min(440px, 100%);
+    max-height: calc(100vh - max(16px, env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px)));
+    max-height: calc(100dvh - max(16px, env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px)));
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .bakery-visit-close {
+    position: sticky;
+    top: 8px;
+    align-self: flex-end;
+    flex: 0 0 44px;
+    margin: 8px 8px -44px;
+  }
+
+  .bakery-visit-hero,
+  .bakery-visit-body {
+    flex: 0 0 auto;
+  }
+
+  .bakery-visit-close {
+    width: 44px;
+    height: 44px;
+  }
+
+  .btn,
+  .text-link,
+  .chip,
+  .outline-pill,
+  .policy-page-nav button,
+  .detail-status button {
+    min-height: 44px;
+  }
+
+  .chip {
+    padding: 9px 12px;
+  }
+
+  .heart {
+    width: 44px;
+    height: 44px;
+  }
+
+  .searchbox {
+    height: 44px;
+  }
+
+  .searchbox input,
+  .newsletter input,
+  .custom-brief input,
+  .custom-brief select,
+  .custom-brief textarea,
+  .cake-message,
+  .review-form input,
+  .review-form select,
+  .review-form textarea {
+    min-width: 0;
+    max-width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .searchbox input,
+  .newsletter input {
+    width: 100%;
+  }
+
+  .custom-brief select {
+    width: 100%;
+  }
+
+  .newsletter form {
+    height: 44px;
+  }
+
+  .newsletter form button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .policy-page-close,
+  .chatbot-close,
+  .chatbot-form button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .footer-top > div:not(.footer-brand):not(.newsletter) button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px 0;
+    font-size: 13px;
+    text-align: left;
+  }
+
+  .brand,
+  .policy-page-brand,
+  .chatbot-chip {
+    min-height: 44px;
+  }
+
+  .chatbot-form input {
+    min-width: 0;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .footer .footer-bottom .footer-help-link,
+  .footer .footer-bottom .footer-admin-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .social a.social-icon {
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .product-breadcrumbs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 4px;
+  }
+
+  .product-breadcrumbs a {
+    display: inline-flex;
+    align-items: center;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .policy-page-contact a {
+    display: inline-flex;
+    align-items: center;
+    min-width: 44px;
+    min-height: 44px;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 480px) and (min-height: 561px) {
+  .chatbot-dock.is-open {
+    top: 0;
+    bottom: auto;
+    pointer-events: none;
+  }
+
+  .chatbot-panel {
+    position: fixed;
+    top: max(8px, env(safe-area-inset-top, 0px));
+    right: 12px;
+    width: min(380px, calc(100% - 24px));
+    height: min(40vh, calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+    min-height: 270px;
+    max-height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    pointer-events: auto;
+  }
+}
+
+@media (max-width: 1023px) and (max-height: 560px) {
+  .chatbot-dock.is-open {
+    top: 0;
+    right: 12px;
+    bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    left: 12px;
+    align-items: stretch;
+    pointer-events: none;
+  }
+
+  .chatbot-dock.is-open .chatbot-launch {
+    display: none;
+  }
+
+  .chatbot-panel {
+    position: fixed;
+    inset: max(8px, env(safe-area-inset-top, 0px)) 12px max(8px, env(safe-area-inset-bottom, 0px));
+    width: auto;
+    height: auto;
+    max-width: none;
+    max-height: none;
+    pointer-events: auto;
   }
 }
