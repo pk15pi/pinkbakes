@@ -818,6 +818,43 @@ export async function fetchAdminEmployees(params = {}) {
   });
 }
 
+export async function fetchAdminEmployee(id) {
+  return requestJson(`${API_BASE_URL}/api/admin/employees/${id}/`, {
+    method: "GET",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+  });
+}
+
+export async function fetchAdminEmployeeStats() {
+  return requestJson(`${API_BASE_URL}/api/admin/employees/stats/`, {
+    method: "GET",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+  });
+}
+
+export async function fetchAdminEmployeeCategories() {
+  return requestJson(`${API_BASE_URL}/api/admin/employee-categories/`, {
+    method: "GET",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+  });
+}
+
+export async function createAdminEmployeeCategory(payload) {
+  return requestJson(`${API_BASE_URL}/api/admin/employee-categories/`, {
+    method: "POST",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAdminEmployeeCategory(id, payload) {
+  return requestJson(`${API_BASE_URL}/api/admin/employee-categories/${id}/`, {
+    method: "PATCH",
+    headers: { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` },
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function createAdminEmployee(payload) {
   return requestJson(`${API_BASE_URL}/api/admin/employees/`, {
     method: "POST",

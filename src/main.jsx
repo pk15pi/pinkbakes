@@ -72,8 +72,13 @@ import { logout, adminLogout,
   fetchAdminCustomerDetail,
   updateAdminCustomerStatus,
   fetchAdminEmployees,
+  fetchAdminEmployee,
+  fetchAdminEmployeeStats,
+  fetchAdminEmployeeCategories,
   createAdminEmployee,
   updateAdminEmployee,
+  createAdminEmployeeCategory,
+  updateAdminEmployeeCategory,
   assignAdminDelivery,
   unassignAdminDelivery,
   fetchAdminActiveDeliveries,
@@ -407,6 +412,22 @@ function App() {
   const [adminCustomers, setAdminCustomers] = useState([]);
   const [adminCustomerSearch, setAdminCustomerSearch] = useState("");
   const [adminEmployees, setAdminEmployees] = useState([]);
+  const [adminEmployeesMeta, setAdminEmployeesMeta] = useState({ count: 0, page: 1, page_size: 20, total_pages: 0 });
+  const [adminEmployeeStats, setAdminEmployeeStats] = useState(null);
+  const [adminEmployeeCategories, setAdminEmployeeCategories] = useState([]);
+  const [adminEmployeeView, setAdminEmployeeView] = useState("employees");
+  const [adminEmployeeFilter, setAdminEmployeeFilter] = useState({
+    search: "",
+    category: "",
+    employment_status: "",
+    date_from: "",
+    date_to: "",
+    sort: "name",
+  });
+  const [adminEmployeeDetail, setAdminEmployeeDetail] = useState(null);
+  const [adminEmployeeCategoryForm, setAdminEmployeeCategoryForm] = useState({ name: "", is_active: true });
+  const [adminEmployeeCategoryEditingId, setAdminEmployeeCategoryEditingId] = useState(null);
+  const [adminEmployeeCategoryMessage, setAdminEmployeeCategoryMessage] = useState("");
   const [adminActiveDeliveries, setAdminActiveDeliveries] = useState([]);
   const [adminReviews, setAdminReviews] = useState([]);
   const [adminReviewFilter, setAdminReviewFilter] = useState("pending");
@@ -419,10 +440,16 @@ function App() {
   const [adminEmployeeForm, setAdminEmployeeForm] = useState({
     employee_id: "",
     name: "",
+    category: "",
+    designation: "",
     contact_number: "",
     email: "",
     photo: "",
     status: "ACTIVE",
+    employment_status: "ACTIVE",
+    date_of_joining: "",
+    address: "",
+    emergency_contact: "",
   });
   const [adminEmployeeEditingId, setAdminEmployeeEditingId] = useState(null);
   const [adminEmployeeMessage, setAdminEmployeeMessage] = useState("");
@@ -1237,8 +1264,18 @@ function App() {
       tasks.push(fetchAdminCustomers({ search: adminCustomerSearch, page: 1, page_size: 25 }).then((d) => setAdminCustomers(d.results || [])).catch((e) => setAdminOpsMessage(e.message || "Customers failed")));
     } else if (section === "employees") {
       tasks.push(Promise.all([
-        fetchAdminEmployees().then((d) => setAdminEmployees(Array.isArray(d) ? d : (d.results || []))),
+        fetchAdminEmployees({ ...adminEmployeeFilter, page: 1, page_size: 20 }).then((d) => {
+          setAdminEmployees(Array.isArray(d) ? d : (d.results || []));
+          setAdminEmployeesMeta({
+            count: d.count || 0,
+            page: d.page || 1,
+            page_size: d.page_size || 20,
+            total_pages: d.total_pages || 0,
+          });
+        }),
         fetchAdminActiveDeliveries().then((d) => setAdminActiveDeliveries(d.results || [])),
+        fetchAdminEmployeeStats().then(setAdminEmployeeStats),
+        fetchAdminEmployeeCategories().then(setAdminEmployeeCategories),
       ]).catch((e) => setAdminOpsMessage(e.message || "Delivery failed")));
     } else if (section === "reviews") {
       tasks.push(fetchAdminReviews({ status: adminReviewFilter, page: 1, page_size: 25 }).then((d) => {
@@ -1253,17 +1290,82 @@ function App() {
     Promise.all(tasks).finally(() => setAdminLoadingSection(false));
   }
 
+  function loadAdminEmployeeData(page = 1, filters = adminEmployeeFilter) {
+    setAdminLoadingSection(true);
+    setAdminOpsMessage("");
+    return Promise.all([
+      fetchAdminEmployees({ ...filters, page, page_size: 20 }).then((d) => {
+        setAdminEmployees(Array.isArray(d) ? d : (d.results || []));
+        setAdminEmployeesMeta({
+          count: d.count || 0,
+          page: d.page || 1,
+          page_size: d.page_size || 20,
+          total_pages: d.total_pages || 0,
+        });
+      }),
+      fetchAdminEmployeeStats().then(setAdminEmployeeStats),
+      fetchAdminEmployeeCategories().then(setAdminEmployeeCategories),
+    ])
+      .catch((e) => setAdminOpsMessage(e.message || "Could not load employee management data."))
+      .finally(() => setAdminLoadingSection(false));
+  }
+
   function resetEmployeeForm() {
     setAdminEmployeeForm({
       employee_id: "",
       name: "",
+      category: "",
+      designation: "",
       contact_number: "",
       email: "",
       photo: "",
       status: "ACTIVE",
+      employment_status: "ACTIVE",
+      date_of_joining: "",
+      address: "",
+      emergency_contact: "",
     });
     setAdminEmployeeEditingId(null);
     setAdminEmployeeMessage("");
+  }
+
+  function resetEmployeeCategoryForm() {
+    setAdminEmployeeCategoryForm({ name: "", is_active: true });
+    setAdminEmployeeCategoryEditingId(null);
+    setAdminEmployeeCategoryMessage("");
+  }
+
+  function handleEmployeeCategorySubmit(event) {
+    event.preventDefault();
+    setAdminEmployeeCategoryMessage("");
+    const payload = {
+      name: adminEmployeeCategoryForm.name.trim(),
+      is_active: Boolean(adminEmployeeCategoryForm.is_active),
+    };
+    const request = adminEmployeeCategoryEditingId
+      ? updateAdminEmployeeCategory(adminEmployeeCategoryEditingId, payload)
+      : createAdminEmployeeCategory(payload);
+    request
+      .then(() => {
+        const message = adminEmployeeCategoryEditingId ? "Category updated." : "Category created.";
+        resetEmployeeCategoryForm();
+        setAdminEmployeeCategoryMessage(message);
+        loadAdminEmployeeData(1);
+      })
+      .catch((error) => setAdminEmployeeCategoryMessage(`Could not save category: ${error.message || "request failed"}`));
+  }
+
+  function editEmployeeCategory(category) {
+    setAdminEmployeeCategoryEditingId(category.id);
+    setAdminEmployeeCategoryForm({ name: category.name, is_active: category.is_active });
+    setAdminEmployeeCategoryMessage("");
+  }
+
+  function viewEmployeeDetails(employeeId) {
+    setAdminEmployeeDetail(null);
+    fetchAdminEmployee(employeeId)
+      .then(setAdminEmployeeDetail)
+      .catch((error) => setAdminOpsMessage(error.message || "Could not load employee details."));
   }
 
   function closeAssignPicker() {
@@ -1288,7 +1390,9 @@ function App() {
       .then((d) => {
         const list = Array.isArray(d) ? d : (d.results || []);
         setAdminEmployees(list);
-        const assignable = list.filter((e) => e.status === "ACTIVE" || e.status === "AVAILABLE");
+        const assignable = list.filter((e) =>
+          e.employment_status === "ACTIVE" && (e.status === "ACTIVE" || e.status === "AVAILABLE")
+        );
         setAssignPickerEmployees(assignable);
         const currentId = adminOrderDetail?.delivery_employee?.id;
         if (currentId && assignable.some((e) => e.id === currentId)) {
@@ -1515,21 +1619,28 @@ function App() {
     const payload = {
       employee_id: adminEmployeeForm.employee_id.trim(),
       name: adminEmployeeForm.name.trim(),
+      category: Number(adminEmployeeForm.category),
+      designation: adminEmployeeForm.designation.trim(),
       contact_number: adminEmployeeForm.contact_number.trim(),
       email: (adminEmployeeForm.email || "").trim(),
       photo: (adminEmployeeForm.photo || "").trim(),
       status: adminEmployeeForm.status || "ACTIVE",
+      employment_status: adminEmployeeForm.employment_status || "ACTIVE",
+      date_of_joining: adminEmployeeForm.date_of_joining || null,
+      address: adminEmployeeForm.address.trim(),
+      emergency_contact: adminEmployeeForm.emergency_contact.trim(),
     };
     const req = adminEmployeeEditingId
       ? updateAdminEmployee(adminEmployeeEditingId, payload)
       : createAdminEmployee(payload);
     req
       .then(() => {
-        setAdminEmployeeMessage(adminEmployeeEditingId ? "Employee updated." : "Employee created.");
+        const message = adminEmployeeEditingId ? "Employee updated." : "Employee created.";
         resetEmployeeForm();
-        loadAdminSectionData("employees");
+        setAdminEmployeeMessage(message);
+        loadAdminEmployeeData(1);
       })
-      .catch((err) => setAdminEmployeeMessage(err.message || "Could not save employee."));
+      .catch((err) => setAdminEmployeeMessage(`Could not save employee: ${err.message || "request failed"}`));
   }
 
   function startEditEmployee(emp) {
@@ -1537,10 +1648,16 @@ function App() {
     setAdminEmployeeForm({
       employee_id: emp.employee_id || "",
       name: emp.name || "",
+      category: String(emp.category || ""),
+      designation: emp.designation || "",
       contact_number: emp.contact_number || "",
       email: emp.email || "",
       photo: emp.photo || "",
       status: emp.status || "ACTIVE",
+      employment_status: emp.employment_status || "ACTIVE",
+      date_of_joining: emp.date_of_joining || "",
+      address: emp.address || "",
+      emergency_contact: emp.emergency_contact || "",
     });
     setAdminEmployeeMessage("");
   }
@@ -3377,50 +3494,117 @@ function App() {
             )}
 
             {!adminReportsView && !adminDeliveryView && adminSection === "employees" && (
-              <div className="admin-reports-page">
-                <div className="report-topbar"><div><span className="eyebrow">DELIVERY</span><h3>Employees & active deliveries</h3></div></div>
-                {adminEmployeeMessage && <div className={adminEmployeeMessage.includes("Could") ? "admin-error" : "admin-success"}>{adminEmployeeMessage}</div>}
-                <form className="admin-form" onSubmit={handleEmployeeFormSubmit} style={{ background: "#fff", border: "1px solid #f0e3d6", borderRadius: 14, paddingBottom: 16 }}>
-                  <div className="admin-form-head">
-                    <strong>{adminEmployeeEditingId ? "Edit employee" : "Create employee"}</strong>
-                    {adminEmployeeEditingId && <button type="button" className="btn secondary small" onClick={resetEmployeeForm}>Cancel edit</button>}
+              <div className="admin-reports-page employee-admin">
+                <div className="report-topbar"><div><span className="eyebrow">STAFF MANAGEMENT</span><h3>Employees & delivery</h3></div></div>
+                <div className="employee-admin-tabs" role="tablist" aria-label="Employee administration">
+                  <button type="button" className={`btn secondary small${adminEmployeeView === "employees" ? " active" : ""}`} onClick={() => setAdminEmployeeView("employees")}>Employees</button>
+                  <button type="button" className={`btn secondary small${adminEmployeeView === "categories" ? " active" : ""}`} onClick={() => setAdminEmployeeView("categories")}>Categories</button>
+                </div>
+
+                {adminEmployeeView === "employees" ? (
+                  <>
+                    <div className="employee-stat-grid">
+                      {[
+                        ["Total employees", adminEmployeeStats?.total ?? 0],
+                        ["Active", adminEmployeeStats?.active ?? 0],
+                        ["Inactive", adminEmployeeStats?.inactive ?? 0],
+                        ["On leave", adminEmployeeStats?.on_leave ?? 0],
+                      ].map(([label, value]) => <div className="employee-stat-card" key={label}><span>{label}</span><strong>{value}</strong></div>)}
+                    </div>
+                    <form className="employee-filter-form" onSubmit={(event) => { event.preventDefault(); loadAdminEmployeeData(1); }}>
+                      <label>Search<input value={adminEmployeeFilter.search} onChange={(e) => setAdminEmployeeFilter((p) => ({ ...p, search: e.target.value }))} placeholder="Name, ID, phone or email" /></label>
+                      <label>Category<select value={adminEmployeeFilter.category} onChange={(e) => setAdminEmployeeFilter((p) => ({ ...p, category: e.target.value }))}><option value="">All categories</option>{adminEmployeeCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+                      <label>Employment status<select value={adminEmployeeFilter.employment_status} onChange={(e) => setAdminEmployeeFilter((p) => ({ ...p, employment_status: e.target.value }))}><option value="">All statuses</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option><option value="ON_LEAVE">On leave</option><option value="TERMINATED">Terminated</option></select></label>
+                      <label>Joined from<input type="date" value={adminEmployeeFilter.date_from} onChange={(e) => setAdminEmployeeFilter((p) => ({ ...p, date_from: e.target.value }))} /></label>
+                      <label>Joined to<input type="date" value={adminEmployeeFilter.date_to} onChange={(e) => setAdminEmployeeFilter((p) => ({ ...p, date_to: e.target.value }))} /></label>
+                      <label>Sort by<select value={adminEmployeeFilter.sort} onChange={(e) => setAdminEmployeeFilter((p) => ({ ...p, sort: e.target.value }))}><option value="name">Name (A-Z)</option><option value="-name">Name (Z-A)</option><option value="-date_of_joining">Joining date (newest)</option><option value="date_of_joining">Joining date (oldest)</option><option value="employee_id">Employee ID</option></select></label>
+                      <div className="employee-filter-actions"><button type="submit" className="btn primary small">Apply filters</button><button type="button" className="btn secondary small" onClick={() => { const filters = { search: "", category: "", employment_status: "", date_from: "", date_to: "", sort: "name" }; setAdminEmployeeFilter(filters); loadAdminEmployeeData(1, filters); }}>Clear</button></div>
+                    </form>
+                    <div className="employee-category-counts">{(adminEmployeeStats?.by_category || []).map((category) => <span key={category.id}>{category.name}<b>{category.employee_count}</b></span>)}</div>
+
+                    {adminEmployeeMessage && <div className={adminEmployeeMessage.includes("Could") ? "admin-error" : "admin-success"}>{adminEmployeeMessage}</div>}
+                    <form className="admin-form employee-form" onSubmit={handleEmployeeFormSubmit}>
+                      <div className="admin-form-head">
+                        <strong>{adminEmployeeEditingId ? "Edit employee" : "Add employee"}</strong>
+                        {adminEmployeeEditingId && <button type="button" className="btn secondary small" onClick={resetEmployeeForm}>Cancel edit</button>}
+                      </div>
+                      <div className="admin-form-row">
+                        <label>Employee ID<input value={adminEmployeeForm.employee_id} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, employee_id: e.target.value }))} required disabled={!!adminEmployeeEditingId} /></label>
+                        <label>Full name<input value={adminEmployeeForm.name} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, name: e.target.value }))} required /></label>
+                        <label>Category<select value={adminEmployeeForm.category} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, category: e.target.value }))} required><option value="">Choose a category</option>{adminEmployeeCategories.filter((c) => c.is_active || String(c.id) === adminEmployeeForm.category).map((c) => <option key={c.id} value={c.id}>{c.name}{c.is_active ? "" : " (Inactive)"}</option>)}</select></label>
+                      </div>
+                      <div className="admin-form-row">
+                        <label>Designation<input value={adminEmployeeForm.designation} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, designation: e.target.value }))} /></label>
+                        <label>Mobile number<input type="tel" value={adminEmployeeForm.contact_number} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, contact_number: e.target.value }))} required /></label>
+                        <label>Email<input type="email" value={adminEmployeeForm.email} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, email: e.target.value }))} /></label>
+                      </div>
+                      <div className="admin-form-row">
+                        <label>Joining date<input type="date" value={adminEmployeeForm.date_of_joining} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, date_of_joining: e.target.value }))} /></label>
+                        <label>Employment status<select value={adminEmployeeForm.employment_status} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, employment_status: e.target.value }))}><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option><option value="ON_LEAVE">On leave</option><option value="TERMINATED">Terminated</option></select></label>
+                        <label>Delivery availability<select value={adminEmployeeForm.status} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, status: e.target.value }))}>{["ACTIVE","AVAILABLE","BUSY","ON_LEAVE","INACTIVE"].map((s) => <option key={s} value={s}>{s.replace("_", " ")}</option>)}</select></label>
+                      </div>
+                      <div className="admin-form-row">
+                        <label>Emergency contact<input type="tel" value={adminEmployeeForm.emergency_contact} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, emergency_contact: e.target.value }))} /></label>
+                        <label>Profile photo URL<input type="url" value={adminEmployeeForm.photo} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, photo: e.target.value }))} /></label>
+                      </div>
+                      <label>Address<textarea rows={2} value={adminEmployeeForm.address} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, address: e.target.value }))} /></label>
+                      <button type="submit" className="btn primary small">{adminEmployeeEditingId ? "Save employee" : "Create employee"}</button>
+                    </form>
+
+                    {adminEmployeeDetail && (
+                      <section className="employee-detail-card">
+                        <div className="employee-detail-head"><div><span className="eyebrow">EMPLOYEE PROFILE</span><h4>{adminEmployeeDetail.name}</h4></div><button type="button" className="btn secondary small" onClick={() => setAdminEmployeeDetail(null)}>Close</button></div>
+                        <dl>
+                          <div><dt>Employee ID</dt><dd>{adminEmployeeDetail.employee_id}</dd></div>
+                          <div><dt>Category</dt><dd>{adminEmployeeDetail.category_name}</dd></div>
+                          <div><dt>Designation</dt><dd>{adminEmployeeDetail.designation || "—"}</dd></div>
+                          <div><dt>Employment status</dt><dd>{adminEmployeeDetail.employment_status.replace("_", " ")}</dd></div>
+                          <div><dt>Delivery availability</dt><dd>{adminEmployeeDetail.status.replace("_", " ")}</dd></div>
+                          <div><dt>Date joined</dt><dd>{adminEmployeeDetail.date_of_joining || "—"}</dd></div>
+                          <div><dt>Mobile</dt><dd>{adminEmployeeDetail.contact_number}</dd></div>
+                          <div><dt>Email</dt><dd>{adminEmployeeDetail.email || "—"}</dd></div>
+                          <div><dt>Emergency contact</dt><dd>{adminEmployeeDetail.emergency_contact || "—"}</dd></div>
+                          <div><dt>Address</dt><dd>{adminEmployeeDetail.address || "—"}</dd></div>
+                        </dl>
+                      </section>
+                    )}
+                    <div className="table-wrap"><table className="report-table"><thead><tr><th>ID</th><th>Name</th><th>Category</th><th>Designation</th><th>Contact</th><th>Employment</th><th>Delivery</th><th>Actions</th></tr></thead><tbody>
+                      {adminEmployees.length === 0 ? (
+                        <tr><td colSpan={8}><div className="admin-empty">No employees match these filters.</div></td></tr>
+                      ) : adminEmployees.map((e) => (
+                        <tr key={e.id}>
+                          <td>{e.employee_id}</td><td>{e.name}</td><td>{e.category_name}</td><td>{e.designation || "—"}</td><td>{e.contact_number}</td><td>{e.employment_status.replace("_", " ")}</td><td>{e.status.replace("_", " ")}</td>
+                          <td className="employee-row-actions">
+                            <button type="button" className="btn secondary small" onClick={() => viewEmployeeDetails(e.id)}>View</button>
+                            <button type="button" className="btn secondary small" onClick={() => startEditEmployee(e)}>Edit</button>
+                            <button type="button" className="btn secondary small" disabled={e.employment_status === "TERMINATED"} onClick={() => updateAdminEmployee(e.id, { employment_status: e.employment_status === "ACTIVE" ? "INACTIVE" : "ACTIVE", ...(e.employment_status === "ACTIVE" ? {} : { status: "ACTIVE" }) }).then(() => loadAdminEmployeeData(adminEmployeesMeta.page)).catch((error) => setAdminOpsMessage(error.message || "Could not update employee status."))}>{e.employment_status === "ACTIVE" ? "Deactivate" : "Activate"}</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody></table></div>
+                    <div className="employee-pagination"><span>{adminEmployeesMeta.count} employees · page {adminEmployeesMeta.page} of {Math.max(1, adminEmployeesMeta.total_pages)}</span><div><button type="button" className="btn secondary small" disabled={adminEmployeesMeta.page <= 1} onClick={() => loadAdminEmployeeData(adminEmployeesMeta.page - 1)}>Previous</button><button type="button" className="btn secondary small" disabled={adminEmployeesMeta.page >= adminEmployeesMeta.total_pages} onClick={() => loadAdminEmployeeData(adminEmployeesMeta.page + 1)}>Next</button></div></div>
+
+                    <h4>Active deliveries</h4>
+                    <div className="table-wrap"><table className="report-table"><thead><tr><th>Order</th><th>Status</th><th>Employee</th><th>Duration</th><th>Delayed</th><th>Location</th></tr></thead><tbody>
+                      {adminActiveDeliveries.length === 0 ? <tr><td colSpan={6}><div className="admin-empty">No active deliveries.</div></td></tr> : adminActiveDeliveries.map((d) => (
+                        <tr key={d.id}><td>{d.order_number}</td><td>{d.status}</td><td>{d.delivery_employee?.name || "—"}</td><td>{d.duration_minutes ?? "—"}{d.duration_minutes == null ? "" : "m"}</td><td>{d.delayed ? "Yes" : "No"}</td><td>{d.last_known_location ? `${d.last_known_location.latitude}, ${d.last_known_location.longitude}` : "—"}</td></tr>
+                      ))}
+                    </tbody></table></div>
+                  </>
+                ) : (
+                  <div className="employee-category-admin">
+                    {adminEmployeeCategoryMessage && <div className={adminEmployeeCategoryMessage.includes("Could") ? "admin-error" : "admin-success"}>{adminEmployeeCategoryMessage}</div>}
+                    <form className="employee-category-form" onSubmit={handleEmployeeCategorySubmit}>
+                      <strong>{adminEmployeeCategoryEditingId ? "Edit category" : "Add category"}</strong>
+                      <label>Category name<input value={adminEmployeeCategoryForm.name} onChange={(e) => setAdminEmployeeCategoryForm((p) => ({ ...p, name: e.target.value }))} required maxLength={80} /></label>
+                      <label className="employee-category-active"><input type="checkbox" checked={adminEmployeeCategoryForm.is_active} onChange={(e) => setAdminEmployeeCategoryForm((p) => ({ ...p, is_active: e.target.checked }))} /> Active</label>
+                      <div className="employee-filter-actions"><button type="submit" className="btn primary small">{adminEmployeeCategoryEditingId ? "Save category" : "Create category"}</button>{adminEmployeeCategoryEditingId && <button type="button" className="btn secondary small" onClick={resetEmployeeCategoryForm}>Cancel</button>}</div>
+                    </form>
+                    <div className="table-wrap"><table className="report-table"><thead><tr><th>Category</th><th>Employees</th><th>Status</th><th>Updated</th><th></th></tr></thead><tbody>
+                      {adminEmployeeCategories.map((category) => <tr key={category.id}><td>{category.name}</td><td>{category.employee_count}</td><td>{category.is_active ? "Active" : "Inactive"}</td><td>{new Date(category.updated_at).toLocaleDateString()}</td><td><button type="button" className="btn secondary small" onClick={() => editEmployeeCategory(category)}>Edit</button><button type="button" className="btn secondary small" onClick={() => updateAdminEmployeeCategory(category.id, { is_active: !category.is_active }).then(() => loadAdminEmployeeData(1)).catch((error) => setAdminEmployeeCategoryMessage(error.message || "Could not update category."))}>{category.is_active ? "Deactivate" : "Activate"}</button></td></tr>)}
+                    </tbody></table></div>
                   </div>
-                  <div className="admin-form-row">
-                    <label>Employee ID<input value={adminEmployeeForm.employee_id} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, employee_id: e.target.value }))} required disabled={!!adminEmployeeEditingId} /></label>
-                    <label>Name<input value={adminEmployeeForm.name} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, name: e.target.value }))} required /></label>
-                  </div>
-                  <div className="admin-form-row">
-                    <label>Contact<input value={adminEmployeeForm.contact_number} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, contact_number: e.target.value }))} required /></label>
-                    <label>Email<input type="email" value={adminEmployeeForm.email} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, email: e.target.value }))} /></label>
-                  </div>
-                  <div className="admin-form-row">
-                    <label>Photo URL<input value={adminEmployeeForm.photo} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, photo: e.target.value }))} /></label>
-                    <label>Status<select value={adminEmployeeForm.status} onChange={(e) => setAdminEmployeeForm((p) => ({ ...p, status: e.target.value }))}>
-                      {["ACTIVE","AVAILABLE","BUSY","ON_LEAVE","INACTIVE"].map((s) => <option key={s} value={s}>{s}</option>)}
-                    </select></label>
-                  </div>
-                  <button type="submit" className="btn primary small">{adminEmployeeEditingId ? "Save employee" : "Create employee"}</button>
-                </form>
-                <h4>Active deliveries</h4>
-                <div className="table-wrap"><table className="report-table"><thead><tr><th>Order</th><th>Status</th><th>Employee</th><th>Duration</th><th>Delayed</th><th>Location</th></tr></thead><tbody>
-                  {adminActiveDeliveries.length === 0 ? (
-                    <tr><td colSpan={6}><div className="admin-empty">No active deliveries.</div></td></tr>
-                  ) : adminActiveDeliveries.map((d) => (
-                    <tr key={d.id}><td>{d.order_number}</td><td>{d.status}</td><td>{d.delivery_employee?.name || "-"}</td><td>{d.duration_minutes ?? "-"}m</td><td>{d.delayed ? "Yes" : "No"}</td>
-                      <td>{d.last_known_location ? `${d.last_known_location.latitude}, ${d.last_known_location.longitude}` : "-"}</td></tr>
-                  ))}
-                </tbody></table></div>
-                <h4>Employees</h4>
-                <div className="table-wrap"><table className="report-table"><thead><tr><th>ID</th><th>Name</th><th>Contact</th><th>Email</th><th>Status</th><th></th></tr></thead><tbody>
-                  {adminEmployees.length === 0 ? (
-                    <tr><td colSpan={6}><div className="admin-empty">No employees yet. Create one above.</div></td></tr>
-                  ) : adminEmployees.map((e) => (
-                    <tr key={e.id}>
-                      <td>{e.employee_id}</td><td>{e.name}</td><td>{e.contact_number}</td><td>{e.email || "-"}</td><td>{e.status}</td>
-                      <td><button type="button" className="btn secondary small" onClick={() => startEditEmployee(e)}>Edit</button></td>
-                    </tr>
-                  ))}
-                </tbody></table></div>
+                )}
               </div>
             )}
 
