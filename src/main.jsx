@@ -881,37 +881,56 @@ function App() {
   function resolveBakeryCoords() {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
-        reject(new Error("Location is not supported on this device."));
+        reject(new Error("Location is not available in this browser."));
         return;
       }
       navigator.geolocation.getCurrentPosition(
         (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        (err) => reject(new Error(err.message || "Unable to read your current location.")),
+        (err) => {
+          const message = err.code === err.PERMISSION_DENIED
+            ? "Location permission was denied. Allow location access in your browser settings, then try again."
+            : err.code === err.TIMEOUT
+              ? "Your location could not be found in time. Please try again."
+              : "Your location is currently unavailable. Check your device location settings and try again.";
+          reject(new Error(message));
+        },
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
       );
     });
   }
 
-  async function shareBakeryLocationOnWhatsApp() {
+  async function openLocationDestination(getUrl) {
+    const locationWindow = window.open("about:blank", "_blank");
+    if (!locationWindow) {
+      notify("Allow pop-ups for this site to open the location link.");
+      return;
+    }
+    locationWindow.opener = null;
+
     try {
-      const { lat, lng } = await resolveBakeryCoords();
-      const mapsUrl = getMapsUrl(lat, lng);
-      const msg = "Visit " + BAKERY_LOCATION.label + " - my current location: " + mapsUrl;
-      window.open("https://wa.me/?text=" + encodeURIComponent(msg), "_blank", "noopener,noreferrer");
+      const coords = await resolveBakeryCoords();
+      if (locationWindow.closed) {
+        notify("The location tab was closed before it could be opened.");
+        return;
+      }
+      locationWindow.location.href = getUrl(coords);
       setBakeryLocationOpen(false);
     } catch (e) {
-      notify(e.message || "Location permission is required to share.");
+      locationWindow.close();
+      notify(e.message || "Location permission is required to continue.");
     }
   }
 
+  async function shareBakeryLocationOnWhatsApp() {
+    return openLocationDestination(({ lat, lng }) => {
+      const mapsUrl = getMapsUrl(lat, lng);
+      const msg = "My current location: " + mapsUrl;
+      return "https://wa.me/?text=" + encodeURIComponent(msg);
+    });
+  }
+
   async function openBakeryInGoogleMaps() {
-    try {
-      const { lat, lng } = await resolveBakeryCoords();
-      window.open(getMapsUrl(lat, lng), "_blank", "noopener,noreferrer");
-      setBakeryLocationOpen(false);
-    } catch (e) {
-      notify(e.message || "Location permission is required to open Maps.");
-    }
+    return openLocationDestination(({ lat, lng }) => getMapsUrl(lat, lng));
   }
 
 
@@ -2803,16 +2822,16 @@ function App() {
                 </div>
                 <div className="bakery-visit-chip soft">
                   <MapPin size={15}/>
-                  <span>Uses your current location</span>
+                  <span>Your current location is used by the actions below</span>
                 </div>
               </div>
-              <p className="bakery-visit-hint">Share your pin on WhatsApp or open maps so friends can find you near the bakery.</p>
+              <p className="bakery-visit-hint">Choose an action below to share or view a map pin for your current location. Your browser will ask for permission.</p>
               <div className="bakery-visit-actions">
                 <button type="button" className="bakery-visit-tile bakery-visit-wa" onClick={shareBakeryLocationOnWhatsApp}>
                   <span className="bakery-visit-tile-icon"><MessageCircle size={22}/></span>
                   <span className="bakery-visit-tile-copy">
                     <strong>Share on WhatsApp</strong>
-                    <small>Send your live location link</small>
+                    <small>Share a map pin of your current location</small>
                   </span>
                   <ArrowRight size={16} className="bakery-visit-tile-arrow"/>
                 </button>
@@ -2820,7 +2839,7 @@ function App() {
                   <span className="bakery-visit-tile-icon"><MapPin size={22}/></span>
                   <span className="bakery-visit-tile-copy">
                     <strong>Open in Google Maps</strong>
-                    <small>Navigate from where you are</small>
+                    <small>View a map pin of your current location</small>
                   </span>
                   <ArrowRight size={16} className="bakery-visit-tile-arrow"/>
                 </button>
