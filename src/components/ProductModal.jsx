@@ -151,7 +151,7 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
             <span className="eyebrow">{(detail.category || "CAKE").toUpperCase()}</span>
             <div className="rating"><Star size={14} fill="currentColor"/>{Number(detail.average_rating ?? detail.rating ?? 0).toFixed(1)} * {detail.review_count || reviews.length || 0} reviews</div>
             <h1 className="product-title">{detail.name}</h1>
-            <p className="modal-desc">{detail.description || detail.short_description || "Freshly baked for your special celebration."}</p>
+            {(detail.description || detail.short_description) && <p className="modal-desc">{detail.description || detail.short_description}</p>}
             <div className="modal-price-row">
               <span className="modal-price">Rs.{Number(currentPrice || 0).toLocaleString("en-IN")}</span>
               {Number(detail.discount || 0) > 0 && <span className="strike">Rs.{Number(detail.price || 0).toLocaleString("en-IN")}</span>}

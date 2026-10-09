@@ -63,7 +63,7 @@ function ProductCatalog({
               <div className="product-body">
                 <div className="rating"><Star size={13} fill="currentColor"/>{Number(p.rating || 0).toFixed(1)}</div>
                 <h3>{p.name}</h3>
-                <p>{p.short_description || p.description || "Freshly baked for your special celebration."}</p>
+                {(p.short_description || p.description) && <p>{p.short_description || p.description}</p>}
                 <div className="price-row">
                   <strong>{formatCurrency(priceAfterDiscount)}</strong>
                   {p.discount > 0 && <span className="strike">{formatCurrency(p.price)}</span>}

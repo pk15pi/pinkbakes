@@ -2,7 +2,7 @@
  * Resolve GLB/GLTF path for a catalog product.
  *
  * Priority:
- * 1. Explicit product fields: model, modelUrl, model_url, modelPath, model_path, glb, gltf
+ * 1. Explicit product fields, including the catalog API's three_d_model field
  * 2. public/models/cakes/cake-product-map.json — array of { product_id, product_slug, model_path }
  *    (see CAKE_PRODUCT_MAP.md). Lookup by product_id, then product_slug.
  *
@@ -28,6 +28,8 @@ function readExplicitProductModel(product) {
   if (!product || typeof product !== "object") return null;
   const candidates = [
     product.model,
+    product.three_d_model,
+    product.threeDModel,
     product.modelUrl,
     product.model_url,
     product.modelPath,

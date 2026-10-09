@@ -780,6 +780,16 @@ button.btn.primary.full:disabled {
   background:linear-gradient(145deg,#a67a43,#8e6536);color:#fff;
   box-shadow:0 8px 18px rgba(142,101,54,.28);
 }
+.review-form select,
+.review-form textarea{
+  display:block;
+  width:100%;
+  box-sizing:border-box;
+}
+.review-form button[type="submit"]{
+  width:100%;
+  justify-content:center;
+}
 @keyframes chatbotPop{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
 @media(max-width:480px){
   .chatbot-dock{
