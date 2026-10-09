@@ -31,6 +31,8 @@ export function getNextOrderStatuses(current) {
 
 export const BRAND_NAME = "pinkbakes";
 export const WHATSAPP_NUMBER = "6033430700";
+export const WHATSAPP_LINK_NUMBER = `91${WHATSAPP_NUMBER}`;
+export const WHATSAPP_TELEPHONE = `+${WHATSAPP_LINK_NUMBER}`;
 export const CONTACT_EMAIL = "pinkbakes@pinkbakes.com";
 export const BAKERY_LOCATION = {
   label: "pinkbakes Bakery",

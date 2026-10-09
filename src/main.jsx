@@ -36,6 +36,7 @@ import {
   CONTACT_EMAIL,
   STICKY_HEADER_OFFSET,
   WHATSAPP_NUMBER,
+  WHATSAPP_LINK_NUMBER,
   cartQtyCap,
   cartUnitPrice,
   formatCurrency,
@@ -59,6 +60,7 @@ import useAdminWorkspace from "./hooks/useAdminWorkspace";
 import useAdminSession from "./hooks/useAdminSession";
 import useStorefrontInteractions from "./hooks/useStorefrontInteractions";
 import usePolicyRoute from "./hooks/usePolicyRoute";
+import { POLICIES } from "./policies";
 import ProductModal from "./components/ProductModal";
 import PolicyPage from "./components/PolicyPage";
 import AdminDashboardPanel from "./components/AdminDashboardPanel";
@@ -630,11 +632,12 @@ function App() {
         }} />
 
         <CustomerReviews />
-        <CelebrationGallery whatsappNumber={WHATSAPP_NUMBER} />
+        <CelebrationGallery whatsappLinkNumber={WHATSAPP_LINK_NUMBER} />
 
         <ContactStrip
           bakeryHours={BAKERY_LOCATION.hours}
           whatsappNumber={WHATSAPP_NUMBER}
+          whatsappLinkNumber={WHATSAPP_LINK_NUMBER}
           contactEmail={CONTACT_EMAIL}
           onVisit={() => setBakeryLocationOpen(true)}
           bakeryLocationOpen={bakeryLocationOpen}
@@ -643,7 +646,7 @@ function App() {
 
       <SiteFooter {...{
         brandName: BRAND_NAME,
-        whatsappNumber: WHATSAPP_NUMBER,
+        whatsappLinkNumber: WHATSAPP_LINK_NUMBER,
         scrollTo,
         subscribe,
         newsletter,
@@ -664,6 +667,7 @@ function App() {
           brandName={BRAND_NAME}
           contactEmail={CONTACT_EMAIL}
           whatsappNumber={WHATSAPP_NUMBER}
+          whatsappLinkNumber={WHATSAPP_LINK_NUMBER}
         />
       )}
 

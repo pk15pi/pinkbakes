@@ -49,7 +49,7 @@ export function CustomerReviews() {
   );
 }
 
-export function CelebrationGallery({ whatsappNumber }) {
+export function CelebrationGallery({ whatsappLinkNumber }) {
   return (
     <section className="gallery section" id="gallery">
       <div className="section-head">
@@ -63,7 +63,7 @@ export function CelebrationGallery({ whatsappNumber }) {
           type="button"
           onClick={() => {
             const msg = "Hi PinkBakes! I want to share a cake moment from my celebration.";
-            window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
+            window.open(`https://wa.me/${whatsappLinkNumber}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
           }}
         >
           <MessageCircle size={15}/> Share your cake moment

@@ -1,6 +1,6 @@
 import { Mail, MapPin, MessageCircle } from "lucide-react";
 
-function ContactStrip({ bakeryHours, whatsappNumber, contactEmail, onVisit, bakeryLocationOpen }) {
+function ContactStrip({ bakeryHours, whatsappNumber, whatsappLinkNumber, contactEmail, onVisit, bakeryLocationOpen }) {
   return (
     <section className="contact-strip section" id="contact">
       <button
@@ -22,7 +22,7 @@ function ContactStrip({ bakeryHours, whatsappNumber, contactEmail, onVisit, bake
         <span className="contact-card-pill">Visit</span>
       </button>
 
-      <a className="contact-card" href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noreferrer">
+      <a className="contact-card" href={`https://wa.me/${whatsappLinkNumber}`} target="_blank" rel="noreferrer">
         <span className="contact-card-icon contact-card-icon-wa" aria-hidden="true">
           <MessageCircle size={22}/>
         </span>

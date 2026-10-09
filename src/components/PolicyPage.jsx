@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { POLICIES, POLICY_SLUGS } from "../policies";
 
-function PolicyPage({ policy, onClose, onOpen, brandName, contactEmail, whatsappNumber }) {
+function PolicyPage({ policy, onClose, onOpen, brandName, contactEmail, whatsappNumber, whatsappLinkNumber }) {
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   useEffect(() => {
@@ -39,7 +39,7 @@ function PolicyPage({ policy, onClose, onOpen, brandName, contactEmail, whatsapp
         ))}
         <p className="policy-page-contact">
           Email <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
-          {" "}or WhatsApp <a href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noreferrer">+91 {whatsappNumber}</a>.
+          {" "}or WhatsApp <a href={`https://wa.me/${whatsappLinkNumber}`} target="_blank" rel="noreferrer">+91 {whatsappNumber}</a>.
         </p>
         <nav className="policy-page-nav" aria-label="Other policies">
           {POLICY_SLUGS.map((slug) => (

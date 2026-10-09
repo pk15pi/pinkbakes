@@ -11,25 +11,25 @@
     "product_id": 2,
     "product_name": "Confetti Celebration Cake",
     "product_slug": "confetti-celebration-cake",
-    "model_path": "/models/cakes/poly_pizza/Isa_Lousberg_Cake_Birthday_JCT2SAoBud.glb",
-    "model_source": "Isa Lousberg / https://poly.pizza/m/JCT2SAoBud",
-    "notes": "Semantic: birthday cake GLB for celebration/birthday product; prefer .glb over tiny_treats .gltf"
+    "model_path": "/models/cakes/kenney_food/cake-birthday.glb",
+    "model_source": "Kenney / https://kenney.nl/assets/food-kit",
+    "notes": "Uses the available local birthday cake model; the original Poly Pizza asset is not present"
   },
   {
     "product_id": 3,
     "product_name": "Vanilla Dream Birthday Cake",
     "product_slug": "vanilla-dream-birthday-cake",
-    "model_path": "/models/cakes/poly_pizza/Isa_Lousberg_Cake_Birthday_Cut_BzSIf8WuEG.glb",
-    "model_source": "Isa Lousberg / https://poly.pizza/m/BzSIf8WuEG",
-    "notes": "Semantic: birthday cut cake for birthday product; prefer .glb"
+    "model_path": "/models/cakes/tiny_treats/cake_birthday.gltf",
+    "model_source": "Isa Lousberg / https://opengameart.org/content/tiny-treats-baked-goods-set",
+    "notes": "Uses the available local birthday cake model; the original Poly Pizza asset is not present"
   },
   {
     "product_id": 4,
     "product_name": "Rainbow Sprinkle Birthday Cake",
     "product_slug": "rainbow-sprinkle-birthday-cake",
-    "model_path": "/models/cakes/poly_pizza/Isa_Lousberg_Cake_Birthday_Slice_YxYKsrZnwd.glb",
-    "model_source": "Isa Lousberg / https://poly.pizza/m/YxYKsrZnwd",
-    "notes": "Semantic: festive birthday slice for sprinkle birthday cake; prefer .glb"
+    "model_path": "/models/cakes/tiny_treats/cake_birthday_slice.gltf",
+    "model_source": "Isa Lousberg / https://opengameart.org/content/tiny-treats-baked-goods-set",
+    "notes": "Uses the available local birthday slice model; the original Poly Pizza asset is not present"
   },
   {
     "product_id": 5,
@@ -59,17 +59,17 @@
     "product_id": 8,
     "product_name": "Classic Tiered Wedding Cake",
     "product_slug": "classic-tiered-wedding-cake",
-    "model_path": "/models/cakes/poly_pizza/Polygonal_Mind_Cake_Character_gpZIDI2FVD.glb",
-    "model_source": "Polygonal Mind / https://poly.pizza/m/gpZIDI2FVD",
-    "notes": "Distinctive whole-cake form as stand-in (no true tiered wedding GLB in set)"
+    "model_path": "/models/cakes/kenney_food/cake-birthday.glb",
+    "model_source": "Kenney / https://kenney.nl/assets/food-kit",
+    "notes": "Uses the available local birthday cake as a whole-cake stand-in; the original Poly Pizza asset is not present"
   },
   {
     "product_id": 9,
     "product_name": "Floral Elegance Wedding Cake",
     "product_slug": "floral-elegance-wedding-cake",
-    "model_path": "/models/cakes/poly_pizza/Isa_Lousberg_Cake_Strawberry_Slic_oV5ntwdWx0.glb",
-    "model_source": "Isa Lousberg / https://poly.pizza/m/oV5ntwdWx0",
-    "notes": "Semantic: strawberry/floral garnish slice for floral wedding cake; prefer .glb"
+    "model_path": "/models/cakes/tiny_treats/cake_strawberry.gltf",
+    "model_source": "Isa Lousberg / https://opengameart.org/content/tiny-treats-baked-goods-set",
+    "notes": "Uses the available local strawberry cake as a floral cake stand-in; the original Poly Pizza asset is not present"
   },
   {
     "product_id": 10,
@@ -91,17 +91,17 @@
     "product_id": 12,
     "product_name": "Red Velvet Designer Cake",
     "product_slug": "red-velvet-designer-cake",
-    "model_path": "/models/cakes/poly_pizza/Kenney_Cake_Birthday_38GEFBlOXw.glb",
-    "model_source": "Kenney / https://poly.pizza/m/38GEFBlOXw",
-    "notes": "Designer/festive birthday cake look as nearest match (no red-velvet-specific asset)"
+    "model_path": "/models/cakes/kenney_food/cake-birthday.glb",
+    "model_source": "Kenney / https://kenney.nl/assets/food-kit",
+    "notes": "Uses the available local birthday cake as a designer cake stand-in; the original Poly Pizza asset is not present"
   },
   {
     "product_id": 13,
     "product_name": "Berry Bliss Designer Cake",
     "product_slug": "berry-bliss-designer-cake",
-    "model_path": "/models/cakes/poly_pizza/Isa_Lousberg_Cake_Strawberry_OJ0MYdSpn1.glb",
-    "model_source": "Isa Lousberg / https://poly.pizza/m/OJ0MYdSpn1",
-    "notes": "Semantic: strawberry cake model matches berry product; prefer .glb"
+    "model_path": "/models/cakes/tiny_treats/cake_strawberry.gltf",
+    "model_source": "Isa Lousberg / https://opengameart.org/content/tiny-treats-baked-goods-set",
+    "notes": "Uses the available local strawberry cake for the berry product; the original Poly Pizza asset is not present"
   },
   {
     "product_id": 14,
@@ -115,9 +115,9 @@
     "product_id": 15,
     "product_name": "Custom Photo Print Cake",
     "product_slug": "custom-photo-print-cake",
-    "model_path": "/models/cakes/poly_pizza/Kenney_Cake_KGFyP16ebH.glb",
-    "model_source": "Kenney / https://poly.pizza/m/KGFyP16ebH",
-    "notes": "Generic whole cake for photo-custom product (no photo-print 3D)"
+    "model_path": "/models/cakes/kenney_food/cake.glb",
+    "model_source": "Kenney / https://kenney.nl/assets/food-kit",
+    "notes": "Uses the available local whole cake as a photo-custom stand-in; the original Poly Pizza asset is not present"
   },
   {
     "product_id": 16,

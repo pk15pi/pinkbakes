@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { POLICIES, policyFromPath } from "../policies";
-import { CONTACT_EMAIL, WHATSAPP_NUMBER } from "../appConstants";
+import { CONTACT_EMAIL, WHATSAPP_TELEPHONE } from "../appConstants";
 import {
   SITE_URL,
   buildBreadcrumbJsonLd,
@@ -48,7 +48,7 @@ export default function usePageMetadata({
         image: product.main_image || product.image || "",
         type: "product",
         jsonLd: [
-          buildOrganizationJsonLd({ email: CONTACT_EMAIL, telephone: WHATSAPP_NUMBER }),
+          buildOrganizationJsonLd({ email: CONTACT_EMAIL, telephone: WHATSAPP_TELEPHONE }),
           buildWebSiteJsonLd(),
           buildBreadcrumbJsonLd(crumbs),
           buildProductJsonLd(product),
@@ -76,7 +76,7 @@ export default function usePageMetadata({
         canonical: policy.path,
         robots: "index,follow",
         jsonLd: [
-          buildOrganizationJsonLd({ email: CONTACT_EMAIL, telephone: WHATSAPP_NUMBER }),
+          buildOrganizationJsonLd({ email: CONTACT_EMAIL, telephone: WHATSAPP_TELEPHONE }),
           buildBreadcrumbJsonLd([
             { name: "Home", path: "/" },
             { name: policy.title, path: policy.path },
@@ -104,7 +104,7 @@ export default function usePageMetadata({
       robots: "index,follow",
       image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1200&q=85",
       jsonLd: [
-        buildOrganizationJsonLd({ email: CONTACT_EMAIL, telephone: WHATSAPP_NUMBER }),
+        buildOrganizationJsonLd({ email: CONTACT_EMAIL, telephone: WHATSAPP_TELEPHONE }),
         buildWebSiteJsonLd(),
       ],
     });

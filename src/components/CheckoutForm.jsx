@@ -30,8 +30,8 @@ function CheckoutForm({
   checkoutLoading,
 }) {
   return (
-    <div className="auth-page-shell" onClick={() => setCheckoutOpen(false)}>
-      <div className="auth-page-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 720 }}>
+    <div className="auth-page-shell checkout-shell" onClick={() => setCheckoutOpen(false)}>
+      <div className="auth-page-card checkout-card" onClick={e => e.stopPropagation()}>
         <div className="auth-form-panel" style={{ width: "100%" }}>
           <button type="button" className="auth-close" onClick={() => setCheckoutOpen(false)} aria-label="Close checkout">
             <X size={18} />

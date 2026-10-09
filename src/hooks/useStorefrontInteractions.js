@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { WHATSAPP_NUMBER } from "../appConstants";
+import { WHATSAPP_LINK_NUMBER } from "../appConstants";
 
 export default function useStorefrontInteractions(notify) {
   const [newsletter, setNewsletter] = useState("");
@@ -56,7 +56,7 @@ export default function useStorefrontInteractions(notify) {
       `* Preferred date: ${brief.preferredDate || "-"}`,
       `* Phone: ${brief.phone?.trim() || "-"}`,
     ];
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(lines.join(" | "))}`, "_blank", "noopener,noreferrer");
+    window.open(`https://wa.me/${WHATSAPP_LINK_NUMBER}?text=${encodeURIComponent(lines.join(" | "))}`, "_blank", "noopener,noreferrer");
     notify("Opening WhatsApp with your cake brief");
   }
 

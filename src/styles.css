@@ -2030,3 +2030,69 @@ button.btn.primary.full:disabled {
     min-width: 190px;
   }
 }
+
+.checkout-shell {
+  align-content: start;
+  justify-items: center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: max(24px, env(safe-area-inset-top, 0px)) 12px max(24px, env(safe-area-inset-bottom, 0px));
+  -webkit-overflow-scrolling: touch;
+}
+
+.checkout-card {
+  display: block;
+  width: min(720px, 100%);
+  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.checkout-card .auth-form-panel {
+  min-width: 0;
+  padding: 32px 30px 28px;
+}
+
+.checkout-card .auth-close {
+  position: sticky;
+  top: 8px;
+  float: right;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  margin-bottom: -44px;
+}
+
+@media (max-width: 720px) {
+  .checkout-shell {
+    padding: max(8px, env(safe-area-inset-top, 0px)) 12px max(8px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .checkout-card {
+    max-height: calc(100vh - max(16px, env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px)));
+    max-height: calc(100dvh - max(16px, env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px)));
+  }
+
+  .checkout-card .auth-form-panel {
+    padding: 18px 18px 22px;
+  }
+}
+
+@media (max-width: 720px) and (max-height: 560px) {
+  .checkout-shell {
+    padding-top: max(6px, env(safe-area-inset-top, 0px));
+    padding-bottom: max(6px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .checkout-card {
+    max-height: calc(100vh - max(12px, env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px)));
+    max-height: calc(100dvh - max(12px, env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px)));
+  }
+
+  .checkout-card .auth-form-panel {
+    padding: 12px 16px 18px;
+  }
+}
