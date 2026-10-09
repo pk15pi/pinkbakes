@@ -5,17 +5,18 @@ import {
   fetchOrder,
   fetchOrders,
   logout,
+  cancelOrder,
   markAllNotificationsRead,
   markNotificationRead,
   updateNotificationPreferences,
 } from "../services/authService";
+import { appConfig } from "../config";
 
 export default function useCustomerAccount({
   setUser,
   setAuthOpen,
   setAuthMode,
   setAuthMessage,
-  setTrackingOrder,
   notify,
 }) {
   const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
@@ -25,6 +26,13 @@ export default function useCustomerAccount({
   const [notifUnreadCount, setNotifUnreadCount] = useState(0);
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [trackingOrder, setTrackingOrder] = useState(null);
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [trackingError, setTrackingError] = useState("");
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelMessage, setCancelMessage] = useState("");
 
   function handleSignOut() {
     const token = localStorage.getItem("pinkbakes_token");
@@ -114,6 +122,65 @@ export default function useCustomerAccount({
       .catch(() => setSelectedOrder(null));
   }
 
+  async function fetchTracking(orderId) {
+    const token = localStorage.getItem("pinkbakes_token");
+    if (!token) {
+      setTrackingError("Please sign in to view live delivery tracking.");
+      setAuthOpen(true);
+      setAuthMode("signin");
+      return;
+    }
+
+    setTrackingLoading(true);
+    setTrackingError("");
+    try {
+      const response = await fetch(`${appConfig.apiBaseUrl}/api/orders/${orderId}/tracking/`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Token ${token}`,
+        },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || "Unable to load tracking details.");
+      setTrackingOrder(data);
+    } catch (error) {
+      setTrackingError(error.message || "Unable to load tracking details.");
+    } finally {
+      setTrackingLoading(false);
+    }
+  }
+
+  function handleCancelOrder() {
+    const token = localStorage.getItem("pinkbakes_token");
+    if (!token || !selectedOrder?.id) {
+      setAuthMessage("Please sign in to cancel an order.");
+      return;
+    }
+    setCancelLoading(true);
+    setCancelMessage("");
+    cancelOrder(selectedOrder.id, token, cancelReason)
+      .then(order => {
+        setSelectedOrder(order);
+        setOrders(previous => previous.map(item => item.id === order.id ? { ...item, ...order } : item));
+        setCancelConfirmOpen(false);
+        setCancelReason("");
+        const refundStatus = order.refund?.status || order.refunds_summary?.latest_status;
+        if (order.status === "CANCELLED" && refundStatus && refundStatus !== "completed") {
+          setCancelMessage("Order cancelled. Refund is processing - we will email you when it completes.");
+          notify("Order cancelled. Refund processing.");
+        } else if (order.status === "CANCELLED" && refundStatus === "completed") {
+          setCancelMessage("Order cancelled and refund completed.");
+          notify("Order cancelled. Refund completed.");
+        } else {
+          setCancelMessage("Order cancelled.");
+          notify("Order cancelled.");
+        }
+      })
+      .catch(error => setCancelMessage(error?.detail || error?.message || "Unable to cancel this order."))
+      .finally(() => setCancelLoading(false));
+  }
+
   return {
     orderHistoryOpen,
     setOrderHistoryOpen,
@@ -125,11 +192,23 @@ export default function useCustomerAccount({
     setOrders,
     selectedOrder,
     setSelectedOrder,
+    trackingOrder,
+    trackingLoading,
+    trackingError,
+    cancelReason,
+    setCancelReason,
+    cancelConfirmOpen,
+    setCancelConfirmOpen,
+    cancelLoading,
+    cancelMessage,
+    setCancelMessage,
     handleSignOut,
     loadUserOrders,
     handleMarkAllNotificationsRead,
     handleMarkNotificationRead,
     handleNotificationPreferenceChange,
     handleOpenOrder,
+    fetchTracking,
+    handleCancelOrder,
   };
 }

@@ -4,8 +4,11 @@ import {
   createPaymentSession,
   fetchAddresses,
   quoteDelivery,
+  retryPayment,
   validateCoupon,
+  verifyPayment,
 } from "../services/authService";
+import { appConfig } from "../config";
 
 export default function useCheckoutFlow({
   user,
@@ -14,11 +17,14 @@ export default function useCheckoutFlow({
   setAuthOpen,
   setAuthMode,
   setAuthMessage,
+  setCart,
+  setOrderSuccess,
+  setSelectedOrder,
   notify,
-  openRazorpayForPayment,
 }) {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [paymentRetryLoading, setPaymentRetryLoading] = useState(false);
   const [checkoutMessage, setCheckoutMessage] = useState("");
   const [couponCodeInput, setCouponCodeInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState(null);
@@ -44,6 +50,69 @@ export default function useCheckoutFlow({
     shipping_latitude: "",
     shipping_longitude: "",
   });
+
+  function openRazorpayForPayment(paymentInfo, token, { orderId, amountLabel, successSummary } = {}) {
+    const loadRazorpay = () => new Promise((resolve, reject) => {
+      if (window.Razorpay) {
+        resolve(window.Razorpay);
+        return;
+      }
+      const existing = document.getElementById("razorpay-sdk");
+      if (existing) {
+        existing.addEventListener("load", () => resolve(window.Razorpay), { once: true });
+        existing.addEventListener("error", () => reject(new Error("Unable to load Razorpay checkout.")), { once: true });
+        return;
+      }
+      const script = document.createElement("script");
+      script.id = "razorpay-sdk";
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      script.onload = () => resolve(window.Razorpay);
+      script.onerror = () => reject(new Error("Unable to load Razorpay checkout."));
+      document.body.appendChild(script);
+    });
+
+    return loadRazorpay().then(Razorpay => {
+      const options = {
+        key: paymentInfo.key_id || appConfig.razorpayKeyId,
+        amount: Number(paymentInfo.amount || 0),
+        currency: paymentInfo.currency || "INR",
+        order_id: paymentInfo.payment_order_id,
+        name: "PinkBakes",
+        description: `Payment for ${amountLabel || "order"}`,
+        handler: function (response) {
+          verifyPayment({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+            amount: Number(paymentInfo.amount || 0),
+            payment_method: "razorpay",
+          }, token)
+            .then(result => {
+              if (successSummary) {
+                setOrderSuccess({
+                  orderNumber: successSummary.orderNumber,
+                  amount: successSummary.amount,
+                  paymentId: result.payment_id,
+                });
+              }
+              setCart([]);
+              setCheckoutOpen(false);
+              if (orderId) {
+                setSelectedOrder(previous => ({ ...(previous || {}), id: orderId, payment_status: "paid", status: "ORDER_CONFIRMED" }));
+              }
+              notify("Payment successful. Your order has been confirmed.");
+            })
+            .catch(error => setCheckoutMessage(error.message || "Payment verification failed. Please contact support."));
+        },
+        theme: { color: "#d62f7b" },
+        modal: {
+          ondismiss: () => setCheckoutMessage("Payment cancelled. Your cart is still intact."),
+        },
+      };
+      new Razorpay(options).open();
+    });
+  }
 
   function refreshDeliveryQuote(postalCode, addressId, lat, lng) {
     const token = localStorage.getItem("pinkbakes_token");
@@ -204,6 +273,24 @@ export default function useCheckoutFlow({
     loadSavedAddresses();
   }
 
+  function handleRetryPayment(orderId) {
+    const token = localStorage.getItem("pinkbakes_token");
+    if (!token) return;
+    setPaymentRetryLoading(true);
+    setCheckoutMessage("");
+    retryPayment(orderId, token)
+      .then(paymentInfo => openRazorpayForPayment(paymentInfo, token, {
+        orderId,
+        amountLabel: `Order #${orderId}`,
+        successSummary: {
+          orderNumber: `PB-${orderId}`,
+          amount: Number((paymentInfo.amount || 0) / 100),
+        },
+      }))
+      .catch(error => setCheckoutMessage(error.message || "Unable to retry payment."))
+      .finally(() => setPaymentRetryLoading(false));
+  }
+
   function handleCheckoutSubmit(event) {
     event.preventDefault();
     const token = localStorage.getItem("pinkbakes_token");
@@ -260,6 +347,7 @@ export default function useCheckoutFlow({
     checkoutOpen,
     setCheckoutOpen,
     checkoutLoading,
+    paymentRetryLoading,
     checkoutMessage,
     setCheckoutMessage,
     couponCodeInput,
@@ -288,5 +376,7 @@ export default function useCheckoutFlow({
     handleSaveNewAddress,
     openCheckout,
     handleCheckoutSubmit,
+    openRazorpayForPayment,
+    handleRetryPayment,
   };
 }

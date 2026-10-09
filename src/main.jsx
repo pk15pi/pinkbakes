@@ -4,46 +4,30 @@ import {
   UserRound, X,
   Check
 } from "lucide-react";
-import { POLICIES, policyFromPath } from "./policies";
-import { adminLogout,
-  adminLogin,
-  cancelOrder,
-  createProduct,
-  deleteProduct,
-  fetchAdminReportSummary,
-  fetchCurrentUser,
+import {
+ fetchCurrentUser,
   asListResponse,
   fetchProducts,
-  retryPayment,
-  verifyPayment,
-  updateProduct,
   adjustAdminInventory,
   updateAdminDeliverySettings,
   fetchAdminNotifications,
   fetchAdminDashboard,
-  fetchAdminOrders,
   fetchAdminOrderDetail,
   updateAdminOrderStatus,
   cancelAdminOrder,
   refundAdminOrder,
-  fetchAdminPayments,
-  fetchAdminRefunds,
   fetchAdminCustomers,
-  fetchAdminCustomerDetail,
   updateAdminCustomerStatus,
   fetchAdminEmployees,
   assignAdminDelivery,
   unassignAdminDelivery,
-  fetchAdminActiveDeliveries,
   fetchAdminReviews,
   approveAdminReview,
   rejectAdminReview,
-  fetchAdminSettingsStatus,
   updateAdminSettingsStatus,
-  fetchAdminInventory,
   downloadAdminExport,
 } from "./services/authService";
-import { appConfig, getMapsUrl } from "./config";
+import { getMapsUrl } from "./config";
 import {
   BAKERY_LOCATION,
   BRAND_NAME,
@@ -57,7 +41,7 @@ import {
   formatCurrency,
   getNextOrderStatuses,
 } from "./appConstants";
-import { isOutOfStock, normalizeProduct } from "./productUtils";
+import { isOutOfStock } from "./productUtils";
 import useCatalog from "./hooks/useCatalog";
 import useProductRoute from "./hooks/useProductRoute";
 import usePageMetadata from "./hooks/usePageMetadata";
@@ -69,6 +53,12 @@ import useCustomerAccount from "./hooks/useCustomerAccount";
 import useCheckoutFlow from "./hooks/useCheckoutFlow";
 import useAdminCommerceConfig from "./hooks/useAdminCommerceConfig";
 import useChatAssistant from "./hooks/useChatAssistant";
+import useAdminActionDialogs from "./hooks/useAdminActionDialogs";
+import useAdminProducts from "./hooks/useAdminProducts";
+import useAdminWorkspace from "./hooks/useAdminWorkspace";
+import useAdminSession from "./hooks/useAdminSession";
+import useStorefrontInteractions from "./hooks/useStorefrontInteractions";
+import usePolicyRoute from "./hooks/usePolicyRoute";
 import ProductModal from "./components/ProductModal";
 import PolicyPage from "./components/PolicyPage";
 import AdminDashboardPanel from "./components/AdminDashboardPanel";
@@ -104,9 +94,6 @@ function App() {
   const [cartOpen, setCartOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [bakeryLocationOpen, setBakeryLocationOpen] = useState(false);
-  const [policySlug, setPolicySlug] = useState(() => policyFromPath(window.location.pathname)?.slug || null);
-  const [newsletter, setNewsletter] = useState("");
-  const [newsletterDone, setNewsletterDone] = useState(false);
   const {
     catalog,
     setCatalog,
@@ -117,86 +104,23 @@ function App() {
     loadCatalog,
   } = useCatalog();
   const { product, productNotFound, openProduct, closeProduct } = useProductRoute(catalog, catalogLoading);
+  const {
+    cakeForm,
+    setCakeForm,
+    editingCakeId,
+    adminMessage,
+    setAdminMessage,
+    resetCakeForm,
+    populateCakeForm,
+    submitCakeForm,
+    removeCake,
+  } = useAdminProducts({ catalog, setCatalog, notify });
   const [adminOpen, setAdminOpen] = useState(false);
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
-  const [adminReportsView, setAdminReportsView] = useState(false);
-  const [adminCredentials, setAdminCredentials] = useState({ username: "", password: "" });
-  const [adminMessage, setAdminMessage] = useState("");
-  const [reportSummary, setReportSummary] = useState({
-    user_stats: {},
-    product_stats: {},
-    review_stats: {},
-    sales_stats: {}
-  });
-  const [reportsLoading, setReportsLoading] = useState(false);
-  const [reportsError, setReportsError] = useState("");
-  const [reportPerformance, setReportPerformance] = useState([]);
-  const [reportActivity, setReportActivity] = useState([]);
   const [adminDeliverySettings, setAdminDeliverySettings] = useState(null);
-  const [adminNotifications, setAdminNotifications] = useState([]);
-  const [adminSection, setAdminSection] = useState("dashboard");
-  const [adminDashboard, setAdminDashboard] = useState(null);
-  const [adminDashPreset, setAdminDashPreset] = useState("today");
-  const [adminOrders, setAdminOrders] = useState([]);
-  const [adminOrdersMeta, setAdminOrdersMeta] = useState({ count: 0, page: 1 });
-  const [adminOrderFilter, setAdminOrderFilter] = useState({ status: "", payment_status: "", search: "" });
-  const [adminOrderDetail, setAdminOrderDetail] = useState(null);
-  const [adminPayments, setAdminPayments] = useState([]);
-  const [adminRefunds, setAdminRefunds] = useState([]);
-  const [adminRefundFilter, setAdminRefundFilter] = useState("");
-  const [adminCustomers, setAdminCustomers] = useState([]);
-  const [adminCustomerSearch, setAdminCustomerSearch] = useState("");
-  const [adminActiveDeliveries, setAdminActiveDeliveries] = useState([]);
-  const [adminReviews, setAdminReviews] = useState([]);
-  const [adminReviewFilter, setAdminReviewFilter] = useState("pending");
-  const [adminSettings, setAdminSettings] = useState(null);
   const [adminOpsMessage, setAdminOpsMessage] = useState("");
-  const [adminInventory, setAdminInventory] = useState([]);
   const [adminLoadingSection, setAdminLoadingSection] = useState(false);
-  const [adminCustomerDetail, setAdminCustomerDetail] = useState(null);
-  const [adminCustomerDetailLoading, setAdminCustomerDetailLoading] = useState(false);
-  const [assignPickerOpen, setAssignPickerOpen] = useState(false);
-  const [assignPickerLoading, setAssignPickerLoading] = useState(false);
-  const [assignPickerError, setAssignPickerError] = useState("");
-  const [assignPickerEmployees, setAssignPickerEmployees] = useState([]);
-  const [assignPickerSelectedId, setAssignPickerSelectedId] = useState("");
-  const [assignPickerSubmitting, setAssignPickerSubmitting] = useState(false);
-  const [cancelModalOpen, setCancelModalOpen] = useState(false);
-  const [cancelModalReason, setCancelModalReason] = useState("");
-  const [cancelModalError, setCancelModalError] = useState("");
-  const [cancelModalSubmitting, setCancelModalSubmitting] = useState(false);
-  const [refundModalOpen, setRefundModalOpen] = useState(false);
-  const [refundModalAmount, setRefundModalAmount] = useState("");
-  const [refundModalReason, setRefundModalReason] = useState("Admin refund");
-  const [refundModalError, setRefundModalError] = useState("");
-  const [refundModalSubmitting, setRefundModalSubmitting] = useState(false);
-  const [restockModalOpen, setRestockModalOpen] = useState(false);
-  const [restockModalItem, setRestockModalItem] = useState(null);
-  const [restockModalAction, setRestockModalAction] = useState("restock");
-  const [restockModalQty, setRestockModalQty] = useState("10");
-  const [restockModalReason, setRestockModalReason] = useState("Restock");
-  const [restockModalError, setRestockModalError] = useState("");
-  const [restockModalSubmitting, setRestockModalSubmitting] = useState(false);
-  const [restockModalSource, setRestockModalSource] = useState("inventory");
   const scrollRoomRef = useRef(null);
-  const [trackingOrder, setTrackingOrder] = useState(null);
-  const [trackingLoading, setTrackingLoading] = useState(false);
-  const [trackingError, setTrackingError] = useState("");
   const [orderSuccess, setOrderSuccess] = useState(null);
-  const [cancelReason, setCancelReason] = useState("");
-  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
-  const [cancelLoading, setCancelLoading] = useState(false);
-  const [cancelMessage, setCancelMessage] = useState("");
-  const [paymentRetryLoading, setPaymentRetryLoading] = useState(false);
-  const [wishlist, setWishlist] = useState(() => {
-    try {
-      const raw = localStorage.getItem("pinkbakes_wishlist");
-      const arr = raw ? JSON.parse(raw) : [];
-      return Array.isArray(arr) ? arr.map(String) : [];
-    } catch {
-      return [];
-    }
-  });
   const [product3d, setProduct3d] = useState(null);
   const {
     authOpen, setAuthOpen,
@@ -254,6 +178,103 @@ function App() {
     startEditEmployee,
   } = useAdminEmployees({ setAdminLoadingSection, setAdminOpsMessage });
   const {
+    adminNotifications,
+    adminSection,
+    setAdminSection,
+    adminDashboard,
+    setAdminDashboard,
+    adminDashPreset,
+    setAdminDashPreset,
+    adminOrders,
+    setAdminOrders,
+    adminOrdersMeta,
+    setAdminOrdersMeta,
+    adminOrderFilter,
+    setAdminOrderFilter,
+    adminOrderDetail,
+    setAdminOrderDetail,
+    adminPayments,
+    setAdminPayments,
+    adminRefunds,
+    setAdminRefunds,
+    adminRefundFilter,
+    setAdminRefundFilter,
+    adminCustomers,
+    setAdminCustomers,
+    adminCustomerSearch,
+    setAdminCustomerSearch,
+    adminActiveDeliveries,
+    setAdminActiveDeliveries,
+    adminReviews,
+    setAdminReviews,
+    adminReviewFilter,
+    setAdminReviewFilter,
+    adminSettings,
+    setAdminSettings,
+    adminInventory,
+    setAdminInventory,
+    adminCustomerDetail,
+    setAdminCustomerDetail,
+    adminCustomerDetailLoading,
+    setAdminCustomerDetailLoading,
+    loadAdminSectionData,
+    openCustomerDetail,
+  } = useAdminWorkspace({
+    loadEmployeeRecords,
+    adminEmployeeFilter,
+    setAdminLoadingSection,
+    setAdminOpsMessage,
+  });
+  const {
+    isAdminLoggedIn,
+    setIsAdminLoggedIn,
+    adminReportsView,
+    setAdminReportsView,
+    adminCredentials,
+    setAdminCredentials,
+    reportSummary,
+    reportsLoading,
+    reportsError,
+    reportPerformance,
+    setReportPerformance,
+    reportActivity,
+    setReportActivity,
+    handleAdminLogin,
+    handleAdminLogout,
+    openAdminReports,
+    closeAdminReports,
+    openAdminLogin,
+  } = useAdminSession({
+    setAdminOpen,
+    setAdminSection,
+    setAdminDashboard,
+    loadAdminSectionData,
+    notify,
+    setAdminMessage,
+  });
+  const {
+    assignPickerOpen, assignPickerLoading, assignPickerError, assignPickerEmployees,
+    assignPickerSelectedId, setAssignPickerSelectedId, assignPickerSubmitting,
+    cancelModalOpen, cancelModalReason, setCancelModalReason, cancelModalError, cancelModalSubmitting,
+    refundModalOpen, refundModalAmount, setRefundModalAmount, refundModalReason, setRefundModalReason,
+    refundModalError, refundModalSubmitting,
+    restockModalOpen, restockModalItem, restockModalAction, setRestockModalAction,
+    restockModalQty, setRestockModalQty, restockModalReason, setRestockModalReason,
+    restockModalError, restockModalSubmitting,
+    closeAssignPicker, openAssignPicker, confirmAssignPicker, handleUnassignDelivery,
+    getAdminRefundableInfo, closeCancelModal, openCancelModal, confirmCancelModal,
+    closeRefundModal, openRefundModal, confirmRefundModal,
+    closeRestockModal, openRestockModal, confirmRestockModal,
+  } = useAdminActionDialogs({
+    adminOrderDetail,
+    setAdminOrderDetail,
+    setAdminEmployees,
+    setAdminOpsMessage,
+    loadAdminSectionData,
+    setCatalog,
+    notify,
+  });
+  const {
     adminCouponsView,
     setAdminCouponsView,
     adminCoupons,
@@ -289,6 +310,7 @@ function App() {
     openHelpDesk,
     openHelpDeskTopic,
   } = useChatAssistant(catalog);
+  const { policySlug, openPolicy, closePolicy } = usePolicyRoute(setChatOpen);
   const {
     orderHistoryOpen,
     setOrderHistoryOpen,
@@ -300,53 +322,31 @@ function App() {
     setOrders,
     selectedOrder,
     setSelectedOrder,
+    trackingOrder,
+    trackingLoading,
+    trackingError,
+    cancelReason,
+    setCancelReason,
+    cancelConfirmOpen,
+    setCancelConfirmOpen,
+    cancelLoading,
+    cancelMessage,
+    setCancelMessage,
     handleSignOut,
     loadUserOrders,
     handleMarkAllNotificationsRead,
     handleMarkNotificationRead,
     handleNotificationPreferenceChange,
     handleOpenOrder,
+    fetchTracking,
+    handleCancelOrder,
   } = useCustomerAccount({
     setUser,
     setAuthOpen,
     setAuthMode,
     setAuthMessage,
-    setTrackingOrder,
     notify,
   });
-
-  async function fetchTracking(orderId) {
-    const token = localStorage.getItem("pinkbakes_token");
-    if (!token) {
-      setTrackingError("Please sign in to view live delivery tracking.");
-      setAuthOpen(true);
-      setAuthMode("signin");
-      return;
-    }
-
-    setTrackingLoading(true);
-    setTrackingError("");
-
-    try {
-      const response = await fetch(`${appConfig.apiBaseUrl}/api/orders/${orderId}/tracking/`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Token ${token}`,
-        },
-      });
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(data.detail || "Unable to load tracking details.");
-      }
-      setTrackingOrder(data);
-    } catch (error) {
-      setTrackingError(error.message || "Unable to load tracking details.");
-    } finally {
-      setTrackingLoading(false);
-    }
-  }
 
   useEffect(() => {
     if (user) {
@@ -358,45 +358,6 @@ function App() {
       }));
     }
   }, [user]);
-  const [cakeForm, setCakeForm] = useState({
-    name: "",
-    price: "",
-    discount: "",
-    category: "Birthday Cakes",
-    description: "",
-    image: "",
-    availability: "in_stock",
-    status: "published",
-    available_quantity: 50,
-    low_stock_threshold: 5
-  });
-  const [editingCakeId, setEditingCakeId] = useState(null);
-  const [customBrief, setCustomBrief] = useState({
-    occasion: "",
-    servings: "",
-    flavor: "",
-    theme: "",
-    preferredDate: "",
-    name: "",
-    phone: ""
-  });
-
-  function resetCakeForm() {
-    setCakeForm({
-      name: "",
-      price: "",
-      discount: "",
-      category: "Birthday Cakes",
-      description: "",
-      image: "",
-      availability: "in_stock",
-      status: "published",
-      available_quantity: 50,
-      low_stock_threshold: 5
-    });
-    setEditingCakeId(null);
-    setAdminMessage("");
-  }
 
   useEffect(() => {
     const token = localStorage.getItem("pinkbakes_token");
@@ -444,14 +405,6 @@ function App() {
     });
   }, []);
 
-  useEffect(() => {
-    const syncPolicy = () => {
-      setPolicySlug(policyFromPath(window.location.pathname)?.slug || null);
-    };
-    window.addEventListener("popstate", syncPolicy);
-    return () => window.removeEventListener("popstate", syncPolicy);
-  }, []);
-
   const filtered = useMemo(() => {
     const needle = (search || "").toLowerCase();
     const selected = (category || "").trim().toLowerCase();
@@ -467,6 +420,7 @@ function App() {
     checkoutOpen,
     setCheckoutOpen,
     checkoutLoading,
+    paymentRetryLoading,
     checkoutMessage,
     setCheckoutMessage,
     couponCodeInput,
@@ -494,6 +448,8 @@ function App() {
     handleSaveNewAddress,
     openCheckout: startCheckout,
     handleCheckoutSubmit,
+    openRazorpayForPayment,
+    handleRetryPayment,
   } = useCheckoutFlow({
     user,
     cart,
@@ -501,8 +457,10 @@ function App() {
     setAuthOpen,
     setAuthMode,
     setAuthMessage,
+    setCart,
+    setOrderSuccess,
+    setSelectedOrder,
     notify,
-    openRazorpayForPayment,
   });
   checkoutFlowRef.current = startCheckout;
   usePageMetadata({
@@ -529,48 +487,22 @@ function App() {
     return checkoutFlowRef.current(...args);
   }
 
+  const {
+    newsletter,
+    setNewsletter,
+    newsletterDone,
+    customBrief,
+    setCustomBrief,
+    wishlist,
+    toggleWishlist,
+    sendCustomBrief,
+    subscribe,
+  } = useStorefrontInteractions(notify);
+
   const { shareBakeryLocationOnWhatsApp, openBakeryInGoogleMaps } = useBakeryLocation(
     notify,
     () => setBakeryLocationOpen(false)
   );
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("pinkbakes_wishlist", JSON.stringify(wishlist));
-    } catch (_) {}
-  }, [wishlist]);
-
-  function toggleWishlist(e, p) {
-    e.stopPropagation();
-    const id = String(p.id);
-    const has = wishlist.includes(id);
-    setWishlist(has ? wishlist.filter((x) => x !== id) : [...wishlist, id]);
-    notify(has ? `Removed "${p.name}" from wishlist` : `Added "${p.name}" to wishlist`);
-  }
-
-  function sendCustomBrief() {
-    const brief = customBrief;
-    const hasOccasion = Boolean(brief.occasion?.trim());
-    const hasTheme = Boolean(brief.theme?.trim());
-    const hasServings = Boolean(brief.servings?.trim());
-    if (!hasOccasion || (!hasTheme && !hasServings)) {
-      notify("Please add occasion and either theme or servings");
-      return;
-    }
-    const lines = [
-      "Hi PinkBakes! Custom cake brief:",
-      `* Name: ${brief.name?.trim() || "-"}`,
-      `* Occasion: ${brief.occasion.trim()}`,
-      `* Servings: ${brief.servings?.trim() || "-"}`,
-      `* Flavor: ${brief.flavor?.trim() || "-"}`,
-      `* Theme: ${brief.theme?.trim() || "-"}`,
-      `* Preferred date: ${brief.preferredDate || "-"}`,
-      `* Phone: ${brief.phone?.trim() || "-"}`
-    ];
-    const msg = lines.join(' | ');
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
-    notify("Opening WhatsApp with your cake brief");
-  }
 
   function stockLabel(p) {
     const available = Number(p?.available_quantity ?? p?.stock_remaining ?? 0);
@@ -594,71 +526,6 @@ function App() {
     const extra = Math.ceil(target - maxScroll);
     if (room && extra > 1) room.style.height = `${extra}px`;
     window.scrollTo({ top: target, behavior: "smooth" });
-  }
-
-  function subscribe(e) {
-    e.preventDefault();
-    if (newsletter.trim()) {
-      setNewsletterDone(true);
-      setNewsletter("");
-    }
-  }
-
-  function handleAdminLogin(e) {
-    e.preventDefault();
-
-    adminLogin({
-      username: adminCredentials.username,
-      password: adminCredentials.password,
-    })
-      .then(data => {
-        localStorage.setItem("pinkbakes_admin_token", data.token);
-        setIsAdminLoggedIn(true);
-        setAdminOpen(true);
-        setAdminSection("dashboard");
-        setAdminCredentials({ username: "", password: "" });
-        setAdminMessage("");
-        notify("Admin login successful");
-        try { window.history.pushState({}, "", "/admin"); } catch (_) { /* ignore */ }
-        fetchAdminDashboard({ preset: "today" }).then(setAdminDashboard).catch(() => {});
-        loadAdminSectionData("dashboard");
-      })
-      .catch(error => {
-        setAdminMessage(error.message || "Invalid admin username or password.");
-      });
-  }
-
-  function handleAdminLogout() {
-    const token = localStorage.getItem("pinkbakes_admin_token");
-    if (token) {
-      adminLogout(token).catch(() => {});
-    }
-    localStorage.removeItem("pinkbakes_admin_token");
-    setIsAdminLoggedIn(false);
-    setAdminReportsView(false);
-    setAdminOpen(false);
-    setAdminMessage("");
-    setAdminCredentials({ username: "", password: "" });
-    window.history.pushState({}, "", "/");
-  }
-
-  function openAdminReports() {
-    setAdminReportsView(true);
-    setAdminOpen(true);
-    window.history.pushState({}, "", "/admin/reports");
-    setReportsLoading(true);
-    setReportsError("");
-    fetchAdminReportSummary()
-      .then((data) => setReportSummary(data || {}))
-      .catch((error) => setReportsError(error.message || "Unable to load reports."))
-      .finally(() => setReportsLoading(false));
-  }
-
-
-  function closeAdminReports() {
-    setAdminReportsView(false);
-    setAdminOpen(false);
-    window.history.pushState({}, "", "/");
   }
 
   function goAdminSection(section) {
@@ -690,313 +557,6 @@ function App() {
   }
 
 
-  function loadAdminSectionData(section, preset) {
-    const token = localStorage.getItem("pinkbakes_admin_token");
-    if (!token) return;
-    setAdminLoadingSection(true);
-    const p = preset || adminDashPreset;
-    const tasks = [];
-    if (section === "dashboard") {
-      tasks.push(fetchAdminDashboard({ preset: p }).then(setAdminDashboard).catch((e) => setAdminOpsMessage(e.message || "Dashboard failed")));
-    } else if (section === "orders") {
-      tasks.push(fetchAdminOrders({ ...adminOrderFilter, page: 1, page_size: 20 }).then((d) => {
-        setAdminOrders(d.results || []);
-        setAdminOrdersMeta({ count: d.count || 0, page: d.page || 1 });
-      }).catch((e) => setAdminOpsMessage(e.message || "Orders failed")));
-    } else if (section === "payments") {
-      tasks.push(fetchAdminPayments({ page: 1, page_size: 25 }).then((d) => setAdminPayments(asListResponse(d))).catch((e) => { setAdminPayments([]); setAdminOpsMessage(e.message || "Payments failed"); }));
-    } else if (section === "refunds") {
-      const refundParams = { page: 1, page_size: 25 };
-      if (adminRefundFilter) refundParams.status = adminRefundFilter;
-      tasks.push(fetchAdminRefunds(refundParams).then((d) => setAdminRefunds(asListResponse(d))).catch((e) => { setAdminRefunds([]); setAdminOpsMessage(e.message || "Refunds failed"); }));
-    } else if (section === "inventory") {
-      tasks.push(fetchAdminInventory().then((d) => setAdminInventory(Array.isArray(d) ? d : (d.results || []))).catch((e) => setAdminOpsMessage(e.message || "Inventory failed")));
-    } else if (section === "customers") {
-      tasks.push(fetchAdminCustomers({ search: adminCustomerSearch, page: 1, page_size: 25 }).then((d) => setAdminCustomers(d.results || [])).catch((e) => setAdminOpsMessage(e.message || "Customers failed")));
-    } else if (section === "employees") {
-      tasks.push(Promise.all([
-        loadEmployeeRecords(1, adminEmployeeFilter),
-        fetchAdminActiveDeliveries().then((d) => setAdminActiveDeliveries(d.results || [])),
-      ]).catch((e) => setAdminOpsMessage(e.message || "Delivery failed")));
-    } else if (section === "reviews") {
-      tasks.push(fetchAdminReviews({ status: adminReviewFilter, page: 1, page_size: 25 }).then((d) => {
-        const rows = Array.isArray(d) ? d : (d.results || []);
-        setAdminReviews(rows);
-      }).catch((e) => setAdminOpsMessage(e.message || "Reviews failed")));
-    } else if (section === "notifications") {
-      tasks.push(fetchAdminNotifications(token).then((d) => setAdminNotifications(Array.isArray(d?.results) ? d.results : [])).catch(() => setAdminNotifications([])));
-    } else if (section === "settings") {
-      tasks.push(fetchAdminSettingsStatus().then(setAdminSettings).catch((e) => setAdminOpsMessage(e.message || "Settings failed")));
-    }
-    Promise.all(tasks).finally(() => setAdminLoadingSection(false));
-  }
-
-  function closeAssignPicker() {
-    setAssignPickerOpen(false);
-    setAssignPickerLoading(false);
-    setAssignPickerError("");
-    setAssignPickerEmployees([]);
-    setAssignPickerSelectedId("");
-    setAssignPickerSubmitting(false);
-  }
-
-  function openAssignPicker() {
-    if (!adminOrderDetail?.id) return;
-    setAssignPickerOpen(true);
-    setAssignPickerLoading(true);
-    setAssignPickerError("");
-    setAssignPickerEmployees([]);
-    setAssignPickerSelectedId("");
-    setAssignPickerSubmitting(false);
-    // Assign API accepts ACTIVE or AVAILABLE; list endpoint filters one status at a time.
-    fetchAdminEmployees()
-      .then((d) => {
-        const list = Array.isArray(d) ? d : (d.results || []);
-        setAdminEmployees(list);
-        const assignable = list.filter((e) =>
-          e.employment_status === "ACTIVE" && (e.status === "ACTIVE" || e.status === "AVAILABLE")
-        );
-        setAssignPickerEmployees(assignable);
-        const currentId = adminOrderDetail?.delivery_employee?.id;
-        if (currentId && assignable.some((e) => e.id === currentId)) {
-          setAssignPickerSelectedId(String(currentId));
-        } else if (assignable.length === 1) {
-          setAssignPickerSelectedId(String(assignable[0].id));
-        }
-      })
-      .catch((err) => setAssignPickerError(err.message || "Could not load employees."))
-      .finally(() => setAssignPickerLoading(false));
-  }
-
-  function confirmAssignPicker() {
-    if (!adminOrderDetail?.id || !assignPickerSelectedId) {
-      setAssignPickerError("Select an employee to assign.");
-      return;
-    }
-    setAssignPickerSubmitting(true);
-    setAssignPickerError("");
-    const isReassign = Boolean(adminOrderDetail?.delivery_employee?.id);
-    assignAdminDelivery(adminOrderDetail.id, Number(assignPickerSelectedId))
-      .then((ord) => {
-        setAdminOrderDetail(ord);
-        setAdminOpsMessage(isReassign ? "Delivery reassigned." : "Delivery assigned.");
-        closeAssignPicker();
-        loadAdminSectionData("orders");
-      })
-      .catch((err) => setAssignPickerError(err.message || "Assign failed."))
-      .finally(() => setAssignPickerSubmitting(false));
-  }
-
-  function handleUnassignDelivery() {
-    if (!adminOrderDetail?.id) return;
-    if (!adminOrderDetail?.delivery_employee) {
-      setAdminOpsMessage("No delivery employee assigned.");
-      return;
-    }
-    setAdminOpsMessage("Unassigning...");
-    unassignAdminDelivery(adminOrderDetail.id)
-      .then((ord) => {
-        setAdminOrderDetail(ord);
-        setAdminOpsMessage("Delivery unassigned.");
-        loadAdminSectionData("orders");
-      })
-      .catch((e) => setAdminOpsMessage(e.message || "Unassign failed."));
-  }
-
-  function getAdminRefundableInfo(order) {
-    if (!order) return { paymentAmount: null, maxRefundable: null, paymentStatus: null };
-    const payments = Array.isArray(order.payments) ? order.payments : [];
-    const refundableStatuses = ["paid", "refund_pending", "partially_refunded"];
-    const paid = payments.find((p) => refundableStatuses.includes(p.status)) || payments[0] || null;
-    const paymentAmount = paid ? Number(paid.amount) : (order.total_amount != null ? Number(order.total_amount) : null);
-    const completedRefunded = Number(order.refunds_summary?.completed_amount ?? 0);
-    let maxRefundable = null;
-    if (paymentAmount != null && !Number.isNaN(paymentAmount)) {
-      maxRefundable = Math.max(0, Math.round((paymentAmount - completedRefunded) * 100) / 100);
-    }
-    return { paymentAmount, maxRefundable, paymentStatus: paid?.status || order.payment_status || null };
-  }
-
-  function closeCancelModal() {
-    setCancelModalOpen(false);
-    setCancelModalReason("");
-    setCancelModalError("");
-    setCancelModalSubmitting(false);
-  }
-
-  function openCancelModal() {
-    if (!adminOrderDetail?.id) return;
-    setCancelModalReason("");
-    setCancelModalError("");
-    setCancelModalSubmitting(false);
-    setCancelModalOpen(true);
-  }
-
-  function confirmCancelModal() {
-    if (!adminOrderDetail?.id) return;
-    setCancelModalSubmitting(true);
-    setCancelModalError("");
-    cancelAdminOrder(adminOrderDetail.id, cancelModalReason.trim())
-      .then((d) => {
-        setAdminOrderDetail(d);
-        setAdminOpsMessage("Order cancelled.");
-        closeCancelModal();
-        loadAdminSectionData("orders");
-      })
-      .catch((e) => setCancelModalError(e.message || "Cancel failed."))
-      .finally(() => setCancelModalSubmitting(false));
-  }
-
-  function closeRefundModal() {
-    setRefundModalOpen(false);
-    setRefundModalAmount("");
-    setRefundModalReason("Admin refund");
-    setRefundModalError("");
-    setRefundModalSubmitting(false);
-  }
-
-  function openRefundModal() {
-    if (!adminOrderDetail?.id) return;
-    setRefundModalAmount("");
-    setRefundModalReason("Admin refund");
-    setRefundModalError("");
-    setRefundModalSubmitting(false);
-    setRefundModalOpen(true);
-  }
-
-  function confirmRefundModal() {
-    if (!adminOrderDetail?.id) return;
-    const { maxRefundable } = getAdminRefundableInfo(adminOrderDetail);
-    const amountStr = String(refundModalAmount || "").trim();
-    const payload = { reason: (refundModalReason || "").trim() || "Admin refund" };
-    if (amountStr) {
-      const amountNum = Number(amountStr);
-      if (!Number.isFinite(amountNum) || amountNum <= 0) {
-        setRefundModalError("Enter a valid refund amount greater than zero, or leave blank for full refund.");
-        return;
-      }
-      if (maxRefundable != null && amountNum > maxRefundable + 1e-9) {
-        setRefundModalError(`Amount cannot exceed max refundable (Rs.${maxRefundable.toLocaleString("en-IN")}).`);
-        return;
-      }
-      payload.amount = amountStr;
-    }
-    setRefundModalSubmitting(true);
-    setRefundModalError("");
-    refundAdminOrder(adminOrderDetail.id, payload)
-      .then(() => {
-        setAdminOpsMessage("Refund initiated");
-        closeRefundModal();
-        return fetchAdminOrderDetail(adminOrderDetail.id).then(setAdminOrderDetail);
-      })
-      .catch((e) => setRefundModalError(e.message || "Refund failed."))
-      .finally(() => setRefundModalSubmitting(false));
-  }
-
-  function closeRestockModal() {
-    setRestockModalOpen(false);
-    setRestockModalItem(null);
-    setRestockModalAction("restock");
-    setRestockModalQty("10");
-    setRestockModalReason("Restock");
-    setRestockModalError("");
-    setRestockModalSubmitting(false);
-    setRestockModalSource("inventory");
-  }
-
-  function openRestockModal(item, source = "inventory") {
-    if (!item?.id) return;
-    setRestockModalItem(item);
-    setRestockModalAction("restock");
-    setRestockModalQty("10");
-    setRestockModalReason("Restock");
-    setRestockModalError("");
-    setRestockModalSubmitting(false);
-    setRestockModalSource(source);
-    setRestockModalOpen(true);
-  }
-
-  function confirmRestockModal() {
-    if (!restockModalItem?.id) return;
-    const qtyNum = Number(restockModalQty);
-    if (!Number.isFinite(qtyNum) || !Number.isInteger(qtyNum)) {
-      setRestockModalError("Quantity must be a whole number.");
-      return;
-    }
-    if (restockModalAction === "restock" || restockModalAction === "remove" || restockModalAction === "set") {
-      if (qtyNum < 0) {
-        setRestockModalError("Quantity must be zero or greater for this action.");
-        return;
-      }
-    }
-    if (restockModalAction === "restock" && qtyNum === 0) {
-      setRestockModalError("Restock quantity must be greater than zero.");
-      return;
-    }
-    setRestockModalSubmitting(true);
-    setRestockModalError("");
-    const reason = (restockModalReason || "").trim() || "Restock";
-    adjustAdminInventory(restockModalItem.id, {
-      action: restockModalAction,
-      quantity: qtyNum,
-      reason,
-    })
-      .then(() => {
-        setAdminOpsMessage("Stock updated.");
-        const source = restockModalSource;
-        closeRestockModal();
-        if (source === "products") {
-          return fetchProducts().then((data) => {
-            const list = asListResponse(data);
-            setCatalog(list.map(normalizeProduct));
-            notify("Stock updated");
-          });
-        }
-        return loadAdminSectionData("inventory");
-      })
-      .catch((e) => setRestockModalError(e.message || "Unable to adjust stock."))
-      .finally(() => setRestockModalSubmitting(false));
-  }
-
-
-  function openAdminLogin() {
-    setAdminOpen(true);
-    setAdminMessage("");
-    try {
-      window.history.pushState({}, "", "/admin-login");
-    } catch (_) { /* ignore */ }
-  }
-
-  function openCustomerDetail(userId) {
-    setAdminCustomerDetailLoading(true);
-    setAdminCustomerDetail(null);
-    fetchAdminCustomerDetail(userId)
-      .then((d) => setAdminCustomerDetail(d))
-      .catch((e) => setAdminOpsMessage(e.message || "Could not load customer"))
-      .finally(() => setAdminCustomerDetailLoading(false));
-  }
-
-  function openPolicy(slug) {
-    const policy = POLICIES[slug];
-    if (!policy) return;
-    setChatOpen(false);
-    setPolicySlug(slug);
-    try {
-      if ((policyFromPath(window.location.pathname)?.slug || null) !== slug) {
-        window.history.pushState({ policy: slug }, "", policy.path);
-      }
-    } catch (_) { /* ignore */ }
-  }
-
-  function closePolicy() {
-    setPolicySlug(null);
-    try {
-      if (policyFromPath(window.location.pathname)) {
-        window.history.pushState({}, "", "/");
-      }
-    } catch (_) { /* ignore */ }
-  }
-
   function openFooterAdmin() {
     if (isAdminLoggedIn) {
       setAdminOpen(true);
@@ -1005,217 +565,6 @@ function App() {
     } else {
       openAdminLogin();
     }
-  }
-
-  function openRazorpayForPayment(paymentInfo, token, { orderId, amountLabel, successSummary } = {}) {
-    const loadRazorpay = () => new Promise((resolve, reject) => {
-      if (window.Razorpay) {
-        resolve(window.Razorpay);
-        return;
-      }
-
-      const existing = document.getElementById("razorpay-sdk");
-      if (existing) {
-        existing.addEventListener("load", () => resolve(window.Razorpay), { once: true });
-        existing.addEventListener("error", () => reject(new Error("Unable to load Razorpay checkout.")), { once: true });
-        return;
-      }
-
-      const script = document.createElement("script");
-      script.id = "razorpay-sdk";
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.async = true;
-      script.onload = () => resolve(window.Razorpay);
-      script.onerror = () => reject(new Error("Unable to load Razorpay checkout."));
-      document.body.appendChild(script);
-    });
-
-    return loadRazorpay().then((Razorpay) => {
-      const options = {
-        key: paymentInfo.key_id || appConfig.razorpayKeyId,
-        amount: Number(paymentInfo.amount || 0),
-        currency: paymentInfo.currency || "INR",
-        order_id: paymentInfo.payment_order_id,
-        name: "PinkBakes",
-        description: `Payment for ${amountLabel || "order"}`,
-        handler: function (response) {
-          verifyPayment({
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-            amount: Number(paymentInfo.amount || 0),
-            payment_method: "razorpay",
-          }, token)
-            .then((result) => {
-              if (successSummary) {
-                setOrderSuccess({
-                  orderNumber: successSummary.orderNumber,
-                  amount: successSummary.amount,
-                  paymentId: result.payment_id,
-                });
-              }
-              setCart([]);
-              setCheckoutOpen(false);
-              if (orderId) {
-                setSelectedOrder(prev => ({ ...(prev || {}), id: orderId, payment_status: "paid", status: "ORDER_CONFIRMED" }));
-              }
-              notify("Payment successful. Your order has been confirmed.");
-            })
-            .catch((error) => setCheckoutMessage(error.message || "Payment verification failed. Please contact support."));
-        },
-        theme: { color: "#d62f7b" },
-        modal: {
-          ondismiss: () => {
-            setCheckoutMessage("Payment cancelled. Your cart is still intact.");
-          },
-        },
-      };
-
-      const rzp = new Razorpay(options);
-      rzp.open();
-    });
-  }
-
-
-  function handleCancelOrder() {
-    const token = localStorage.getItem("pinkbakes_token");
-    if (!token || !selectedOrder?.id) {
-      setAuthMessage("Please sign in to cancel an order.");
-      return;
-    }
-    setCancelLoading(true);
-    setCancelMessage("");
-    cancelOrder(selectedOrder.id, token, cancelReason)
-      .then((order) => {
-        setSelectedOrder(order);
-        setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, ...order } : o)));
-        setCancelConfirmOpen(false);
-        setCancelReason("");
-        const refundStatus = order.refund?.status || order.refunds_summary?.latest_status;
-        if (order.status === "CANCELLED" && refundStatus && refundStatus !== "completed") {
-          setCancelMessage("Order cancelled. Refund is processing - we will email you when it completes.");
-          notify("Order cancelled. Refund processing.");
-        } else if (order.status === "CANCELLED" && refundStatus === "completed") {
-          setCancelMessage("Order cancelled and refund completed.");
-          notify("Order cancelled. Refund completed.");
-        } else {
-          setCancelMessage("Order cancelled.");
-          notify("Order cancelled.");
-        }
-      })
-      .catch((err) => {
-        setCancelMessage(err?.detail || err?.message || "Unable to cancel this order.");
-      })
-      .finally(() => setCancelLoading(false));
-  }
-
-  function handleRetryPayment(orderId) {
-    const token = localStorage.getItem("pinkbakes_token");
-    if (!token) return;
-
-    setPaymentRetryLoading(true);
-    setCheckoutMessage("");
-
-    retryPayment(orderId, token)
-      .then((paymentInfo) => openRazorpayForPayment(paymentInfo, token, {
-        orderId,
-        amountLabel: `Order #${orderId}`,
-        successSummary: {
-          orderNumber: `PB-${orderId}`,
-          amount: Number((paymentInfo.amount || 0) / 100),
-        },
-      }))
-      .catch((error) => setCheckoutMessage(error.message || "Unable to retry payment."))
-      .finally(() => setPaymentRetryLoading(false));
-  }
-
-  function populateCakeForm(item) {
-    setEditingCakeId(item.id);
-    setCakeForm({
-      name: item.name || "",
-      price: String(item.price ?? ""),
-      discount: String(item.discount ?? 0),
-      category: item.category || "Birthday Cakes",
-      description: item.description || item.short_description || "",
-      image: item.image || "",
-      availability: item.availability || "in_stock",
-      available_quantity: item.available_quantity ?? item.stock_remaining ?? 50,
-      low_stock_threshold: item.low_stock_threshold ?? 5,
-      status: item.status || "published"
-    });
-    setAdminMessage("");
-  }
-
-  function submitCakeForm(e) {
-    e.preventDefault();
-
-    if (!cakeForm.name.trim() || !cakeForm.price || !cakeForm.description.trim()) {
-      setAdminMessage("Please fill in the cake name, price, and description.");
-      return;
-    }
-
-    const token = localStorage.getItem("pinkbakes_admin_token");
-    const baseImage = cakeForm.image || catalog[0]?.image || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1000&q=85";
-    const existingCake = editingCakeId != null ? catalog.find(item => item.id === editingCakeId) : null;
-    const payload = {
-      name: cakeForm.name.trim(),
-      price: Number(cakeForm.price),
-      discount: Number(cakeForm.discount || 0),
-      category: cakeForm.category,
-      description: cakeForm.description.trim(),
-      short_description: cakeForm.description.trim(),
-      main_image: baseImage,
-      image: baseImage,
-      gallery: [baseImage, baseImage],
-      images: [baseImage, baseImage],
-      badge: Number(cakeForm.discount || 0) > 0 ? `${Number(cakeForm.discount || 0)}% OFF` : "New",
-      rating: Number(existingCake?.rating ?? 4.8),
-      featured: false,
-      delivery_time: "24-48 hours",
-      availability: cakeForm.availability || "in_stock",
-      status: cakeForm.status || "published",
-      available_quantity: Number(cakeForm.available_quantity ?? 50),
-      low_stock_threshold: Number(cakeForm.low_stock_threshold ?? 5),
-      is_active: true,
-    };
-
-    const request = editingCakeId != null
-      ? updateProduct(editingCakeId, payload, token)
-      : createProduct(payload, token);
-
-    request
-      .then(product => {
-        const nextCake = normalizeProduct(product);
-        if (editingCakeId != null) {
-          setCatalog(prev => prev.map(item => item.id === editingCakeId ? nextCake : item));
-          setAdminMessage("Cake updated successfully.");
-          notify(`${nextCake.name} updated`);
-        } else {
-          setCatalog(prev => [nextCake, ...prev]);
-          setAdminMessage("Cake added successfully.");
-          notify(`${nextCake.name} added to the catalog`);
-        }
-        resetCakeForm();
-      })
-      .catch(error => {
-        setAdminMessage(error.message || (editingCakeId != null ? "Could not update cake." : "Could not add cake."));
-      });
-  }
-
-  function removeCake(id) {
-    const token = localStorage.getItem("pinkbakes_admin_token");
-    deleteProduct(id, token)
-      .then(() => {
-        setCatalog(prev => prev.filter(p => p.id !== id));
-        if (editingCakeId === id) {
-          resetCakeForm();
-        }
-        setAdminMessage("Cake removed successfully.");
-        notify("Cake removed from catalog");
-      })
-      .catch(error => {
-        setAdminMessage(error.message || "Could not remove cake.");
-      });
   }
 
   return (
