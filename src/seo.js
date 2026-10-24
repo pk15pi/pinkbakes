@@ -1,3 +1,5 @@
+import { policyFromPath } from "./policies";
+
 /**
  * Lightweight document-head helper for the PinkBakes SPA.
  * Equivalent to a head manager (no react-helmet dependency).
@@ -220,6 +222,15 @@ export function parseProductPath(pathname) {
   const m = String(pathname || "").match(/^\/products\/([^/?#]+)\/?$/);
   if (!m) return null;
   return decodeURIComponent(m[1]);
+}
+
+// Paths the single-page app understands; anything else shows the not-found page (bug 011).
+// Account/order/verify links are kept as known so emailed links still open the site.
+export function isKnownAppPath(pathname) {
+  const p = String(pathname || "/");
+  if (p === "/" || p === "/index.html") return true;
+  if (parseProductPath(p) || policyFromPath(p)) return true;
+  return isPrivatePath(p) || p.startsWith("/verify-email");
 }
 
 export function isPrivatePath(pathname) {

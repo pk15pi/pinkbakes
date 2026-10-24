@@ -1,3 +1,5 @@
+import { formatCurrency } from "../appConstants";
+
 function OrderSuccessDialog({ orderSuccess, onDismiss }) {
   return (
     <div className="auth-page-shell" onClick={onDismiss}>
@@ -10,7 +12,7 @@ function OrderSuccessDialog({ orderSuccess, onDismiss }) {
           <div className="auth-form" style={{ gap: 14 }}>
             <div className="cart-summary" style={{ marginTop: 0, padding: 0, border: "none" }}>
               <div><span>Order</span><b>{orderSuccess.orderNumber || "PinkBakes Order"}</b></div>
-              <div><span>Amount</span><b>Rs.{Number(orderSuccess.amount || 0).toLocaleString("en-IN")}</b></div>
+              <div><span>Amount</span><b>{formatCurrency(Number(orderSuccess.amount || 0), 2)}</b></div>
             </div>
             <div className="empty">Payment ID: {orderSuccess.paymentId || "-"}</div>
             <div className="auth-row">

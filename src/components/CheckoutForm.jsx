@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { formatCurrency } from "../appConstants";
 
 function CheckoutForm({
   setCheckoutOpen,
@@ -162,14 +163,14 @@ function CheckoutForm({
             </div>
 
             <div className="cart-summary" style={{ marginTop: 12, padding: 0, border: "none" }}>
-              <div><span>Subtotal</span><b>Rs.{cartTotal.toLocaleString("en-IN")}</b></div>
+              <div><span>Subtotal</span><b>{formatCurrency(cartTotal, 2)}</b></div>
               {appliedCoupon ? (
-                <div><span>Coupon ({appliedCoupon.code})</span><b>-Rs.{couponDiscountPreview.toLocaleString("en-IN")}</b></div>
+                <div><span>Coupon ({appliedCoupon.code})</span><b>-{formatCurrency(couponDiscountPreview, 2)}</b></div>
               ) : null}
               <div><span>Delivery</span><b>{deliveryQuote?.eligible ? (String.fromCharCode(8377) + deliveryFeePreview.toLocaleString("en-IN")) : (deliveryQuote ? "Not available" : "Enter address")}</b></div>
               {deliveryQuoteMessage ? <div className="auth-error" style={{ color: deliveryQuote?.eligible ? "#2f6b4f" : undefined }}>{deliveryQuoteMessage}</div> : null}
               {deliveryQuote?.eta_min_minutes ? <small>ETA {deliveryQuote.eta_min_minutes}-{deliveryQuote.eta_max_minutes || "?"} min</small> : null}
-              <div><span>Total</span><b>Rs.{checkoutPayable.toLocaleString("en-IN")}</b></div>
+              <div><span>Total</span><b>{formatCurrency(checkoutPayable, 2)}</b></div>
             </div>
 
             {checkoutMessage && <div className="auth-error">{checkoutMessage}</div>}

@@ -61,11 +61,67 @@ export const cartQtyCap = (item) => {
   return CART_QTY_MAX;
 };
 
-export const formatCurrency = (value) => new Intl.NumberFormat("en-IN", {
-  style: "currency",
-  currency: "INR",
-  maximumFractionDigits: 0,
-}).format(Number(value || 0));
+// Single rupee formatter for every price shown in the app (always the "₹" symbol).
+// fractionDigits 0 rounds to whole rupees (catalog cards); 2 keeps paise for cart,
+// checkout, order and admin amounts while dropping ".00" on whole amounts.
+export const formatCurrency = (value, fractionDigits = 0) => {
+  const amount = Number(value || 0);
+  const options = fractionDigits > 0
+    ? { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits, trailingZeroDisplay: "stripIfInteger" }
+    : { minimumFractionDigits: 0, maximumFractionDigits: 0 };
+  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", ...options })
+    .format(Number.isFinite(amount) ? amount : 0);
+};
+
+// Product popup options (bug 017). Mirrors the whitelist enforced by the backend.
+export const CAKE_SIZE_OPTIONS = ["0.5 kg", "1 kg", "1.5 kg", "2 kg"];
+export const CAKE_MESSAGE_MAX_LENGTH = 60;
+
+export const isEgglessProduct = (product) =>
+  /eggless/i.test([product?.category, product?.name, product?.badge].filter(Boolean).join(" "));
+
+export const localIsoDate = (date = new Date()) => {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+export function cleanCartOptions(options) {
+  if (!options || typeof options !== "object") return null;
+  const cleaned = {};
+  if (CAKE_SIZE_OPTIONS.includes(options.size)) cleaned.size = options.size;
+  if (options.eggless === true) cleaned.eggless = true;
+  const message = typeof options.message === "string" ? options.message.replace(/\s+/g, " ").trim().slice(0, CAKE_MESSAGE_MAX_LENGTH) : "";
+  if (message) cleaned.message = message;
+  if (typeof options.delivery_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(options.delivery_date)) cleaned.delivery_date = options.delivery_date;
+  return Object.keys(cleaned).length ? cleaned : null;
+}
+
+export const cartLineKey = (id, options) => {
+  if (!options) return String(id);
+  return [id, options.size || "", options.eggless ? "eggless" : "", options.message || "", options.delivery_date || ""].join("|");
+};
+
+export function describeCartOptions(options) {
+  if (!options) return "";
+  const parts = [];
+  if (options.size) parts.push(options.size);
+  if (options.eggless) parts.push("Eggless");
+  if (options.message) parts.push(`Message: "${options.message}"`);
+  if (options.delivery_date) {
+    const [y, m, d] = options.delivery_date.split("-").map(Number);
+    const when = new Date(y, (m || 1) - 1, d || 1);
+    parts.push(`Delivery: ${Number.isNaN(when.getTime()) ? options.delivery_date : when.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`);
+  }
+  return parts.join(" | ");
+}
+
+// Shape sent to /cart, /coupons, /delivery quote and checkout endpoints.
+export const cartPayloadItems = (cart) =>
+  (cart || []).map((item) => ({
+    id: item.id,
+    quantity: item.qty || 1,
+    ...(item.options ? { options: item.options } : {}),
+  }));
 
 export function mapShopCategories(fromApi, items) {
   if (fromApi && fromApi.length) {

@@ -6,6 +6,7 @@ import {
   submitReview,
 } from "../services/authService";
 import { hasCakeContent, normalizeProduct } from "../productUtils";
+import { CAKE_MESSAGE_MAX_LENGTH, CAKE_SIZE_OPTIONS, formatCurrency, isEgglessProduct, localIsoDate } from "../appConstants";
 
 function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
   const [detail, setDetail] = useState(() => normalizeProduct(product));
@@ -15,6 +16,9 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
   const [threeD,setThreeD] = useState(false);
   const [size,setSize] = useState("1 kg");
   const [eggless,setEggless] = useState(false);
+  const [cakeMessage,setCakeMessage] = useState("");
+  const [deliveryDate,setDeliveryDate] = useState("");
+  const [optionError,setOptionError] = useState("");
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
   const [reviewForm,setReviewForm] = useState({ rating: 5, comment: "" });
@@ -114,6 +118,20 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
   }
 
   const currentPrice = Number(detail.discounted_price ?? ((detail.price * (100 - (detail.discount || 0))) / 100 || detail.price));
+  const egglessProduct = isEgglessProduct(detail);
+
+  function handleAdd() {
+    if (deliveryDate && deliveryDate < localIsoDate()) {
+      setOptionError("Delivery date cannot be in the past.");
+      return;
+    }
+    onAdd(detail, {
+      size,
+      eggless: egglessProduct ? undefined : eggless,
+      message: cakeMessage,
+      delivery_date: deliveryDate,
+    });
+  }
   const gallery = detail.gallery && detail.gallery.length ? detail.gallery : [detail.image || ""];
 
   return <div className="modal-backdrop" onClick={onClose}>
@@ -153,15 +171,18 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
             <h1 className="product-title">{detail.name}</h1>
             {(detail.description || detail.short_description) && <p className="modal-desc">{detail.description || detail.short_description}</p>}
             <div className="modal-price-row">
-              <span className="modal-price">Rs.{Number(currentPrice || 0).toLocaleString("en-IN")}</span>
-              {Number(detail.discount || 0) > 0 && <span className="strike">Rs.{Number(detail.price || 0).toLocaleString("en-IN")}</span>}
+              <span className="modal-price">{formatCurrency(currentPrice, 2)}</span>
+              {Number(detail.discount || 0) > 0 && <span className="strike">{formatCurrency(detail.price, 2)}</span>}
             </div>
             {Number(detail.discount || 0) > 0 && <small className="discount-badge">{detail.discount}% OFF</small>}
-            <label>Choose Size</label><div className="option-row">{["0.5 kg","1 kg","1.5 kg","2 kg"].map(x=><button className={size===x?"selected-option":""} key={x} onClick={()=>setSize(x)}>{x}</button>)}</div>
-            <label>Preference</label><div className="option-row"><button className={!eggless?"selected-option":""} onClick={()=>setEggless(false)}>Regular</button><button className={eggless?"selected-option":""} onClick={()=>setEggless(true)}>Eggless</button></div>
-            <label>Message on Cake</label><input className="cake-message" placeholder="Happy Birthday..."/>
-            <label>Delivery Date</label><input className="cake-message" type="date"/>
-            <button className="btn primary full" disabled={isOutOfStock ? isOutOfStock(detail) : false} onClick={() => onAdd(detail)}>{(isOutOfStock && isOutOfStock(detail)) ? "Out of Stock" : <>Add to Cart <ShoppingBag size={17}/></>}</button>
+            <label>Choose Size</label><div className="option-row">{CAKE_SIZE_OPTIONS.map(x=><button className={size===x?"selected-option":""} key={x} onClick={()=>setSize(x)}>{x}</button>)}</div>
+            {egglessProduct
+              ? <><label>Preference</label><div className="option-row"><button type="button" className="selected-option" disabled>Eggless</button></div><small className="option-note">This cake is already eggless.</small></>
+              : <><label>Preference</label><div className="option-row"><button className={!eggless?"selected-option":""} onClick={()=>setEggless(false)}>Regular</button><button className={eggless?"selected-option":""} onClick={()=>setEggless(true)}>Eggless</button></div></>}
+            <label htmlFor="cake-message-input">Message on Cake</label><input id="cake-message-input" className="cake-message" placeholder="Happy Birthday..." maxLength={CAKE_MESSAGE_MAX_LENGTH} value={cakeMessage} onChange={e => setCakeMessage(e.target.value)}/>
+            <label htmlFor="cake-delivery-date">Delivery Date</label><input id="cake-delivery-date" className="cake-message" type="date" min={localIsoDate()} value={deliveryDate} onChange={e => { setDeliveryDate(e.target.value); setOptionError(""); }}/>
+            {optionError && <div className="auth-error" role="alert">{optionError}</div>}
+            <button className="btn primary full" disabled={isOutOfStock ? isOutOfStock(detail) : false} onClick={handleAdd}>{(isOutOfStock && isOutOfStock(detail)) ? "Out of Stock" : <>Add to Cart <ShoppingBag size={17}/></>}</button>
             <div className="secure"><ShieldCheck/> Freshly made * Secure checkout * Delivery support</div>
 
             <div className="review-panel">

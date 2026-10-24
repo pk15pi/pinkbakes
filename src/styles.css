@@ -2289,3 +2289,78 @@ button.btn.primary.full:disabled {
   font-weight: 500;
   text-decoration: line-through;
 }
+
+/* Product popup: note shown when a cake is already eggless (bug 017). */
+.option-note{display:block;font-size:10px;color:#89796d;margin-top:6px}
+.option-row button:disabled{cursor:default;opacity:.9}
+.cart-options{line-height:1.5}
+/* Not-found page and error fallback reuse the policy-page look (bugs 011/013). */
+.policy-page-brand{text-decoration:none}
+.not-found-page .policy-page-nav button,.error-fallback .policy-page-nav button{padding:10px 16px;font-size:14px}
+
+/* Phone header and floating buttons (owner report, 24 Oct):
+   - the brand is never shrunk or covered: the action buttons give way instead;
+   - the search icon is shown on phones too (it was hidden at <=720px since the original code)
+     and jumps to the catalog search box;
+   - Order Now moves into the menu on the narrowest phones, where the bar has no room for it;
+   - the Sign in float and the Help button share one bottom line, size and edge spacing. */
+.nav-order{display:none}
+.auth-float{padding:0;border:0;background:none;font:inherit;color:inherit}
+.auth-float:focus-visible .auth-float-badge,.chatbot-launch:focus-visible{outline:2px solid #8e6536;outline-offset:3px}
+.auth-float-badge{height:56px;padding:0 20px}
+
+@media (max-width: 720px) {
+  .header{padding:0 12px;gap:6px}
+  .header .brand{flex:0 0 auto;min-width:auto;overflow:visible;gap:7px}
+  .header .brand strong{overflow:visible;text-overflow:clip}
+  .header .brand-mark{width:32px;height:32px;flex:0 0 32px}
+  .header .header-actions{flex:0 1 auto;min-width:0;margin-left:auto;gap:4px}
+  .header .search-toggle{display:inline-flex;width:44px;height:44px;min-width:44px;box-shadow:none}
+  .header .header-action{min-width:44px}
+
+  .auth-float{left:16px;bottom:calc(16px + env(safe-area-inset-bottom, 0px))}
+  .auth-float-badge{height:48px;padding:0 16px}
+  .chatbot-dock{right:16px;bottom:calc(16px + env(safe-area-inset-bottom, 0px))}
+  .chatbot-launch{height:48px;min-width:48px;box-shadow:0 12px 28px rgba(142,101,54,.34)}
+  /* Keep the last footer line clear of the two floats. */
+  .footer-bottom{padding-bottom:72px}
+}
+
+/* Tablet-portrait phones (481-600px): labels make the bar too wide once search is back. */
+@media (min-width: 481px) and (max-width: 600px) {
+  .header .header-action .action-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .header .header-action{padding:0 12px}
+}
+
+@media (max-width: 480px) {
+  .header .brand small{display:none}
+  .header .order-top{padding:0 12px;font-size:11px}
+  /* Both floats become 48px circles so they read as a pair and cover as little as possible. */
+  .auth-float-badge{width:48px;padding:0;justify-content:center}
+  .auth-float-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .chatbot-launch{width:48px;padding:0}
+}
+
+@media (max-width: 413px) {
+  .header .order-top{display:none}
+  .nav.mobile-visible .nav-order{
+    display:block;width:100%;margin-top:6px;padding:12px 16px;text-align:center;
+    border-radius:25px;background:#a67a43;color:#fff;font-weight:600;
+  }
+}
+
+@media (max-width: 359px) {
+  .header{padding:0 8px;gap:4px}
+  .header .brand{gap:6px}
+  .header .brand-mark{width:30px;height:30px;flex-basis:30px}
+}
+
+/* Header icons share one size; the cart badge stays inside the bar on phones. */
+.header .search-toggle svg{width:18px;height:18px}
+@media (max-width: 720px) {
+  .header .cart-count{right:0;top:-2px}
+  .auth-float,.chatbot-dock{transition:opacity .2s ease,transform .2s ease}
+  body.floats-yield .auth-float,
+  body.floats-yield .chatbot-dock:not(.is-open){opacity:0;transform:translateY(12px);pointer-events:none}
+  body.floats-yield .chatbot-dock:not(.is-open) > *{pointer-events:none}
+}

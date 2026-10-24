@@ -1,6 +1,7 @@
 import { Trash2 } from "lucide-react";
 import AdminEmployeesPanel from "./AdminEmployeesPanel";
 import { buildRefundTableRows } from "../adminRefundUtils";
+import { describeCartOptions, formatCurrency } from "../appConstants";
 
 function AdminDashboardPanel({
   BRAND_NAME,
@@ -179,16 +180,16 @@ function AdminDashboardPanel({
                       <div className="report-card" role="button" onClick={() => goAdminSection("employees")}><span>Out for delivery</span><strong>{adminDashboard?.orders?.out_for_delivery ?? 0}</strong></div>
                       <div className="report-card"><span>Delivered</span><strong>{adminDashboard?.orders?.delivered ?? 0}</strong></div>
                       <div className="report-card"><span>Cancelled</span><strong>{adminDashboard?.orders?.cancelled ?? 0}</strong></div>
-                      <div className="report-card" role="button" onClick={() => goAdminSection("reports")}><span>Net revenue</span><strong>Rs.{Number(adminDashboard?.revenue ?? 0).toLocaleString("en-IN")}</strong></div>
+                      <div className="report-card" role="button" onClick={() => goAdminSection("reports")}><span>Net revenue</span><strong>{formatCurrency(Number(adminDashboard?.revenue ?? 0), 2)}</strong></div>
                       <div className="report-card" role="button" onClick={() => goAdminSection("payments")}><span>Payments OK</span><strong>{adminDashboard?.payments?.successful ?? 0}</strong></div>
                       <div className="report-card" role="button" onClick={() => goAdminSection("refunds")}><span>Refunds pending</span><strong>{adminDashboard?.payments?.refunds_pending ?? 0}</strong></div>
                       <div className="report-card" role="button" onClick={() => goAdminSection("inventory")}><span>Low stock</span><strong>{adminDashboard?.low_stock ?? 0}</strong></div>
                       <div className="report-card" role="button" onClick={() => goAdminSection("coupons")}><span>Active coupons</span><strong>{adminDashboard?.active_coupons ?? 0}</strong></div>
                       <div className="report-card" role="button" onClick={() => goAdminSection("reviews")}><span>Reviews pending</span><strong>{adminDashboard?.reviews?.pending ?? 0}</strong></div>
                       <div className="report-card" role="button" onClick={() => goAdminSection("customers")}><span>Customers</span><strong>{adminDashboard?.customers?.total ?? 0}</strong></div>
-                      <div className="report-card"><span>Gross sales</span><strong>Rs.{Number(adminDashboard?.sales_summary?.gross_sales ?? 0).toLocaleString("en-IN")}</strong></div>
-                      <div className="report-card"><span>Refunds</span><strong>Rs.{Number(adminDashboard?.sales_summary?.refunds ?? 0).toLocaleString("en-IN")}</strong></div>
-                      <div className="report-card"><span>Delivery fees</span><strong>Rs.{Number(adminDashboard?.sales_summary?.delivery_charges ?? 0).toLocaleString("en-IN")}</strong></div>
+                      <div className="report-card"><span>Gross sales</span><strong>{formatCurrency(Number(adminDashboard?.sales_summary?.gross_sales ?? 0), 2)}</strong></div>
+                      <div className="report-card"><span>Refunds</span><strong>{formatCurrency(Number(adminDashboard?.sales_summary?.refunds ?? 0), 2)}</strong></div>
+                      <div className="report-card"><span>Delivery fees</span><strong>{formatCurrency(Number(adminDashboard?.sales_summary?.delivery_charges ?? 0), 2)}</strong></div>
                     </div>
                   </div>
                 )}
@@ -216,7 +217,7 @@ function AdminDashboardPanel({
                         <h4>{adminOrderDetail.order_number} - {adminOrderDetail.status}</h4>
                         <p>{adminOrderDetail.customer_name} | {adminOrderDetail.customer_email} | {adminOrderDetail.customer_mobile}</p>
                         <p>{adminOrderDetail.shipping_address}, {adminOrderDetail.city} {adminOrderDetail.postal_code}</p>
-                        <p>Payment: {adminOrderDetail.payment_status} | Total Rs.{Number(adminOrderDetail.total_amount || 0).toLocaleString("en-IN")} | Coupon {adminOrderDetail.coupon_code || "-"}</p>
+                        <p>Payment: {adminOrderDetail.payment_status} | Total {formatCurrency(Number(adminOrderDetail.total_amount || 0), 2)} | Coupon {adminOrderDetail.coupon_code || "-"}</p>
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "12px 0" }}>
                           <select id="admin-next-status" key={adminOrderDetail.status} defaultValue="">
                             <option value="">Next status...</option>
@@ -253,7 +254,7 @@ function AdminDashboardPanel({
                             : "Not assigned"}
                         </p>
                         <div className="table-wrap"><table className="report-table"><thead><tr><th>Item</th><th>Qty</th><th>Price</th></tr></thead><tbody>
-                          {(adminOrderDetail.items || []).map((it) => <tr key={it.id}><td>{it.product_name}</td><td>{it.quantity}</td><td>Rs.{Number(it.subtotal || 0).toLocaleString("en-IN")}</td></tr>)}
+                          {(adminOrderDetail.items || []).map((it) => <tr key={it.id}><td>{it.product_name}{it.options && <small className="admin-muted" style={{ display: "block" }}>{describeCartOptions(it.options)}</small>}</td><td>{it.quantity}</td><td>{formatCurrency(Number(it.subtotal || 0), 2)}</td></tr>)}
                         </tbody></table></div>
                         <h4>History</h4>
                         <ul>{(adminOrderDetail.status_history || []).map((h) => <li key={h.id}>{h.status} - {h.message} <small>{new Date(h.created_at).toLocaleString()}</small></li>)}</ul>
@@ -263,7 +264,7 @@ function AdminDashboardPanel({
                         {adminOrders.length === 0 && (<tr><td colSpan={6}><div className="admin-empty">No orders match filters.</div></td></tr>)}{adminOrders.map((o) => (
                           <tr key={o.id}>
                             <td>{o.order_number}</td><td>{o.customer_name}</td><td>{o.status}</td><td>{o.payment_status}</td>
-                            <td>Rs.{Number(o.total_amount || 0).toLocaleString("en-IN")}</td>
+                            <td>{formatCurrency(Number(o.total_amount || 0), 2)}</td>
                             <td><button type="button" className="btn secondary small" onClick={() => fetchAdminOrderDetail(o.id).then(setAdminOrderDetail).catch((e) => setAdminOpsMessage(e.message))}>Open</button></td>
                           </tr>
                         ))}
@@ -278,7 +279,7 @@ function AdminDashboardPanel({
                       <button type="button" className="btn secondary small" onClick={() => downloadAdminExport("payments").catch((e) => setAdminOpsMessage(e.message))}>Export CSV</button>
                     </div>
                     <div className="table-wrap"><table className="report-table"><thead><tr><th>Order</th><th>Customer</th><th>Amount</th><th>Status</th><th>Method</th><th>Gateway order</th><th>Failure</th></tr></thead><tbody>
-                      {adminPayments.length === 0 && (<tr><td colSpan={7}><div className="admin-empty">No payments yet.</div></td></tr>)}{adminPayments.map((p) => <tr key={p.id != null ? `pay-${p.id}` : `order-${p.order_id}`}><td>{p.order_number || "-"}</td><td>{p.customer_name || "-"}</td><td>Rs.{Number(p.amount || 0).toLocaleString("en-IN")}</td><td>{p.status}{p.source === "order_derived" ? " (from order)" : ""}</td><td>{p.payment_method || "-"}</td><td>{p.gateway_order_id || "-"}</td><td>{p.failure_reason || "-"}</td></tr>)}
+                      {adminPayments.length === 0 && (<tr><td colSpan={7}><div className="admin-empty">No payments yet.</div></td></tr>)}{adminPayments.map((p) => <tr key={p.id != null ? `pay-${p.id}` : `order-${p.order_id}`}><td>{p.order_number || "-"}</td><td>{p.customer_name || "-"}</td><td>{formatCurrency(Number(p.amount || 0), 2)}</td><td>{p.status}{p.source === "order_derived" ? " (from order)" : ""}</td><td>{p.payment_method || "-"}</td><td>{p.gateway_order_id || "-"}</td><td>{p.failure_reason || "-"}</td></tr>)}
                     </tbody></table></div>
                   </div>
                 )}
@@ -372,7 +373,7 @@ function AdminDashboardPanel({
                         <tr><td colSpan={7}><div className="admin-empty">No customers found.</div></td></tr>
                       )}
                       {adminCustomers.map((c) => (
-                        <tr key={c.id}><td>{c.username}</td><td>{c.email}</td><td>{c.mobile_number || "-"}</td><td>{c.order_count}</td><td>Rs.{Number(c.total_purchase || 0).toLocaleString("en-IN")}</td><td>{c.is_active ? "Yes" : "No"}</td>
+                        <tr key={c.id}><td>{c.username}</td><td>{c.email}</td><td>{c.mobile_number || "-"}</td><td>{c.order_count}</td><td>{formatCurrency(Number(c.total_purchase || 0), 2)}</td><td>{c.is_active ? "Yes" : "No"}</td>
                           <td style={{ display: "flex", gap: 6 }}>
                             <button type="button" className="btn secondary small" onClick={() => openCustomerDetail(c.id)}>View</button>
                             <button type="button" className="btn secondary small" onClick={() => updateAdminCustomerStatus(c.id, !c.is_active).then(() => { loadAdminSectionData("customers"); if (adminCustomerDetail?.id === c.id) openCustomerDetail(c.id); }).catch((e) => setAdminOpsMessage(e.message))}>{c.is_active ? "Deactivate" : "Activate"}</button>
@@ -519,13 +520,13 @@ function AdminDashboardPanel({
                           <div className="report-card"><span>Total reviews</span><strong>{reportSummary.review_stats?.total_reviews ?? 0}</strong></div>
                           <div className="report-card"><span>Average rating</span><strong>{Number(reportSummary.review_stats?.average_rating ?? 0).toFixed(1)}</strong></div>
                           <div className="report-card"><span>Pending reviews</span><strong>{reportSummary.review_stats?.pending_reviews ?? 0}</strong></div>
-                          <div className="report-card"><span>Revenue</span><strong>Rs.{Number(reportSummary.sales_stats?.total_sales ?? 0).toLocaleString("en-IN")}</strong></div>
+                          <div className="report-card"><span>Revenue</span><strong>{formatCurrency(Number(reportSummary.sales_stats?.total_sales ?? 0), 2)}</strong></div>
                           <div className="report-card"><span>Successful payments</span><strong>{reportSummary.sales_stats?.successful_payments ?? 0}</strong></div>
                           <div className="report-card"><span>Failed payments</span><strong>{reportSummary.sales_stats?.failed_payments ?? 0}</strong></div>
                           <div className="report-card"><span>Pending payments</span><strong>{reportSummary.sales_stats?.pending_payments ?? 0}</strong></div>
                           <div className="report-card"><span>Orders</span><strong>{reportSummary.sales_stats?.total_orders ?? 0}</strong></div>
                           <div className="report-card"><span>Orders with coupon</span><strong>{reportSummary.sales_stats?.orders_with_coupon ?? 0}</strong></div>
-                          <div className="report-card"><span>Coupon discount</span><strong>Rs.{Number(reportSummary.sales_stats?.total_coupon_discount ?? 0).toLocaleString("en-IN")}</strong></div>
+                          <div className="report-card"><span>Coupon discount</span><strong>{formatCurrency(Number(reportSummary.sales_stats?.total_coupon_discount ?? 0), 2)}</strong></div>
                           <div className="report-card"><span>Coupons used</span><strong>{reportSummary.sales_stats?.coupons_used_count ?? 0}</strong></div>
                         </div>
     
@@ -677,7 +678,7 @@ function AdminDashboardPanel({
                         <input value={cakeForm.name} onChange={e => setCakeForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Strawberry Delight" />
                       </label>
                       <label>
-                        Price (Rs.)
+                        Price (₹)
                         <input type="number" value={cakeForm.price} onChange={e => setCakeForm(prev => ({ ...prev, price: e.target.value }))} placeholder="1299" />
                       </label>
                       <label>
@@ -736,7 +737,7 @@ function AdminDashboardPanel({
                               <strong>{item.name}</strong>
                               <span>{item.category}</span>
                               <small className="stock-meta">Stock: {item.available_quantity ?? item.stock_remaining ?? 0} ({item.availability || "in_stock"})</small>
-                              <small>Rs.{item.price.toLocaleString("en-IN")}</small>
+                              <small>{formatCurrency(item.price, 2)}</small>
                             </div>
                           </div>
                           <div className="admin-item-actions">

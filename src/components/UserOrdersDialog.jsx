@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { describeCartOptions, formatCurrency } from "../appConstants";
 
 function UserOrdersDialog({
   setOrderHistoryOpen,
@@ -103,9 +104,9 @@ function UserOrdersDialog({
                 <div><span>Payment</span><b>{selectedOrder.payment_status || "pending"}</b></div>
                 {selectedOrder.coupon_code ? <div><span>Coupon</span><b>{selectedOrder.coupon_code}</b></div> : null}
                 {Number(selectedOrder.coupon_discount_amount || selectedOrder.discount_amount || 0) > 0 ? (
-                  <div><span>Coupon discount</span><b>-Rs.{Number(selectedOrder.coupon_discount_amount || selectedOrder.discount_amount || 0).toLocaleString("en-IN")}</b></div>
+                  <div><span>Coupon discount</span><b>-{formatCurrency(Number(selectedOrder.coupon_discount_amount || selectedOrder.discount_amount || 0), 2)}</b></div>
                 ) : null}
-                <div><span>Total</span><b>Rs.{Number(selectedOrder.total_amount || 0).toLocaleString("en-IN")}</b></div>
+                <div><span>Total</span><b>{formatCurrency(Number(selectedOrder.total_amount || 0), 2)}</b></div>
                 {Number(selectedOrder.delivery_fee || 0) > 0 ? (
                   <div><span>Delivery fee</span><b>{String.fromCharCode(8377)}{Number(selectedOrder.delivery_fee || 0).toLocaleString("en-IN")}</b></div>
                 ) : (
@@ -191,7 +192,8 @@ function UserOrdersDialog({
                   <div>
                     <b>{item.product_name}</b>
                     <small>Qty: {item.quantity}</small>
-                    <strong>Rs.{Number(item.subtotal || 0).toLocaleString("en-IN")}</strong>
+                    {item.options && <small className="cart-options">{describeCartOptions(item.options)}</small>}
+                    <strong>{formatCurrency(Number(item.subtotal || 0), 2)}</strong>
                   </div>
                 </div>
               ))}
@@ -250,7 +252,7 @@ function UserOrdersDialog({
                       </div>
                     </div>
                     <div className="admin-item-actions">
-                      <strong>Rs.{Number(order.total_amount || 0).toLocaleString("en-IN")}</strong>
+                      <strong>{formatCurrency(Number(order.total_amount || 0), 2)}</strong>
                       <span>{order.payment_status || "pending"}</span>
                     </div>
                   </button>

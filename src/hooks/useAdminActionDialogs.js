@@ -11,6 +11,7 @@ import {
 } from "../services/authService";
 import { asListResponse } from "../services/authService";
 import { normalizeProduct } from "../productUtils";
+import { formatCurrency } from "../appConstants";
 
 export default function useAdminActionDialogs({
   adminOrderDetail,
@@ -188,7 +189,7 @@ export default function useAdminActionDialogs({
         return;
       }
       if (maxRefundable != null && amount > maxRefundable + 1e-9) {
-        setRefundModalError(`Amount cannot exceed max refundable (Rs.${maxRefundable.toLocaleString("en-IN")}).`);
+        setRefundModalError(`Amount cannot exceed max refundable (${formatCurrency(maxRefundable, 2)}).`);
         return;
       }
       payload.amount = amountString;

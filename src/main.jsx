@@ -64,6 +64,9 @@ import usePolicyRoute from "./hooks/usePolicyRoute";
 import { POLICIES } from "./policies";
 import ProductModal from "./components/ProductModal";
 import PolicyPage from "./components/PolicyPage";
+import NotFoundPage from "./components/NotFoundPage";
+import ErrorBoundary from "./components/ErrorBoundary";
+import { isKnownAppPath } from "./seo";
 import AdminDashboardPanel from "./components/AdminDashboardPanel";
 import AdminDialogs from "./components/AdminDialogs";
 import AdminCustomerDrawer from "./components/AdminCustomerDrawer";
@@ -123,6 +126,7 @@ function App() {
   const [adminOpsMessage, setAdminOpsMessage] = useState("");
   const [adminLoadingSection, setAdminLoadingSection] = useState(false);
   const scrollRoomRef = useRef(null);
+  const scrollCorrectionRef = useRef(null);
   const [orderSuccess, setOrderSuccess] = useState(null);
   const [product3d, setProduct3d] = useState(null);
   const {
@@ -314,6 +318,19 @@ function App() {
     openHelpDeskTopic,
   } = useChatAssistant(catalog);
   const { policySlug, openPolicy, closePolicy } = usePolicyRoute(setChatOpen);
+  // Bug 011: unknown URLs get a real not-found page instead of silently showing home.
+  const [pageNotFound, setPageNotFound] = useState(() => !isKnownAppPath(window.location.pathname));
+  useEffect(() => {
+    const onPop = () => setPageNotFound(!isKnownAppPath(window.location.pathname));
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  function leaveNotFound(sectionId) {
+    try { window.history.pushState({}, "", "/"); } catch { /* ignore */ }
+    setPageNotFound(false);
+    if (sectionId) window.setTimeout(() => scrollTo(sectionId), 0);
+    else window.scrollTo(0, 0);
+  }
   const {
     orderHistoryOpen,
     setOrderHistoryOpen,
@@ -476,6 +493,7 @@ function App() {
     orderHistoryOpen,
     catalogLoading,
     policySlug,
+    pageNotFound,
   });
   const couponDiscountPreview = Number(appliedCoupon?.discount_amount || 0);
   const deliveryFeePreview = deliveryQuote?.eligible ? Number(deliveryQuote.delivery_fee || 0) : 0;
@@ -515,20 +533,93 @@ function App() {
     return "In stock";
   }
 
+  // Phones: the Sign in and Help floats sit in the bottom corners. Fade them while the hero
+  // buttons pass through that strip so they never cover the main call to action.
+  useEffect(() => {
+    const target = document.querySelector(".hero-buttons");
+    if (!target || typeof IntersectionObserver === "undefined") return undefined;
+    const FLOAT_STRIP = 88;
+    let observer = null;
+    const observe = () => {
+      if (observer) observer.disconnect();
+      observer = new IntersectionObserver(
+        ([entry]) => document.body.classList.toggle("floats-yield", entry.isIntersecting),
+        { rootMargin: `-${Math.max(0, window.innerHeight - FLOAT_STRIP)}px 0px 0px 0px` },
+      );
+      observer.observe(target);
+    };
+    observe();
+    window.addEventListener("resize", observe);
+    return () => {
+      if (observer) observer.disconnect();
+      window.removeEventListener("resize", observe);
+      document.body.classList.remove("floats-yield");
+    };
+  }, []);
+
   function scrollTo(id) {
     setMobileOpen(false);
     const el = document.getElementById(id);
     if (!el) return;
-    // Contact is the last in-page section. Without extra room below the footer,
-    // the browser is already at max scroll and scrollIntoView cannot move it.
-    const room = scrollRoomRef.current;
-    if (room) room.style.height = "0px";
-    const absTop = el.getBoundingClientRect().top + window.scrollY;
-    const target = Math.max(0, absTop - STICKY_HEADER_OFFSET);
-    const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-    const extra = Math.ceil(target - maxScroll);
-    if (room && extra > 1) room.style.height = `${extra}px`;
-    window.scrollTo({ top: target, behavior: "smooth" });
+    const aim = () => {
+      // Contact is the last in-page section. Without extra room below the footer,
+      // the browser is already at max scroll and scrollIntoView cannot move it.
+      const room = scrollRoomRef.current;
+      if (room) room.style.height = "0px";
+      const absTop = el.getBoundingClientRect().top + window.scrollY;
+      const target = Math.max(0, absTop - STICKY_HEADER_OFFSET);
+      const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      const extra = Math.ceil(target - maxScroll);
+      if (room && extra > 1) room.style.height = `${extra}px`;
+      window.scrollTo({ top: target, behavior: "smooth" });
+    };
+    aim();
+    // Bug 021: lazy images above the section load during the smooth scroll and push it down,
+    // so the first target goes stale. Re-aim as soon as the section moves, and once more after
+    // scrolling settles (bounded). Any user scroll input cancels the correction.
+    stopScrollCorrection();
+    const sectionTop = () => el.getBoundingClientRect().top + window.scrollY;
+    let aimedTop = sectionTop();
+    let lastY = -1;
+    let stableTicks = 0;
+    let ticks = 0;
+    let corrections = 0;
+    const cancel = () => stopScrollCorrection();
+    const timer = window.setInterval(() => {
+      ticks += 1;
+      if (ticks > 60 || corrections >= 8) return stopScrollCorrection();
+      const top = sectionTop();
+      if (Math.abs(top - aimedTop) > 4) {
+        corrections += 1;
+        aimedTop = top;
+        stableTicks = 0;
+        aim();
+        return;
+      }
+      const y = window.scrollY;
+      stableTicks = Math.abs(y - lastY) < 1 ? stableTicks + 1 : 0;
+      lastY = y;
+      if (stableTicks < 2) return;
+      const drift = el.getBoundingClientRect().top - STICKY_HEADER_OFFSET;
+      if (Math.abs(drift) > 4 && corrections < 3) {
+        corrections += 1;
+        stableTicks = 0;
+        aim();
+        return;
+      }
+      stopScrollCorrection();
+    }, 100);
+    ["wheel", "touchstart", "keydown"].forEach((type) => window.addEventListener(type, cancel, { passive: true }));
+    scrollCorrectionRef.current = () => {
+      window.clearInterval(timer);
+      ["wheel", "touchstart", "keydown"].forEach((type) => window.removeEventListener(type, cancel));
+    };
+  }
+
+  function stopScrollCorrection() {
+    const stop = scrollCorrectionRef.current;
+    scrollCorrectionRef.current = null;
+    if (stop) stop();
   }
 
   function goAdminSection(section) {
@@ -660,6 +751,14 @@ function App() {
         scrollRoomRef,
       }} />
 
+      {pageNotFound && (
+        <NotFoundPage
+          brandName={BRAND_NAME}
+          onHome={() => leaveNotFound()}
+          onBrowse={() => leaveNotFound("cakes")}
+        />
+      )}
+
       {policySlug && POLICIES[policySlug] && (
         <PolicyPage
           policy={POLICIES[policySlug]}
@@ -682,7 +781,7 @@ function App() {
         />
       )}
 
-      {product && <ProductModal key={product.id || product.slug || product.name} product={product} onClose={closeProduct} onAdd={(item) => {addToCart(item || product); closeProduct()}} stockLabel={stockLabel} isOutOfStock={isOutOfStock}/>}
+      {product && <ProductModal key={product.id || product.slug || product.name} product={product} onClose={closeProduct} onAdd={(item, options) => {addToCart(item || product, options); closeProduct()}} stockLabel={stockLabel} isOutOfStock={isOutOfStock}/>}
       {product3d && (
         <Suspense fallback={null}>
           <Product3DViewer product={product3d} onClose={() => setProduct3d(null)} />
@@ -960,12 +1059,17 @@ function App() {
       )}
 
       {!authOpen && (
-        <div className="auth-float" onClick={() => setAuthOpen(true)}>
-          <div className="auth-float-badge">
-            <UserRound size={16}/>
-            <span>{user ? `Hi, ${user.first_name || user.username}` : "Sign in"}</span>
-          </div>
-        </div>
+        <button
+          type="button"
+          className="auth-float"
+          onClick={() => setAuthOpen(true)}
+          aria-label={user ? `Signed in as ${user.first_name || user.username}` : "Sign in or sign up"}
+        >
+          <span className="auth-float-badge">
+            <UserRound size={16} aria-hidden="true"/>
+            <span className="auth-float-label">{user ? `Hi, ${user.first_name || user.username}` : "Sign in"}</span>
+          </span>
+        </button>
       )}
 
       {authOpen && (
@@ -1022,4 +1126,8 @@ function App() {
   );
 }
 
-createRoot(document.getElementById("root")).render(<App />);
+createRoot(document.getElementById("root")).render(
+  <ErrorBoundary brandName={BRAND_NAME}>
+    <App />
+  </ErrorBoundary>
+);

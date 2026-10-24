@@ -32,9 +32,24 @@ function SiteHeader({
         <button onClick={() => { setMobileOpen(false); scrollTo("about"); }}>About Us</button>
         <button onClick={() => { setMobileOpen(false); scrollTo("gallery"); }}>Gallery</button>
         <button onClick={() => { setMobileOpen(false); scrollTo("contact"); }}>Contact</button>
+        {/* Narrow phones have no room for Order Now in the bar; the menu carries it there. */}
+        <button type="button" className="nav-order" onClick={() => { setMobileOpen(false); openCheckout(); }}>Order Now</button>
       </nav>
       <div className="header-actions">
-        <button type="button" className="icon-btn search-toggle" onClick={() => document.getElementById("search")?.focus()} aria-label="Search cakes" title="Search cakes">
+        <button
+          type="button"
+          className="icon-btn search-toggle"
+          onClick={() => {
+            // Focus inside the tap so phones open the keyboard, then bring the catalog search box
+            // itself just under the header (not the section top, which leaves it behind the floats on phones).
+            setMobileOpen(false);
+            const searchInput = document.getElementById("search");
+            searchInput?.focus({ preventScroll: true });
+            scrollTo(searchInput ? "search" : "cakes");
+          }}
+          aria-label="Search cakes"
+          title="Search cakes"
+        >
           <Search/>
         </button>
 

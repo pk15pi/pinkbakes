@@ -1,3 +1,5 @@
+import { formatCurrency } from "../appConstants";
+
 function AdminDialogs({
   X,
   adminCredentials,
@@ -194,10 +196,10 @@ function AdminDialogs({
                           </p>
                           <p className="admin-muted" style={{ margin: 0 }}>
                             Payment: {info.paymentStatus || "-"}
-                            {info.paymentAmount != null ? ` | original Rs.${Number(info.paymentAmount).toLocaleString("en-IN")}` : ""}
+                            {info.paymentAmount != null ? ` | original ${formatCurrency(Number(info.paymentAmount), 2)}` : ""}
                           </p>
                           <p className="admin-muted" style={{ margin: 0 }}>
-                            Max refundable (estimate): {info.maxRefundable != null ? `Rs.${Number(info.maxRefundable).toLocaleString("en-IN")}` : "-"}
+                            Max refundable (estimate): {info.maxRefundable != null ? `${formatCurrency(Number(info.maxRefundable), 2)}` : "-"}
                             <span className="admin-muted"> - backend is source of truth</span>
                           </p>
                         </div>

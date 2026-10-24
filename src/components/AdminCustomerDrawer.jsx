@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { formatCurrency } from "../appConstants";
 
 function AdminCustomerDrawer({ customer, loading, onClose, onToggleStatus }) {
   if (!customer && !loading) return null;
@@ -21,7 +22,7 @@ function AdminCustomerDrawer({ customer, loading, onClose, onToggleStatus }) {
                 {" | "}Verified: {customer.is_verified ? "Yes" : "No"}
                 {" | "}Joined: {customer.date_joined ? new Date(customer.date_joined).toLocaleDateString() : "-"}
               </p>
-              <p>Orders: <strong>{customer.order_count ?? 0}</strong> | Purchase: <strong>Rs.{Number(customer.total_purchase || 0).toLocaleString("en-IN")}</strong></p>
+              <p>Orders: <strong>{customer.order_count ?? 0}</strong> | Purchase: <strong>{formatCurrency(Number(customer.total_purchase || 0), 2)}</strong></p>
               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                 <button type="button" className="btn primary small" onClick={onToggleStatus}>
                   {customer.is_active ? "Deactivate" : "Activate"}
@@ -39,7 +40,7 @@ function AdminCustomerDrawer({ customer, loading, onClose, onToggleStatus }) {
               {(customer.orders || []).length === 0 ? <div className="admin-empty">No orders.</div> : (
                 <div className="table-wrap"><table className="report-table"><thead><tr><th>Order</th><th>Status</th><th>Total</th></tr></thead><tbody>
                   {(customer.orders || []).slice(0, 15).map(order => (
-                    <tr key={order.id}><td>{order.order_number}</td><td>{order.status}</td><td>Rs.{Number(order.total_amount || 0).toLocaleString("en-IN")}</td></tr>
+                    <tr key={order.id}><td>{order.order_number}</td><td>{order.status}</td><td>{formatCurrency(Number(order.total_amount || 0), 2)}</td></tr>
                   ))}
                 </tbody></table></div>
               )}

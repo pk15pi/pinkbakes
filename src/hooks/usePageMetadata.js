@@ -23,6 +23,7 @@ export default function usePageMetadata({
   orderHistoryOpen,
   catalogLoading,
   policySlug,
+  pageNotFound,
 }) {
   useEffect(() => {
     const path = window.location.pathname || "/";
@@ -53,6 +54,17 @@ export default function usePageMetadata({
           buildBreadcrumbJsonLd(crumbs),
           buildProductJsonLd(product),
         ],
+      });
+      return;
+    }
+
+    if (pageNotFound) {
+      setPageMeta({
+        title: "Page not found | pinkbakes",
+        description: "This page could not be found on pinkbakes.",
+        canonical: SITE_URL + "/",
+        robots: "noindex,follow",
+        jsonLd: [],
       });
       return;
     }
@@ -108,5 +120,5 @@ export default function usePageMetadata({
         buildWebSiteJsonLd(),
       ],
     });
-  }, [product, productNotFound, adminOpen, authOpen, cartOpen, checkoutOpen, orderHistoryOpen, catalogLoading, policySlug]);
+  }, [product, productNotFound, adminOpen, authOpen, cartOpen, checkoutOpen, orderHistoryOpen, catalogLoading, policySlug, pageNotFound]);
 }

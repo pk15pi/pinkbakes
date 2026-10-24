@@ -9,6 +9,7 @@ import {
   verifyPayment,
 } from "../services/authService";
 import { appConfig } from "../config";
+import { cartPayloadItems } from "../appConstants";
 
 export default function useCheckoutFlow({
   user,
@@ -124,7 +125,7 @@ export default function useCheckoutFlow({
     }
     const payload = {
       postal_code: pin,
-      items: cart.map(item => ({ id: item.id, quantity: item.qty || 1 })),
+      items: cartPayloadItems(cart),
       ...(appliedCoupon?.code ? { coupon_code: appliedCoupon.code } : {}),
       ...(addressId ? { address_id: addressId } : {}),
       ...(lat != null && lat !== "" ? { shipping_latitude: lat } : {}),
@@ -194,7 +195,7 @@ export default function useCheckoutFlow({
     setCouponMessage("");
     validateCoupon({
       code,
-      items: cart.map(item => ({ id: item.id, quantity: item.qty || 1 })),
+      items: cartPayloadItems(cart),
     }, token)
       .then(data => {
         if (!data?.valid) {
@@ -304,7 +305,7 @@ export default function useCheckoutFlow({
     }
 
     const payload = {
-      items: cart.map(item => ({ id: item.id, quantity: item.qty || 1 })),
+      items: cartPayloadItems(cart),
       customer_name: checkoutForm.customer_name || `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.username,
       customer_email: checkoutForm.customer_email || user.email || "",
       customer_mobile: checkoutForm.customer_mobile || user.mobile_number || "",

@@ -1,3 +1,5 @@
+import { formatCurrency } from "./appConstants";
+
 const PENDING_STATUSES = ["requested", "pending", "processing"];
 
 function isRefundPendingStatus(status) {
@@ -27,7 +29,7 @@ export function buildRefundTableRows(refunds, refundFilter) {
     <tr key={refund.id}>
       <td>{refund.id}</td>
       <td>{refundOrderLabel(refund)}</td>
-      <td>Rs.{Number(refund.amount || 0).toLocaleString("en-IN")}</td>
+      <td>{formatCurrency(Number(refund.amount || 0), 2)}</td>
       <td>{refund.status}</td>
       <td>{refund.initiated_by_type || "-"}</td>
       <td>{refund.reason || "-"}</td>
