@@ -1,5 +1,7 @@
 export const appConfig = {
-  apiBaseUrl: import.meta.env.VITE_API_URL || "https://api.pinkbakes.com",
+  // Dev server falls back to the local Django API; production builds fall back to the live API.
+  apiBaseUrl: import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:8000" : "https://api.pinkbakes.com"),
+  // apiBaseUrl: import.meta.env.VITE_API_URL || "https://api.pinkbakes.com",
   publicSiteUrl: (import.meta.env.VITE_PUBLIC_SITE_URL || "https://pinkbakes.com").replace(/\/$/, ""),
   razorpayKeyId: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_default_key",
   googleMaps: {

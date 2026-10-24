@@ -828,7 +828,7 @@ button.btn.primary.full:disabled {
 
 /* Sign-in float (left) â€” pairs with Help Desk float (right); was unstyled in document flow */
 .auth-float{
-  position:fixed;left:22px;bottom:22px;z-index:185;
+  position:fixed;left:22px;bottom:22px;z-index:45; /* below header/mobile nav (50), drawers, modals and admin panel */
   cursor:pointer;user-select:none;
 }
 .auth-float-badge{
@@ -1411,6 +1411,127 @@ button.btn.primary.full:disabled {
   .auth-toggle,
   .auth-form {
     margin-top: 14px;
+  }
+}
+
+@media (min-width: 1001px) {
+  .custom-banner {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    column-gap: 24px;
+    padding: 0 24px 24px;
+  }
+
+  .custom-intro {
+    grid-column: 1 / -1;
+    padding: 28px 34px 10px;
+    text-align: center;
+  }
+
+  .custom-intro h2 {
+    font: 500 29px "Playfair Display", serif;
+    margin: 8px 0;
+  }
+
+  .custom-intro p {
+    max-width: 760px;
+    margin: 0 auto;
+    font-size: 11px;
+    color: #786b61;
+    line-height: 1.7;
+  }
+
+  .custom-image {
+    height: auto;
+    max-height: 520px;
+    min-height: 0;
+    aspect-ratio: 4 / 5;
+    margin: 20px 0 30px;
+    align-self: center;
+    width: 100%;
+  }
+
+  .custom-copy {
+    min-width: 0;
+    padding: 20px 0 30px;
+  }
+
+  .custom-points {
+    min-width: 0;
+    justify-content: center;
+    gap: 18px;
+    padding: 20px 0 30px;
+  }
+
+  .custom-points span {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1000px) {
+  .custom-banner {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 24px;
+    padding: 0 24px 24px;
+  }
+
+  .custom-intro {
+    grid-column: 1 / -1;
+    padding: 28px 30px 10px;
+    text-align: center;
+  }
+
+  .custom-image {
+    min-width: 0;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 5;
+    align-self: center;
+    margin: 20px 0 30px;
+  }
+
+  .custom-copy {
+    min-width: 0;
+    padding: 20px 0 30px;
+  }
+
+  .custom-points {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding: 18px 0 25px;
+  }
+}
+
+@media (max-width: 720px) {
+  .custom-intro {
+    padding: 24px 25px 4px;
+    text-align: center;
+  }
+
+  .custom-intro h2 {
+    font: 500 26px "Playfair Display", serif;
+    margin: 8px 0;
+  }
+
+  .custom-intro p {
+    margin-right: auto;
+    margin-left: auto;
+    font-size: 11px;
+    color: #786b61;
+    line-height: 1.7;
+  }
+
+  .custom-image {
+    height: 200px;
+    max-height: none;
+    aspect-ratio: auto;
+    align-self: stretch;
+    margin: 0;
+  }
+
+  .custom-copy {
+    min-width: 0;
   }
 }
 
@@ -2105,4 +2226,66 @@ button.btn.primary.full:disabled {
   .checkout-card .auth-form-panel {
     padding: 12px 16px 18px;
   }
+}
+
+/* Phone header: keep the brand inside its own box (it overlapped the account/cart pills),
+   and show icon-only header pills on narrow phones; buttons keep aria-label/title. */
+@media (max-width: 720px) {
+  .header .brand {
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  .header .brand > div:last-child {
+    min-width: 0;
+  }
+
+  .header .brand strong,
+  .header .brand small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .header .header-actions {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .header .header-action .action-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .header .header-action {
+    min-width: 44px;
+    padding: 0 12px;
+  }
+}
+
+/* The add-to-cart toast sits over the cart/checkout CTA on phones; let taps pass through it. */
+.toast {
+  pointer-events: none;
+}
+
+/* Card and modal prices: keep the sale price and the struck-through original price apart. */
+.price-row,
+.modal-price-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.price-row .strike,
+.modal-price-row .strike {
+  color: #92765c;
+  font-size: 0.85em;
+  font-weight: 500;
+  text-decoration: line-through;
 }

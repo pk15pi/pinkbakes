@@ -4,11 +4,13 @@ import { CustomCakePoints } from "./HomeSections";
 function CustomCakeSection({ customBrief, setCustomBrief, sendCustomBrief, setCategory, scrollTo }) {
   return (
     <section className="custom-banner section" id="custom">
-      <div className="custom-image"><img src="https://images.unsplash.com/photo-1557925923-cd4648e211a0?auto=format&fit=crop&w=1100&q=85" alt="Custom celebration cake" loading="lazy" width="1100" height="800" /></div>
-      <div className="custom-copy">
+      <div className="custom-intro">
         <span className="eyebrow">DREAM IT * WE'LL BAKE IT</span>
         <h2>Create Your Custom Cake</h2>
         <p>Share a quick cake brief - occasion, size, flavor, and theme - and we'll reply on WhatsApp with ideas and pricing.</p>
+      </div>
+      <div className="custom-image"><img src="https://images.unsplash.com/photo-1557925923-cd4648e211a0?auto=format&fit=crop&w=1100&q=85" alt="Custom celebration cake" loading="lazy" width="1100" height="800" /></div>
+      <div className="custom-copy">
         <form className="custom-brief" onSubmit={(e) => { e.preventDefault(); sendCustomBrief(); }}>
           <div className="custom-brief-row">
             <label>Occasion

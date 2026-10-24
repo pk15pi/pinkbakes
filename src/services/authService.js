@@ -670,7 +670,7 @@ export async function fetchInAppNotifications(token, params = {}) {
   if (params.unread) query.append("unread", "true");
   if (params.limit) query.append("limit", params.limit);
   const qs = query.toString();
-  return requestJson(`${API_BASE_URL}/api/accounts/notifications${qs ? `?${qs}` : ""}`, {
+  return requestJson(`${API_BASE_URL}/api/accounts/notifications/${qs ? `?${qs}` : ""}`, {
     method: "GET",
     headers: { Authorization: `Token ${token}` },
   });
@@ -699,7 +699,7 @@ export async function fetchAdminNotifications(token) {
 
 export async function fetchAdminNotificationLogs(token, params = {}) {
   const qs = buildQuery(params);
-  return requestJson(`${API_BASE_URL}/api/admin/notification-logs${qs ? `?${qs}` : ""}`, {
+  return requestJson(`${API_BASE_URL}/api/admin/notification-logs/${qs ? `?${qs}` : ""}`, {
     method: "GET",
     headers: { Authorization: `Token ${token}` },
   });

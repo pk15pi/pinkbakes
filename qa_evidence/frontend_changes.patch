@@ -1,0 +1,162 @@
+--- a/src/main.jsx
++++ b/src/main.jsx
+@@ -12,6 +12,7 @@
+   updateAdminDeliverySettings,
+   fetchAdminNotifications,
+   fetchAdminDashboard,
++  fetchAdminRefunds,
+   fetchAdminOrderDetail,
+   updateAdminOrderStatus,
+   cancelAdminOrder,
+--- a/src/config.js
++++ b/src/config.js
+@@ -1,5 +1,6 @@
+ export const appConfig = {
+-  apiBaseUrl: import.meta.env.VITE_API_URL || "localhost:8000",
++  // Dev server falls back to the local Django API; production builds fall back to the live API.
++  apiBaseUrl: import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:8000" : "https://api.pinkbakes.com"),
+   // apiBaseUrl: import.meta.env.VITE_API_URL || "https://api.pinkbakes.com",
+   publicSiteUrl: (import.meta.env.VITE_PUBLIC_SITE_URL || "https://pinkbakes.com").replace(/\/$/, ""),
+   razorpayKeyId: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_default_key",
+--- a/src/styles.css
++++ b/src/styles.css
+@@ -828,7 +828,7 @@
+ 
+ /* Sign-in float (left) â€” pairs with Help Desk float (right); was unstyled in document flow */
+ .auth-float{
+-  position:fixed;left:22px;bottom:22px;z-index:185;
++  position:fixed;left:22px;bottom:22px;z-index:45; /* below header/mobile nav (50), drawers, modals and admin panel */
+   cursor:pointer;user-select:none;
+ }
+ .auth-float-badge{
+@@ -2227,3 +2227,65 @@
+     padding: 12px 16px 18px;
+   }
+ }
++
++/* Phone header: keep the brand inside its own box (it overlapped the account/cart pills),
++   and show icon-only header pills on narrow phones; buttons keep aria-label/title. */
++@media (max-width: 720px) {
++  .header .brand {
++    flex: 1 1 auto;
++    overflow: hidden;
++  }
++
++  .header .brand > div:last-child {
++    min-width: 0;
++  }
++
++  .header .brand strong,
++  .header .brand small {
++    overflow: hidden;
++    text-overflow: ellipsis;
++    white-space: nowrap;
++  }
++
++  .header .header-actions {
++    flex: 0 0 auto;
++  }
++}
++
++@media (max-width: 480px) {
++  .header .header-action .action-label {
++    position: absolute;
++    width: 1px;
++    height: 1px;
++    overflow: hidden;
++    clip: rect(0 0 0 0);
++    white-space: nowrap;
++  }
++
++  .header .header-action {
++    min-width: 44px;
++    padding: 0 12px;
++  }
++}
++
++/* The add-to-cart toast sits over the cart/checkout CTA on phones; let taps pass through it. */
++.toast {
++  pointer-events: none;
++}
++
++/* Card and modal prices: keep the sale price and the struck-through original price apart. */
++.price-row,
++.modal-price-row {
++  display: flex;
++  flex-wrap: wrap;
++  align-items: baseline;
++  gap: 8px;
++}
++
++.price-row .strike,
++.modal-price-row .strike {
++  color: #92765c;
++  font-size: 0.85em;
++  font-weight: 500;
++  text-decoration: line-through;
++}
+--- a/src/hooks/useCheckoutFlow.js
++++ b/src/hooks/useCheckoutFlow.js
+@@ -91,7 +91,7 @@
+             .then(result => {
+               if (successSummary) {
+                 setOrderSuccess({
+-                  orderNumber: successSummary.orderNumber,
++                  orderNumber: result.order_number || successSummary.orderNumber,
+                   amount: successSummary.amount,
+                   paymentId: result.payment_id,
+                 });
+@@ -283,7 +283,7 @@
+         orderId,
+         amountLabel: `Order #${orderId}`,
+         successSummary: {
+-          orderNumber: `PB-${orderId}`,
++          orderNumber: paymentInfo.order_number || `#${orderId}`,
+           amount: Number((paymentInfo.amount || 0) / 100),
+         },
+       }))
+@@ -329,10 +329,11 @@
+     setCheckoutMessage("");
+     createPaymentSession(payload, token)
+       .then(async paymentInfo => {
+-        const orderNumber = `PB-${Date.now()}`;
++        // Show the server's order reference; never invent one client-side.
++        const orderNumber = paymentInfo.order_number || (paymentInfo.order_id ? `#${paymentInfo.order_id}` : "");
+         await openRazorpayForPayment(paymentInfo, token, {
+           orderId: paymentInfo.order_id,
+-          amountLabel: `Order ${orderNumber}`,
++          amountLabel: orderNumber ? `Order ${orderNumber}` : "order",
+           successSummary: {
+             orderNumber,
+             amount: Number((paymentInfo.amount || 0) / 100),
+--- a/src/services/authService.js
++++ b/src/services/authService.js
+@@ -670,7 +670,7 @@
+   if (params.unread) query.append("unread", "true");
+   if (params.limit) query.append("limit", params.limit);
+   const qs = query.toString();
+-  return requestJson(`${API_BASE_URL}/api/accounts/notifications${qs ? `?${qs}` : ""}`, {
++  return requestJson(`${API_BASE_URL}/api/accounts/notifications/${qs ? `?${qs}` : ""}`, {
+     method: "GET",
+     headers: { Authorization: `Token ${token}` },
+   });
+@@ -699,7 +699,7 @@
+ 
+ export async function fetchAdminNotificationLogs(token, params = {}) {
+   const qs = buildQuery(params);
+-  return requestJson(`${API_BASE_URL}/api/admin/notification-logs${qs ? `?${qs}` : ""}`, {
++  return requestJson(`${API_BASE_URL}/api/admin/notification-logs/${qs ? `?${qs}` : ""}`, {
+     method: "GET",
+     headers: { Authorization: `Token ${token}` },
+   });
+--- a/src/components/CheckoutForm.jsx
++++ b/src/components/CheckoutForm.jsx
+@@ -166,7 +166,7 @@
+               {appliedCoupon ? (
+                 <div><span>Coupon ({appliedCoupon.code})</span><b>-Rs.{couponDiscountPreview.toLocaleString("en-IN")}</b></div>
+               ) : null}
+-              <div><span>Delivery</span><b>{deliveryQuote?.eligible ? (String.fromCharCode(8377) + deliveryFeePreview.toLocaleString("en-IN")) : "-"}</b></div>
++              <div><span>Delivery</span><b>{deliveryQuote?.eligible ? (String.fromCharCode(8377) + deliveryFeePreview.toLocaleString("en-IN")) : (deliveryQuote ? "Not available" : "Enter address")}</b></div>
+               {deliveryQuoteMessage ? <div className="auth-error" style={{ color: deliveryQuote?.eligible ? "#2f6b4f" : undefined }}>{deliveryQuoteMessage}</div> : null}
+               {deliveryQuote?.eta_min_minutes ? <small>ETA {deliveryQuote.eta_min_minutes}-{deliveryQuote.eta_max_minutes || "?"} min</small> : null}
+               <div><span>Total</span><b>Rs.{checkoutPayable.toLocaleString("en-IN")}</b></div>

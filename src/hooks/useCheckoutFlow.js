@@ -91,7 +91,7 @@ export default function useCheckoutFlow({
             .then(result => {
               if (successSummary) {
                 setOrderSuccess({
-                  orderNumber: successSummary.orderNumber,
+                  orderNumber: result.order_number || successSummary.orderNumber,
                   amount: successSummary.amount,
                   paymentId: result.payment_id,
                 });
@@ -283,7 +283,7 @@ export default function useCheckoutFlow({
         orderId,
         amountLabel: `Order #${orderId}`,
         successSummary: {
-          orderNumber: `PB-${orderId}`,
+          orderNumber: paymentInfo.order_number || `#${orderId}`,
           amount: Number((paymentInfo.amount || 0) / 100),
         },
       }))
@@ -329,10 +329,11 @@ export default function useCheckoutFlow({
     setCheckoutMessage("");
     createPaymentSession(payload, token)
       .then(async paymentInfo => {
-        const orderNumber = `PB-${Date.now()}`;
+        // Show the server's order reference; never invent one client-side.
+        const orderNumber = paymentInfo.order_number || (paymentInfo.order_id ? `#${paymentInfo.order_id}` : "");
         await openRazorpayForPayment(paymentInfo, token, {
           orderId: paymentInfo.order_id,
-          amountLabel: `Order ${orderNumber}`,
+          amountLabel: orderNumber ? `Order ${orderNumber}` : "order",
           successSummary: {
             orderNumber,
             amount: Number((paymentInfo.amount || 0) / 100),
