@@ -112,9 +112,9 @@ export default function useCustomerAccount({
 
   function handleOpenOrder(orderId) {
     const token = localStorage.getItem("pinkbakes_token");
-    if (!token) return;
+    if (!token) return Promise.resolve();
 
-    fetchOrder(orderId, token)
+    return fetchOrder(orderId, token)
       .then(order => {
         setSelectedOrder(order);
         setTrackingOrder(null);

@@ -2364,3 +2364,16 @@ button.btn.primary.full:disabled {
   body.floats-yield .chatbot-dock:not(.is-open){opacity:0;transform:translateY(12px);pointer-events:none}
   body.floats-yield .chatbot-dock:not(.is-open) > *{pointer-events:none}
 }
+/* BUG-028: keep the header fixed while scrolling. overflow:hidden on .site made .site the
+   sticky container, so the header scrolled away. clip trims sideways overflow without
+   creating a scroll container, so position:sticky on .header works again. */
+.site{overflow:visible;overflow-x:clip}
+@supports not (overflow-x:clip){
+  /* Older browsers: clip sideways overflow at the viewport instead (body overflow propagates
+     to the viewport, so it does not break sticky). */
+  body{overflow-x:hidden}
+}
+@media(max-width:720px){
+  /* The phone menu hangs off the sticky header; keep its last item reachable on short screens. */
+  .nav.mobile-visible{max-height:calc(100vh - 65px);max-height:calc(100dvh - 65px);overflow-y:auto;overscroll-behavior:contain}
+}

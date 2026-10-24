@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import {
  fetchCurrentUser,
+  verifyEmail,
   asListResponse,
   fetchProducts,
   adjustAdminInventory,
@@ -66,7 +67,7 @@ import ProductModal from "./components/ProductModal";
 import PolicyPage from "./components/PolicyPage";
 import NotFoundPage from "./components/NotFoundPage";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { isKnownAppPath } from "./seo";
+import { emailLinkFromPath, isKnownAppPath } from "./seo";
 import AdminDashboardPanel from "./components/AdminDashboardPanel";
 import AdminDialogs from "./components/AdminDialogs";
 import AdminCustomerDrawer from "./components/AdminCustomerDrawer";
@@ -405,6 +406,8 @@ function App() {
   }, []);
 
   useEffect(() => {
+    // BUG-025: /verify-email?token= and /orders/<id>/tracking carry their own handlers below.
+    if (emailLinkFromPath(window.location.pathname)) return;
     const pathToken = window.location.pathname.match(/\/reset-password\/([^/?#]+)/)?.[1];
     const queryToken = new URLSearchParams(window.location.search).get("token");
     const tokenValue = pathToken || queryToken;
@@ -424,6 +427,45 @@ function App() {
       }
     });
   }, []);
+
+  // BUG-025: links sent in emails land on a real screen instead of the home page.
+  const [pendingTrackingOrderId, setPendingTrackingOrderId] = useState(() => {
+    const link = emailLinkFromPath(window.location.pathname);
+    return link?.type === "order" ? link.orderId : null;
+  });
+  useEffect(() => {
+    if (emailLinkFromPath(window.location.pathname)?.type !== "verify") return;
+    const token = new URLSearchParams(window.location.search).get("token");
+    try { window.history.replaceState({}, "", "/"); } catch { /* ignore */ }
+    setAuthOpen(true);
+    setAuthMode("signin");
+    if (!token) {
+      setAuthMessage("This verification link is incomplete. Sign in to request a new one.");
+      return;
+    }
+    setAuthMessage("Verifying your email...");
+    verifyEmail({ token })
+      .then(() => setAuthMessage("Email verified successfully. You can now sign in."))
+      .catch(error => setAuthMessage(error?.message || "This verification link is invalid or has expired."));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!pendingTrackingOrderId) return;
+    if (!user) {
+      if (!localStorage.getItem("pinkbakes_token")) {
+        setAuthOpen(true);
+        setAuthMode("signin");
+        setAuthMessage("Please sign in to track your order.");
+      }
+      return;
+    }
+    const orderId = pendingTrackingOrderId;
+    setPendingTrackingOrderId(null);
+    setAuthOpen(false);
+    loadUserOrders();
+    Promise.resolve(handleOpenOrder(orderId)).then(() => fetchTracking(orderId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingTrackingOrderId, user]);
 
   const filtered = useMemo(() => {
     const needle = (search || "").toLowerCase();
@@ -566,7 +608,9 @@ function App() {
       // the browser is already at max scroll and scrollIntoView cannot move it.
       const room = scrollRoomRef.current;
       if (room) room.style.height = "0px";
-      const absTop = el.getBoundingClientRect().top + window.scrollY;
+      // Aim at the whole search pill, not the inner input, so its top border clears the sticky header.
+      const box = el.closest(".searchbox") || el;
+      const absTop = box.getBoundingClientRect().top + window.scrollY;
       const target = Math.max(0, absTop - STICKY_HEADER_OFFSET);
       const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
       const extra = Math.ceil(target - maxScroll);

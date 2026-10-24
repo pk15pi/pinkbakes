@@ -59,7 +59,35 @@
     ],
     "rewrites": [
       {
-        "source": "**",
+        "regex": "^/(index\\.html)?$",
+        "destination": "/index.html"
+      },
+      {
+        "regex": "^/products/[^/]+/?$",
+        "destination": "/index.html"
+      },
+      {
+        "regex": "^/(privacy|terms|shipping|refund)/?$",
+        "destination": "/index.html"
+      },
+      {
+        "regex": "^/admin(-login)?(/.*)?$",
+        "destination": "/index.html"
+      },
+      {
+        "regex": "^/reset-password(/[^/]+)?/?$",
+        "destination": "/index.html"
+      },
+      {
+        "regex": "^/verify-email/?$",
+        "destination": "/index.html"
+      },
+      {
+        "regex": "^/orders(/\\d+(/tracking)?)?/?$",
+        "destination": "/index.html"
+      },
+      {
+        "regex": "^/(cart|checkout|account|login|signup)/?$",
         "destination": "/index.html"
       }
     ]

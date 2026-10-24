@@ -224,13 +224,32 @@ export function parseProductPath(pathname) {
   return decodeURIComponent(m[1]);
 }
 
+// BUG-025: routes the backend puts in emails (see FRONTEND_URL in the Django settings).
+export function emailLinkFromPath(pathname) {
+  const p = String(pathname || "").replace(/\/+$/, "");
+  if (p === "/verify-email") return { type: "verify" };
+  const order = p.match(/^\/orders\/(\d+)(?:\/tracking)?$/);
+  if (order) return { type: "order", orderId: Number(order[1]) };
+  return null;
+}
+
 // Paths the single-page app understands; anything else shows the not-found page (bug 011).
-// Account/order/verify links are kept as known so emailed links still open the site.
+// Keep this list identical to the "regex" rewrites in firebase.json: those paths get
+// index.html with HTTP 200, every other path gets 404.html with HTTP 404.
+export const KNOWN_APP_ROUTES = [
+  /^\/(index\.html)?$/,
+  /^\/products\/[^/]+\/?$/,
+  /^\/(privacy|terms|shipping|refund)\/?$/,
+  /^\/admin(-login)?(\/.*)?$/,
+  /^\/reset-password(\/[^/]+)?\/?$/,
+  /^\/verify-email\/?$/,
+  /^\/orders(\/\d+(\/tracking)?)?\/?$/,
+  /^\/(cart|checkout|account|login|signup)\/?$/,
+];
+
 export function isKnownAppPath(pathname) {
   const p = String(pathname || "/");
-  if (p === "/" || p === "/index.html") return true;
-  if (parseProductPath(p) || policyFromPath(p)) return true;
-  return isPrivatePath(p) || p.startsWith("/verify-email");
+  return KNOWN_APP_ROUTES.some(route => route.test(p));
 }
 
 export function isPrivatePath(pathname) {
