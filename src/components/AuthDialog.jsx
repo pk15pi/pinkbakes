@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { CakeSlice, X } from "lucide-react";
 
 function AuthDialog({
@@ -35,6 +36,13 @@ function AuthDialog({
   user,
   handleSignOut,
 }) {
+  // aria-modal dialog: Escape closes it (keyboard accessibility).
+  useEffect(() => {
+    const onKeyDown = event => { if (event.key === "Escape") setAuthOpen(false); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [setAuthOpen]);
+
   return (
     <div className="auth-page-shell" onClick={() => setAuthOpen(false)}>
       <div className="auth-page-card" role="dialog" aria-modal="true" aria-labelledby="auth-dialog-title" onClick={e => e.stopPropagation()}>

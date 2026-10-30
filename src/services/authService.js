@@ -474,6 +474,30 @@ export async function deleteProduct(id, token) {
   return __data;
 }
 
+// Signed-in customer's saved cart (server re-prices every line).
+export async function fetchServerCart(token) {
+  return requestJson(`${API_BASE_URL}/api/cart/`, {
+    method: "GET",
+    headers: { Authorization: `Token ${token}` },
+  });
+}
+
+export async function replaceServerCart(token, items) {
+  return requestJson(`${API_BASE_URL}/api/cart/`, {
+    method: "PUT",
+    headers: { Authorization: `Token ${token}` },
+    body: JSON.stringify({ items }),
+  });
+}
+
+export async function mergeServerCart(token, items) {
+  return requestJson(`${API_BASE_URL}/api/cart/merge/`, {
+    method: "POST",
+    headers: { Authorization: `Token ${token}` },
+    body: JSON.stringify({ items }),
+  });
+}
+
 export async function validateCart(payload) {
   return requestJson(`${API_BASE_URL}/api/cart/validate/`, {
     method: "POST",

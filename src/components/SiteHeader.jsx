@@ -6,6 +6,7 @@ function SiteHeader({
   brandName,
   scrollTo,
   user,
+  sessionRestoring = false,
   loadUserOrders,
   setAuthMode,
   setAuthStage,
@@ -56,7 +57,10 @@ function SiteHeader({
         <button
           type="button"
           className="header-action account-btn"
+          disabled={sessionRestoring}
+          aria-busy={sessionRestoring || undefined}
           onClick={() => {
+            if (sessionRestoring) return;
             if (user) {
               loadUserOrders();
               return;
@@ -70,7 +74,7 @@ function SiteHeader({
           title={user ? `Signed in as ${user.first_name || user.username}` : "Sign in or sign up"}
         >
           <span className="action-icon"><UserRound size={16} /></span>
-          <span className="action-label">{user ? "Orders" : "Sign in"}</span>
+          <span className="action-label">{sessionRestoring ? "Account" : user ? "Orders" : "Sign in"}</span>
         </button>
 
         <button type="button" className="header-action cart-btn" onClick={() => setCartOpen(true)} aria-label="Open cart" title="Open cart">

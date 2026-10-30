@@ -20,7 +20,7 @@ function HeroSection({ scrollTo, openCheckout }) {
           alt="Premium chocolate cake from pinkbakes"
           width="1600"
           height="1200"
-          fetchPriority="high"
+          fetchpriority="high"
           decoding="async"
         />
         <div className="hero-note">Life is<br/><em>sweeter</em><br/>with cake</div>

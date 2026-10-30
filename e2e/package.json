@@ -1,0 +1,1 @@
+{"name":"pinkbakes-e2e","private":true,"type":"module","scripts":{"test":"playwright test","test:headed":"playwright test --headed","test:browsers":"playwright test --project=chromium --project=firefox --project=webkit","test:responsive":"playwright test --grep @responsive","report":"playwright show-report reports/html"},"devDependencies":{"@playwright/test":"1.64.1"}}

@@ -380,15 +380,23 @@ function App() {
     }
   }, [user]);
 
+  // True while a stored customer token is being checked, so the account button
+  // does not briefly open the sign-in dialog before the session is restored.
+  const [sessionRestoring, setSessionRestoring] = useState(() => !!localStorage.getItem("pinkbakes_token"));
+
   useEffect(() => {
     const token = localStorage.getItem("pinkbakes_token");
-    if (!token) return;
+    if (!token) {
+      setSessionRestoring(false);
+      return;
+    }
 
     fetchCurrentUser(token)
       .then(data => setUser(data))
       .catch(() => {
         localStorage.removeItem("pinkbakes_token");
-      });
+      })
+      .finally(() => setSessionRestoring(false));
   }, []);
 
   useEffect(() => {
@@ -396,10 +404,20 @@ function App() {
     const path = window.location.pathname || "";
     const wantsAdmin = path.startsWith("/admin");
     if (adminToken) {
+      // BUG-012: a stored admin token restores the session but only opens the
+      // admin panel on /admin routes; storefront routes keep rendering the shop.
       setIsAdminLoggedIn(true);
-      setAdminOpen(true);
-      setAdminSection("dashboard");
-      fetchAdminDashboard({ preset: "today" }).then(setAdminDashboard).catch(() => {});
+      if (wantsAdmin) {
+        setAdminOpen(true);
+        setAdminSection("dashboard");
+      }
+      fetchAdminDashboard({ preset: "today" }).then(setAdminDashboard).catch(error => {
+        if (error?.status === 401 || error?.status === 403) {
+          // Stale/revoked token: drop it so the admin login is shown instead of an empty panel.
+          localStorage.removeItem("pinkbakes_admin_token");
+          setIsAdminLoggedIn(false);
+        }
+      });
     } else if (wantsAdmin) {
       setAdminOpen(true);
     }
@@ -477,7 +495,7 @@ function App() {
     });
   }, [category, search, catalog]);
 
-  const { cart, setCart, cartCount, cartTotal, addToCart, changeQty } = useCart(notify);
+  const { cart, setCart, cartCount, cartTotal, addToCart, changeQty } = useCart(notify, catalog, catalogLoading, user?.id ?? null);
   const {
     checkoutOpen,
     setCheckoutOpen,
@@ -705,12 +723,13 @@ function App() {
     }
   }
 
-  const adminStandalone = adminOpen || isAdminLoggedIn;
+  const adminStandalone = adminOpen;
 
   return (
     <div className="site">
       {/* Admin renders standalone: hide the storefront while the admin panel/login is open. */}
       {!adminStandalone && <SiteHeader {...{
+        sessionRestoring,
         mobileOpen,
         setMobileOpen,
         brandName: BRAND_NAME,
@@ -892,7 +911,7 @@ function App() {
             setRestockModalQty,
             setRestockModalReason,
           }} />
-      {isAdminLoggedIn && (
+      {isAdminLoggedIn && adminOpen && (
         <AdminDashboardPanel {...{
             BRAND_NAME,
             CAKE_CATEGORY_OPTIONS,
