@@ -7,7 +7,7 @@ export const CATEGORY_IMAGE_FALLBACKS = {
   "Chocolate Cakes": "/products/cakes/ChocolateCakes_BlackForest2.jpg",
   "Designer Cakes": "/products/cakes/DesignerCakes_BerryMedley.jpg",
   "Photo Cakes": "/products/cakes/PhotoCakes_AlmondMarzipan.jpg",
-  "Custom Cakes": "/products/cakes/CustomCakes_BerryMedley.jpg",
+  "Theme Cake": "/products/cakes/CustomCakes_BerryMedley.jpg",
   "Eggless Cakes": "/products/cakes/EgglessCakes_BerryMedley.jpg",
 };
 
@@ -77,7 +77,7 @@ export const cartQtyCap = (item) => {
   return CART_QTY_MAX;
 };
 
-// Single rupee formatter for every price shown in the app (always the "₹" symbol).
+// Single rupee formatter for every price shown in the app (always the "â‚¹" symbol).
 // fractionDigits 0 rounds to whole rupees (catalog cards); 2 keeps paise for cart,
 // checkout, order and admin amounts while dropping ".00" on whole amounts.
 export const formatCurrency = (value, fractionDigits = 0) => {

@@ -43,8 +43,9 @@ import {
   cartUnitPrice,
   formatCurrency,
   getNextOrderStatuses,
+  pricedSizes,
 } from "./appConstants";
-import { isOutOfStock } from "./productUtils";
+import { isOutOfStock, normalizeProduct } from "./productUtils";
 import useCatalog from "./hooks/useCatalog";
 import useProductRoute from "./hooks/useProductRoute";
 import usePageMetadata from "./hooks/usePageMetadata";
@@ -61,6 +62,7 @@ import useAdminProducts from "./hooks/useAdminProducts";
 import useAdminWorkspace from "./hooks/useAdminWorkspace";
 import useAdminSession from "./hooks/useAdminSession";
 import useStorefrontInteractions from "./hooks/useStorefrontInteractions";
+import useWishlist from "./hooks/useWishlist";
 import usePolicyRoute from "./hooks/usePolicyRoute";
 import { POLICIES } from "./policies";
 import ProductModal from "./components/ProductModal";
@@ -76,7 +78,7 @@ import AuthDialog from "./components/AuthDialog";
 import CheckoutForm from "./components/CheckoutForm";
 import UserOrdersDialog from "./components/UserOrdersDialog";
 import ChatbotDock from "./components/ChatbotDock";
-import { BenefitStrip, CelebrationGallery, CustomerReviews } from "./components/HomeSections";
+import { AboutSection, CelebrationGallery, CustomerReviews } from "./components/HomeSections";
 import SiteFooter from "./components/SiteFooter";
 import CustomCakeSection from "./components/CustomCakeSection";
 import ContactStrip from "./components/ContactStrip";
@@ -361,6 +363,10 @@ function App() {
     handleOpenOrder,
     fetchTracking,
     handleCancelOrder,
+    ordersHasNext,
+    ordersTotal,
+    ordersLoading,
+    loadMoreOrders,
   } = useCustomerAccount({
     setUser,
     setAuthOpen,
@@ -530,6 +536,9 @@ function App() {
     handleCheckoutSubmit,
     openRazorpayForPayment,
     handleRetryPayment,
+    signInPrompt,
+    confirmSignInPrompt,
+    cancelSignInPrompt,
   } = useCheckoutFlow({
     user,
     cart,
@@ -574,11 +583,28 @@ function App() {
     newsletterDone,
     customBrief,
     setCustomBrief,
-    wishlist,
-    toggleWishlist,
     sendCustomBrief,
     subscribe,
   } = useStorefrontInteractions(notify);
+  const { wishlist, wishlistItems, isWishlisted, toggleWishlist, removeFromWishlist } = useWishlist(notify, catalog, user?.id ?? null);
+  const [focusWishlist, setFocusWishlist] = useState(false);
+
+  function openWishlist() {
+    setFocusWishlist(true);
+    setCartOpen(true);
+  }
+
+  // "Move to cart" from the wishlist: default size (1 kg when priced, else the first priced size).
+  function moveWishlistToCart(item) {
+    const product = normalizeProduct(item);
+    if (isOutOfStock(product)) {
+      notify("This cake is currently out of stock.");
+      return;
+    }
+    const sizes = pricedSizes(product);
+    addToCart(product, sizes.length ? { size: sizes.includes("1 kg") ? "1 kg" : sizes[0] } : undefined);
+    removeFromWishlist(product, { silent: true });
+  }
 
   const { shareBakeryLocationOnWhatsApp, openBakeryInGoogleMaps } = useBakeryLocation(
     notify,
@@ -743,6 +769,8 @@ function App() {
         cartCount,
         setCartOpen,
         openCheckout,
+        openWishlist,
+        onSignOut: handleSignOut,
       }} />}
 
       {!adminStandalone && (<main>
@@ -779,8 +807,6 @@ function App() {
           loadCatalog,
         }} />
 
-        <BenefitStrip />
-
         <CustomCakeSection {...{
           customBrief,
           setCustomBrief,
@@ -788,6 +814,8 @@ function App() {
           setCategory,
           scrollTo,
         }} />
+
+        <AboutSection brandName={BRAND_NAME} />
 
         <CustomerReviews />
         <CelebrationGallery whatsappLinkNumber={WHATSAPP_LINK_NUMBER} />
@@ -847,7 +875,7 @@ function App() {
         />
       )}
 
-      {product && <ProductModal key={product.id || product.slug || product.name} product={product} onClose={closeProduct} onAdd={(item, options) => {addToCart(item || product, options); closeProduct()}} stockLabel={stockLabel} isOutOfStock={isOutOfStock}/>}
+      {product && <ProductModal key={product.id || product.slug || product.name} product={product} onClose={closeProduct} onAdd={(item, options) => {addToCart(item || product, options); closeProduct()}} stockLabel={stockLabel} isOutOfStock={isOutOfStock} isWishlisted={product.id != null && isWishlisted(product.id)} onToggleWishlist={product.id != null ? toggleWishlist : undefined}/>}
       {product3d && (
         <Suspense fallback={null}>
           <Product3DViewer product={product3d} onClose={() => setProduct3d(null)} />
@@ -1054,8 +1082,13 @@ function App() {
         cartTotal={cartTotal}
         openCheckout={openCheckout}
         scrollTo={scrollTo}
-        isSignedIn={!!user}
-        onSignIn={() => { setCartOpen(false); setAuthMode("signin"); setAuthMessage(""); setAuthOpen(true); }}
+        wishlistItems={wishlistItems}
+        onMoveWishlistToCart={moveWishlistToCart}
+        onViewWishlistItem={(item) => { setCartOpen(false); openProduct(item); }}
+        onRemoveWishlistItem={(item) => removeFromWishlist(item)}
+        isOutOfStock={isOutOfStock}
+        focusWishlist={focusWishlist}
+        onWishlistFocused={() => setFocusWishlist(false)}
       />
 
       {checkoutOpen && (
@@ -1088,13 +1121,9 @@ function App() {
           checkoutMessage,
           checkoutLoading,
           isSignedIn: !!user && !!localStorage.getItem("pinkbakes_token"),
-          onSignIn: () => {
-            setCheckoutOpen(false);
-            setPendingCheckout(true);
-            setAuthMode("signin");
-            setAuthMessage("Sign in to apply coupons and see your delivery charge.");
-            setAuthOpen(true);
-          },
+          signInPrompt,
+          confirmSignInPrompt,
+          cancelSignInPrompt,
         }} />
       )}
 
@@ -1131,6 +1160,10 @@ function App() {
           getMapsUrl,
           orders,
           handleOpenOrder,
+          ordersHasNext,
+          ordersTotal,
+          ordersLoading,
+          loadMoreOrders,
         }} />
       )}
 

@@ -9,11 +9,12 @@ test.describe("D. Logout", () => {
     await s.goto("/");
     await s.openAuth();
     await new AuthDialog(page).signIn(meta().customers.b.username, PASSWORD);
-    await expect(s.accountButton()).toContainText("Orders");
+    await expect(s.accountButton()).toContainText("Account");
+    await expect(s.accountButton()).toHaveAttribute("title", /^Signed in as /);
     const token = await page.evaluate(() => localStorage.getItem("pinkbakes_token"));
-    // Sign out lives in the account area (orders dialog) or the auth dialog.
-    await page.getByRole("button", { name: /^Signed in as / }).click();
-    await page.getByRole("button", { name: "Sign out", exact: true }).click();
+    // Phase 16: sign out lives in the account menu.
+    await s.accountButton().click();
+    await page.getByRole("menuitem", { name: "Sign out" }).click();
     const dlg = s.authDialog();
     if (await dlg.isVisible()) await page.keyboard.press("Escape");
     await expect(dlg).toBeHidden();

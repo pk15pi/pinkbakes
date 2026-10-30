@@ -54,3 +54,7 @@
   - full suite 191 functional + 68 viewport passed (one Chromium 404 test timed out under load, then passed 3/3 on rerun);
   - build OK.
 - Report: `UIUX_AUDIT_REPORT.md`. Nothing has been committed or deployed.
+
+## Phase 16 - COMPLETE (2026-10-30 18:55 IST)
+- Items 1-15 done. Django 262 OK. Chromium e2e 71/71. Firefox/WebKit affected specs (c,d,h,i,p,q) pass; first runs had load-related page.goto/goBack timeouts that passed on serial rerun.
+- Migration catalog/0020_phase16_wishlist. Nothing committed, pushed or deployed.

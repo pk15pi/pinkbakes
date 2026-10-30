@@ -45,12 +45,20 @@ const GALLERY_ITEMS = [
   { src: "https://images.unsplash.com/photo-1519869325930-281384150729?auto=format&fit=crop&w=600&q=85", alt: "Custom decorated cake ready for a special occasion", caption: "Custom order" },
 ];
 
-export function BenefitStrip() {
+/** About Us: brand intro (copy already used in the footer and sign-in panel) + the benefit strip. */
+export function AboutSection({ brandName }) {
   return (
-    <section className="benefits section" id="about">
-      {BENEFITS.map(([Icon, title, subtitle]) => (
-        <div className="benefit" key={title}><Icon/><b>{title}</b><span>{subtitle}</span></div>
-      ))}
+    <section className="about-section section" id="about" aria-labelledby="about-title">
+      <div className="section-head center">
+        <span className="eyebrow">CAKES FOR EVERY MOMENT</span>
+        <h2 id="about-title">About {brandName}</h2>
+        <p>Handcrafted cakes made for life's sweetest celebrations. Order custom cakes, seasonal favorites, and handcrafted keepsakes made just for your occasion.</p>
+      </div>
+      <div className="benefits">
+        {BENEFITS.map(([Icon, title, subtitle]) => (
+          <div className="benefit" key={title}><Icon/><b>{title}</b><span>{subtitle}</span></div>
+        ))}
+      </div>
     </section>
   );
 }

@@ -29,6 +29,10 @@ function UserOrdersDialog({
   getMapsUrl,
   orders,
   handleOpenOrder,
+  ordersHasNext = false,
+  ordersTotal = 0,
+  ordersLoading = false,
+  loadMoreOrders,
 }) {
   return (
     <div className="auth-page-shell" onClick={() => setOrderHistoryOpen(false)}>
@@ -248,7 +252,7 @@ function UserOrdersDialog({
           ) : (
             <div className="auth-form" style={{ gap: 12 }}>
               {orders.length === 0 ? (
-                <div className="empty">No orders yet. Start with one of our signature cakes.</div>
+                <div className="empty">{ordersLoading ? "Loading your orders..." : "No orders yet. Start with one of our signature cakes."}</div>
               ) : (
                 orders.map(order => (
                   <button type="button" key={order.id} className="admin-cake-item" style={{ textAlign: "left", width: "100%", cursor: "pointer" }} onClick={() => handleOpenOrder(order.id)}>
@@ -261,10 +265,21 @@ function UserOrdersDialog({
                     </div>
                     <div className="admin-item-actions">
                       <strong>{formatCurrency(Number(order.total_amount || 0), 2)}</strong>
-                      <span>{order.payment_status || "pending"}</span>
+                      <span className={`order-status-pill status-${String(order.status || "pending").toLowerCase()}`}>{String(order.status || "PENDING").replace(/_/g, " ").toLowerCase()}</span>
+                      <small>Payment: {order.payment_status || "pending"}</small>
                     </div>
                   </button>
                 ))
+              )}
+              {orders.length > 0 && (
+                <div className="orders-pager">
+                  <small>Showing {orders.length}{ordersTotal ? ` of ${ordersTotal}` : ""} orders</small>
+                  {ordersHasNext && (
+                    <button type="button" className="btn secondary" onClick={loadMoreOrders} disabled={ordersLoading}>
+                      {ordersLoading ? "Loading..." : "Load more orders"}
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}

@@ -5,7 +5,7 @@ function CategorySection({ categoriesLoading, shopCategories, catalogError, cata
         <span className="eyebrow">SHOP BY CATEGORY</span>
         <h2>Find the Perfect Cake for Every Occasion</h2>
       </div>
-      <div className="category-grid">
+      <div className="category-grid" style={{ "--category-cols": Math.min(Math.max(shopCategories.length, 1), 8) }}>
         {categoriesLoading && shopCategories.length === 0 ? (
           <div className="empty">Loading categories...</div>
         ) : shopCategories.length === 0 ? (

@@ -11,6 +11,9 @@ import {
   updateNotificationPreferences,
 } from "../services/authService";
 import { appConfig } from "../config";
+import { clearCheckoutDraft } from "./useCheckoutFlow";
+
+const ORDERS_PAGE_SIZE = 10;
 
 export default function useCustomerAccount({
   setUser,
@@ -25,6 +28,10 @@ export default function useCustomerAccount({
   const [inAppNotifications, setInAppNotifications] = useState([]);
   const [notifUnreadCount, setNotifUnreadCount] = useState(0);
   const [orders, setOrders] = useState([]);
+  const [ordersPage, setOrdersPage] = useState(0);
+  const [ordersHasNext, setOrdersHasNext] = useState(false);
+  const [ordersTotal, setOrdersTotal] = useState(0);
+  const [ordersLoading, setOrdersLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [trackingOrder, setTrackingOrder] = useState(null);
   const [trackingLoading, setTrackingLoading] = useState(false);
@@ -40,7 +47,9 @@ export default function useCustomerAccount({
       logout(token).catch(() => {});
     }
     localStorage.removeItem("pinkbakes_token");
+    clearCheckoutDraft();
     setUser(null);
+    setOrders([]);
     setOrderHistoryOpen(false);
     setSelectedOrder(null);
     notify("Signed out successfully");
@@ -55,13 +64,9 @@ export default function useCustomerAccount({
       return;
     }
 
-    fetchOrders(token)
-      .then(response => {
-        const items = Array.isArray(response?.results) ? response.results : Array.isArray(response) ? response : [];
-        setOrders(items);
-        setOrderHistoryOpen(true);
-      })
-      .catch(() => { setOrders([]); setOrderHistoryOpen(true); });
+    setSelectedOrder(null);
+    setOrderHistoryOpen(true);
+    loadOrdersPage(1, token);
 
     fetchNotificationPreferences(token)
       .then(data => setNotificationPrefs(data))
@@ -72,6 +77,32 @@ export default function useCustomerAccount({
         setNotifUnreadCount(data?.unread_count || 0);
       })
       .catch(() => {});
+  }
+
+  // Paginated order history: page 1 on open, more pages on demand (scoped to this customer by the API).
+  function loadOrdersPage(page, tokenOverride) {
+    const token = tokenOverride || localStorage.getItem("pinkbakes_token");
+    if (!token) return Promise.resolve();
+    setOrdersLoading(true);
+    return fetchOrders(token, { page, page_size: ORDERS_PAGE_SIZE })
+      .then(response => {
+        const items = Array.isArray(response?.results) ? response.results : Array.isArray(response) ? response : [];
+        setOrders(previous => {
+          if (page === 1) return items;
+          const seen = new Set(previous.map(order => order.id));
+          return [...previous, ...items.filter(order => !seen.has(order.id))];
+        });
+        setOrdersPage(page);
+        setOrdersHasNext(!!response?.has_next);
+        setOrdersTotal(Number(response?.count ?? items.length));
+      })
+      .catch(() => { if (page === 1) setOrders([]); setOrdersHasNext(false); })
+      .finally(() => setOrdersLoading(false));
+  }
+
+  function loadMoreOrders() {
+    if (ordersLoading || !ordersHasNext) return;
+    loadOrdersPage(ordersPage + 1);
   }
 
   function refreshNotifications(token) {
@@ -190,6 +221,10 @@ export default function useCustomerAccount({
     notifUnreadCount,
     orders,
     setOrders,
+    ordersHasNext,
+    ordersTotal,
+    ordersLoading,
+    loadMoreOrders,
     selectedOrder,
     setSelectedOrder,
     trackingOrder,

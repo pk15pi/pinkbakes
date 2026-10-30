@@ -61,7 +61,7 @@ function CustomCakeSection({ customBrief, setCustomBrief, sendCustomBrief, setCa
           </div>
           <div className="custom-brief-actions">
             <button type="submit" className="btn primary"><MessageCircle size={15}/> Send brief on WhatsApp</button>
-            <button type="button" className="btn secondary" onClick={() => { setCategory("Custom Cakes"); scrollTo("cakes"); }}>Browse custom cakes</button>
+            <button type="button" className="btn secondary" onClick={() => { setCategory("Theme Cake"); scrollTo("cakes"); }}>Browse theme cakes</button>
           </div>
         </form>
       </div>

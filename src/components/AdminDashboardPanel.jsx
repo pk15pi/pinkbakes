@@ -4,6 +4,15 @@ import AdminSiteContentPanel from "./AdminSiteContentPanel";
 import { buildRefundTableRows } from "../adminRefundUtils";
 import { CAKE_SIZE_OPTIONS, describeCartOptions, formatCurrency } from "../appConstants";
 
+// ISO timestamp -> value for <input type="datetime-local"> in the admin's local time.
+function toLocalInputValue(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function AdminDashboardPanel({
   BRAND_NAME,
   CAKE_CATEGORY_OPTIONS,
@@ -341,7 +350,7 @@ function AdminDashboardPanel({
                   <div className="admin-reports-page">
                     <div className="report-topbar"><div><span className="eyebrow">COUPONS</span><h3>Promo codes</h3></div></div>
                     {adminCouponMessage && <div className="admin-error">{adminCouponMessage}</div>}
-                    <form className="admin-form" onSubmit={(e) => { e.preventDefault(); createAdminCoupon({
+                    <form className="admin-form" onSubmit={(e) => { e.preventDefault(); const editingId = adminCouponForm.id; const payload = {
                       code: adminCouponForm.code, name: adminCouponForm.name, discount_type: adminCouponForm.discount_type,
                       discount_value: adminCouponForm.discount_value, is_active: !!adminCouponForm.is_active,
                       minimum_order_amount: adminCouponForm.minimum_order_amount || "0",
@@ -350,7 +359,8 @@ function AdminDashboardPanel({
                       end_at: adminCouponForm.end_at ? new Date(adminCouponForm.end_at).toISOString() : null,
                       usage_limit: adminCouponForm.usage_limit ? Number(adminCouponForm.usage_limit) : null,
                       usage_limit_per_user: adminCouponForm.usage_limit_per_user ? Number(adminCouponForm.usage_limit_per_user) : null,
-                    }).then(() => { setAdminCouponMessage("Coupon created."); setAdminCouponForm({ code: "", name: "", discount_type: "percentage", discount_value: "10", is_active: true, minimum_order_amount: "", maximum_discount_amount: "", start_at: "", end_at: "", usage_limit: "", usage_limit_per_user: "" }); loadAdminCoupons(); }).catch((err) => setAdminCouponMessage(err.message)); }}>
+                    }; (editingId ? updateAdminCoupon(editingId, payload) : createAdminCoupon(payload)).then(() => { setAdminCouponMessage(editingId ? "Coupon updated." : "Coupon created."); setAdminCouponForm({ code: "", name: "", discount_type: "percentage", discount_value: "10", is_active: true, minimum_order_amount: "", maximum_discount_amount: "", start_at: "", end_at: "", usage_limit: "", usage_limit_per_user: "" }); loadAdminCoupons(); }).catch((err) => setAdminCouponMessage(err.message)); }}>
+                      {adminCouponForm.id ? <p className="admin-edit-note" style={{ gridColumn: "1 / -1" }}>Editing coupon <strong>{adminCouponForm.code}</strong></p> : null}
                       <label>Code<input value={adminCouponForm.code} onChange={(e) => setAdminCouponForm((p) => ({ ...p, code: e.target.value }))} /></label>
                       <label>Name<input value={adminCouponForm.name} onChange={(e) => setAdminCouponForm((p) => ({ ...p, name: e.target.value }))} /></label>
                       <label>Type<select value={adminCouponForm.discount_type} onChange={(e) => setAdminCouponForm((p) => ({ ...p, discount_type: e.target.value }))}><option value="percentage">Percentage</option><option value="fixed_amount">Fixed</option></select></label>
@@ -362,12 +372,16 @@ function AdminDashboardPanel({
                       <label>Total uses limit (optional)<input type="number" min="1" value={adminCouponForm.usage_limit} onChange={(e) => setAdminCouponForm((p) => ({ ...p, usage_limit: e.target.value }))} /></label>
                       <label>Uses per customer (optional)<input type="number" min="1" value={adminCouponForm.usage_limit_per_user} onChange={(e) => setAdminCouponForm((p) => ({ ...p, usage_limit_per_user: e.target.value }))} /></label>
                       <label><input type="checkbox" checked={!!adminCouponForm.is_active} onChange={(e) => setAdminCouponForm((p) => ({ ...p, is_active: e.target.checked }))} /> Active</label>
-                      <button type="submit" className="btn primary small">Create coupon</button>
+                      <button type="submit" className="btn primary small">{adminCouponForm.id ? "Save changes" : "Create coupon"}</button>
+                      {adminCouponForm.id ? <button type="button" className="btn secondary small" onClick={() => { setAdminCouponForm({ code: "", name: "", discount_type: "percentage", discount_value: "10", is_active: true, minimum_order_amount: "", maximum_discount_amount: "", start_at: "", end_at: "", usage_limit: "", usage_limit_per_user: "" }); setAdminCouponMessage(""); }}>Cancel edit</button> : null}
                     </form>
                     <div className="table-wrap"><table className="report-table"><thead><tr><th>Code</th><th>Type</th><th>Value</th><th>Used</th><th>Expires</th><th>Active</th><th></th></tr></thead><tbody>
                       {adminCoupons.map((c) => (
                         <tr key={c.id}><td>{c.code}</td><td>{c.discount_type}</td><td>{c.discount_value}</td><td>{c.total_used}{c.usage_limit ? ` / ${c.usage_limit}` : ""}</td><td>{c.end_at ? new Date(c.end_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "-"}</td><td>{c.is_active ? "Yes" : "No"}</td>
-                          <td><button type="button" className="btn secondary small" onClick={() => updateAdminCoupon(c.id, { is_active: !c.is_active }).then(() => loadAdminCoupons())}>{c.is_active ? "Disable" : "Enable"}</button></td>
+                          <td className="admin-coupon-actions">
+                            <button type="button" className="btn secondary small" aria-label={`Edit coupon ${c.code}`} onClick={() => { setAdminCouponMessage(""); setAdminCouponForm({ id: c.id, code: c.code || "", name: c.name || "", discount_type: c.discount_type || "percentage", discount_value: c.discount_value ?? "", is_active: !!c.is_active, minimum_order_amount: c.minimum_order_amount ?? "", maximum_discount_amount: c.maximum_discount_amount ?? "", start_at: toLocalInputValue(c.start_at), end_at: toLocalInputValue(c.end_at), usage_limit: c.usage_limit ?? "", usage_limit_per_user: c.usage_limit_per_user ?? "" }); window.scrollTo?.({ top: 0, behavior: "smooth" }); }}>Edit</button>
+                            <button type="button" className="btn secondary small" onClick={() => updateAdminCoupon(c.id, { is_active: !c.is_active }).then(() => { setAdminCouponMessage(c.is_active ? "Coupon deactivated." : "Coupon activated."); loadAdminCoupons(); }).catch((err) => setAdminCouponMessage(err.message))}>{c.is_active ? "Deactivate" : "Activate"}</button>
+                          </td>
                         </tr>
                       ))}
                     </tbody></table></div>

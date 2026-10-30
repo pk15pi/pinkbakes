@@ -1,29 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Rotate3d, ShieldCheck, ShoppingBag, Star, X, ZoomIn } from "lucide-react";
-import {
-  fetchProductDetail,
-  fetchProductReviews,
-  submitReview,
-} from "../services/authService";
+import { Heart, Rotate3d, ShieldCheck, ShoppingBag, Star, X, ZoomIn } from "lucide-react";
+import { fetchProductDetail } from "../services/authService";
+import ProductReviews from "./ProductReviews";
 import { hasCakeContent, normalizeProduct } from "../productUtils";
 import { CAKE_MESSAGE_MAX_LENGTH, CAKE_SIZE_OPTIONS, discountedUnitPrice, formatCurrency, isEgglessProduct, localIsoDate, pricedSizes, sizeListPrice, sizePriceFor } from "../appConstants";
 
-function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
+function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock,isWishlisted=false,onToggleWishlist}) {
   const [detail, setDetail] = useState(() => normalizeProduct(product));
-  const [reviews, setReviews] = useState([]);
   const [image,setImage] = useState(product.gallery?.[0] || product.image || "");
   const [zoom,setZoom] = useState(false);
   const [threeD,setThreeD] = useState(false);
   const [size,setSize] = useState("1 kg");
   const [eggless,setEggless] = useState(false);
   const [cakeMessage,setCakeMessage] = useState("");
-  const [deliveryDate,setDeliveryDate] = useState("");
+  // Defaults to today in the customer's local time zone; they can pick a later day.
+  const [deliveryDate,setDeliveryDate] = useState(() => localIsoDate());
   const [optionError,setOptionError] = useState("");
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
-  const [reviewForm,setReviewForm] = useState({ rating: 5, comment: "" });
-  const [reviewSubmitting, setReviewSubmitting] = useState(false);
-  const [reviewError, setReviewError] = useState("");
   const detailRequestRef = useRef(0);
   const detailAbortRef = useRef(null);
 
@@ -68,15 +62,6 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
         if (detailRequestRef.current === requestId) setDetailLoading(false);
       });
 
-    if (product?.id == null || product.id === "") return;
-    fetchProductReviews(product.id)
-      .then((data) => {
-        if (detailRequestRef.current !== requestId) return;
-        setReviews(Array.isArray(data) ? data : []);
-      })
-      .catch(() => {
-        if (detailRequestRef.current === requestId) setReviews([]);
-      });
   }, [product]);
 
   useEffect(() => {
@@ -86,36 +71,6 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
       detailAbortRef.current?.abort();
     };
   }, [refreshDetail]);
-
-  function handleReviewSubmit(e) {
-    e.preventDefault();
-    const token = localStorage.getItem("pinkbakes_token");
-    if (!token) {
-      setReviewError("Authentication required to submit a review.");
-      return;
-    }
-
-    if (!reviewForm.comment.trim()) {
-      setReviewError("Please write a review before submitting.");
-      return;
-    }
-
-    setReviewSubmitting(true);
-    setReviewError("");
-
-    submitReview(product.id, {
-      rating: Number(reviewForm.rating),
-      comment: reviewForm.comment.trim(),
-    }, token)
-      .then((response) => {
-        setReviewForm({ rating: 5, comment: "" });
-        setDetail(prev => ({ ...prev, rating: Number(response.rating || prev.rating || 0), review_count: Number(prev.review_count || 0) + 1 }));
-        return fetchProductReviews(product.id);
-      })
-      .then((data) => setReviews(Array.isArray(data) ? data : []))
-      .catch(() => setReviewError("Unable to submit your review. Please try again."))
-      .finally(() => setReviewSubmitting(false));
-  }
 
   // BUG-026: when admin set per-size prices, only those sizes are offered and the
   // price shown follows the selected size (the server recomputes it at checkout).
@@ -148,6 +103,9 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
         <div className="thumbs">{gallery.map(src=><button className={src===image?"selected":""} key={src} onClick={()=>setImage(src)}><img src={src} alt={(detail.name || "Cake") + " photo"} loading="lazy" width="120" height="120" /></button>)}</div>
         <div className="viewer-buttons"><button onClick={()=>setZoom(!zoom)}><ZoomIn/> {zoom?"Reset Zoom":"Zoom"}</button><button onClick={()=>setThreeD(!threeD)}><Rotate3d/> {threeD?"Exit 3D":"3D Preview"}</button></div>
         {threeD && <div className="mini-3d"><div className="cake-3d-shape"></div><span>Drag-ready 3D preview</span></div>}
+        {product?.id != null && product.id !== "" && (
+          <ProductReviews productId={product.id} />
+        )}
       </div>
       <div className="modal-info">
         {!hasCakeContent(detail) ? (
@@ -173,8 +131,21 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
               <span aria-current="page">{detail.name}</span>
             </nav>
             <span className="eyebrow">{(detail.category || "CAKE").toUpperCase()}</span>
-            <div className="rating"><Star size={14} fill="currentColor"/>{Number(detail.average_rating ?? detail.rating ?? 0).toFixed(1)} * {detail.review_count || reviews.length || 0} reviews</div>
-            <h1 className="product-title">{detail.name}</h1>
+            <div className="rating"><Star size={14} fill="currentColor"/>{Number(detail.average_rating ?? detail.rating ?? 0).toFixed(1)} * {detail.review_count || 0} reviews</div>
+            <div className="product-title-row">
+              <h1 className="product-title">{detail.name}</h1>
+              {onToggleWishlist && (
+                <button
+                  type="button"
+                  className={isWishlisted ? "heart detail-heart active" : "heart detail-heart"}
+                  aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                  aria-pressed={isWishlisted}
+                  onClick={(e) => onToggleWishlist(e, detail)}
+                >
+                  <Heart size={18} fill={isWishlisted ? "currentColor" : "none"} />
+                </button>
+              )}
+            </div>
             {(detail.description || detail.short_description) && <p className="modal-desc">{detail.description || detail.short_description}</p>}
             <div className="modal-price-row">
               <span className="modal-price">{formatCurrency(currentPrice, 2)}</span>
@@ -191,35 +162,6 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
             <button className="btn primary full" disabled={isOutOfStock ? isOutOfStock(detail) : false} onClick={handleAdd}>{(isOutOfStock && isOutOfStock(detail)) ? "Out of Stock" : <>Add to Cart <ShoppingBag size={17}/></>}</button>
             <div className="secure"><ShieldCheck/> Freshly made * Secure checkout * Delivery support</div>
 
-            <div className="review-panel">
-              <h3>Customer Reviews</h3>
-              <div className="review-form-wrap">
-                <form onSubmit={handleReviewSubmit} className="review-form">
-                  <label>
-                    Your rating
-                    <select value={reviewForm.rating} onChange={e => setReviewForm(prev => ({ ...prev, rating: Number(e.target.value) }))}>
-                      {[5,4,3,2,1].map(value => <option key={value} value={value}>{value} star{value > 1 ? "s" : ""}</option>)}
-                    </select>
-                  </label>
-                  <label>
-                    Your review
-                    <textarea value={reviewForm.comment} onChange={e => setReviewForm(prev => ({ ...prev, comment: e.target.value }))} placeholder="Beautiful cake and excellent taste." rows={4} />
-                  </label>
-                  {reviewError && <div className="auth-error">{reviewError}</div>}
-                  <button type="submit" className="btn primary" disabled={reviewSubmitting}>{reviewSubmitting ? "Submitting..." : "Submit review"}</button>
-                </form>
-              </div>
-
-              <div className="review-list">
-                {reviews.length === 0 ? <div className="empty">No reviews yet. Be the first to rate this cake.</div> : reviews.map(review => (
-                  <div className="review-item" key={review.id || `${review.user || review.name}-${review.created_at}`}>
-                    <div className="stars">{'*'.repeat(review.rating || 0)}{'-'.repeat(5 - (review.rating || 0))} <small>{review.rating}/5</small></div>
-                    <p>"{review.comment || review.text}"</p>
-                    <small>- {review.user_name || review.name || 'Customer'} * {new Date(review.created_at).toLocaleDateString()}</small>
-                  </div>
-                ))}
-              </div>
-            </div>
           </>
         )}
       </div>

@@ -143,6 +143,11 @@ def seed():
     place(users['a'], [{'id': choc.id, 'quantity': 1, 'options': {'size': '2 kg'}}], pay=False)
     place(users['b'], [{'id': velvet.id, 'quantity': 1}], final_status='READY_FOR_DELIVERY')
     place(users['b'], [{'id': choc.id, 'quantity': 1, 'options': {'size': '0.5 kg'}}], cancel=True)
+    # Phase 16: delivered orders let customer D write reviews (one per browser project).
+    butterscotch = Product.objects.get(name='E2E Butterscotch Cake')
+    for _ in range(4):
+        o = place(users['d'], [{'id': butterscotch.id, 'quantity': 1}])
+        Order.objects.filter(id=o.id).update(status='DELIVERED')
 
     Review.objects.get_or_create(product=choc, user=users['a'], defaults=dict(
         name='Alice', rating=5, comment='Great seeded cake', status='approved'))

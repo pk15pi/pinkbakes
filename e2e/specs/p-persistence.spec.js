@@ -111,9 +111,10 @@ test.describe("P. Cart persistence & session restore", () => {
     await page.waitForTimeout(300);
     await expect(page.getByRole("dialog")).toHaveCount(0);
     release();
-    await expect(page.getByRole("button", { name: /^Signed in as / })).toBeVisible();
+    await expect(s.accountButton()).toHaveAttribute("title", /^Signed in as /);
     await expect(s.accountButton()).toBeEnabled();
     await s.accountButton().click();
+    await page.getByRole("menuitem", { name: "My Orders" }).click();
     await expect(page.getByRole("heading", { name: "Order history" })).toBeVisible();
   });
 });

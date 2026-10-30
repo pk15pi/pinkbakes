@@ -24,6 +24,36 @@ test.describe("A. Homepage & navigation", () => {
     }
   });
 
+  // Phase 15: "Custom Cakes" -> custom cake brief form; "About Us" -> the About section (not the area above #custom).
+  for (const mode of ["desktop", "mobile"]) {
+    test(`${mode} nav: Custom Cakes and About Us land on the right sections`, async ({ page, viewport }) => {
+      if (mode === "mobile") await page.setViewportSize({ width: 390, height: 844 });
+      else test.skip(viewport.width < 1100, "desktop nav");
+      const s = new Storefront(page);
+      await s.goto("/");
+      const go = async (label) => {
+        if (mode === "mobile") await s.header().getByRole("button", { name: "Menu" }).click();
+        await s.header().locator("nav").getByRole("button", { name: label, exact: true }).click();
+        if (mode === "mobile") await expect(s.header().locator("nav")).not.toHaveClass(/mobile-visible/);
+      };
+      const topOf = (sel) => page.locator(sel).evaluate(el => Math.round(el.getBoundingClientRect().top));
+      const headerH = await s.header().evaluate(el => el.getBoundingClientRect().height);
+
+      await go("Custom Cakes");
+      await expect(page.getByRole("heading", { name: "Create Your Custom Cake" })).toBeInViewport();
+      await expect(page.locator("#custom form.custom-brief")).toBeInViewport({ ratio: 0.05 });
+      await expect.poll(() => topOf("#custom")).toBeLessThan(headerH + 60);
+      await expect.poll(() => topOf("#custom")).toBeGreaterThan(-5);
+
+      await go("About Us");
+      await expect(page.getByRole("heading", { name: /^About / })).toBeInViewport();
+      await expect.poll(() => topOf("#about")).toBeLessThan(headerH + 60);
+      await expect.poll(() => topOf("#about")).toBeGreaterThan(-5);
+      await expect(page.locator("#about")).toContainText("Hygienic");
+      await expect(page.getByRole("heading", { name: "Create Your Custom Cake" })).not.toBeInViewport();
+    });
+  }
+
   test("local images load (no broken <img>)", async ({ page }) => {
     const s = new Storefront(page);
     await s.goto("/");

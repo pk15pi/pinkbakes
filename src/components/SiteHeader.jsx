@@ -1,4 +1,5 @@
-import { CakeSlice, Menu, Search, ShoppingBag, UserRound, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { CakeSlice, Heart, LogOut, Menu, Package, Search, ShoppingBag, UserRound, X } from "lucide-react";
 
 function SiteHeader({
   mobileOpen,
@@ -15,7 +16,47 @@ function SiteHeader({
   cartCount,
   setCartOpen,
   openCheckout,
+  openWishlist,
+  onSignOut,
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+  const buttonRef = useRef(null);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onDown = (event) => {
+      if (!menuRef.current?.contains(event.target) && !buttonRef.current?.contains(event.target)) setMenuOpen(false);
+    };
+    const onKey = (event) => {
+      if (event.key === "Escape") { setMenuOpen(false); buttonRef.current?.focus(); }
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    menuRef.current?.querySelector("[role=menuitem]")?.focus();
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  useEffect(() => { if (!user) setMenuOpen(false); }, [user]);
+
+  function onMenuKeyDown(event) {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    const items = [...(menuRef.current?.querySelectorAll("[role=menuitem]") || [])];
+    const index = items.indexOf(document.activeElement);
+    const next = event.key === "ArrowDown" ? (index + 1) % items.length : (index - 1 + items.length) % items.length;
+    items[next]?.focus();
+  }
+
+  function pick(action) {
+    setMenuOpen(false);
+    setMobileOpen(false);
+    action?.();
+  }
+
   return (
     <header className="header">
       <button className="mobile-menu" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menu">
@@ -54,28 +95,41 @@ function SiteHeader({
           <Search/>
         </button>
 
-        <button
-          type="button"
-          className="header-action account-btn"
-          disabled={sessionRestoring}
-          aria-busy={sessionRestoring || undefined}
-          onClick={() => {
-            if (sessionRestoring) return;
-            if (user) {
-              loadUserOrders();
-              return;
-            }
-            setAuthMode("signin");
-            setAuthStage("form");
-            setAuthMessage("");
-            setAuthOpen(true);
-          }}
-          aria-label="Open account"
-          title={user ? `Signed in as ${user.first_name || user.username}` : "Sign in or sign up"}
-        >
-          <span className="action-icon"><UserRound size={16} /></span>
-          <span className="action-label">{sessionRestoring ? "Account" : user ? "Orders" : "Sign in"}</span>
-        </button>
+        <div className="account-wrap">
+          <button
+            type="button"
+            ref={buttonRef}
+            className="header-action account-btn"
+            disabled={sessionRestoring}
+            aria-busy={sessionRestoring || undefined}
+            aria-haspopup={user ? "menu" : undefined}
+            aria-expanded={user ? menuOpen : undefined}
+            onClick={() => {
+              if (sessionRestoring) return;
+              if (user) {
+                setMenuOpen(open => !open);
+                return;
+              }
+              setAuthMode("signin");
+              setAuthStage("form");
+              setAuthMessage("");
+              setAuthOpen(true);
+            }}
+            aria-label="Open account"
+            title={user ? `Signed in as ${user.first_name || user.username}` : "Sign in or sign up"}
+          >
+            <span className="action-icon"><UserRound size={16} /></span>
+            <span className="action-label">{sessionRestoring || user ? "Account" : "Sign in"}</span>
+          </button>
+          {user && menuOpen && (
+            <div className="account-menu" role="menu" aria-label="Account" ref={menuRef} onKeyDown={onMenuKeyDown}>
+              <div className="account-menu-head">Hi, {user.first_name || user.username}</div>
+              <button type="button" role="menuitem" onClick={() => pick(loadUserOrders)}><Package size={16} aria-hidden="true" /> My Orders</button>
+              <button type="button" role="menuitem" onClick={() => pick(openWishlist)}><Heart size={16} aria-hidden="true" /> Wishlist</button>
+              <button type="button" role="menuitem" onClick={() => pick(onSignOut)}><LogOut size={16} aria-hidden="true" /> Sign out</button>
+            </div>
+          )}
+        </div>
 
         <button type="button" className="header-action cart-btn" onClick={() => setCartOpen(true)} aria-label="Open cart" title="Open cart">
           <span className="action-icon"><ShoppingBag size={16} /></span>

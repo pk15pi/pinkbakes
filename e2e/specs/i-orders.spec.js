@@ -9,8 +9,9 @@ test.describe("I. Order management", () => {
     const s = new Storefront(page);
     await s.goto("/");
     // wait until the session is restored, otherwise the button opens the sign-in dialog
-    await expect(page.getByRole("button", { name: /^Signed in as / })).toBeVisible();
+    await expect(s.accountButton()).toHaveAttribute("title", /^Signed in as /);
     await s.accountButton().click();
+    await page.getByRole("menuitem", { name: "My Orders" }).click();
     await expect(page.getByRole("heading", { name: "Order history" })).toBeVisible();
     for (const o of (await ordersOf("a")).slice(0, 3)) await expect(page.getByText(o.order_number).first()).toBeVisible();
     for (const o of await ordersOf("b")) await expect(page.getByText(o.order_number)).toHaveCount(0);

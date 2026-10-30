@@ -75,7 +75,7 @@ function ProductCatalog({
                 <div className="sizes"><span className={isOutOfStock(p) ? "stock-out" : (p.is_low_stock || p.availability === "low_stock" ? "stock-low" : "stock-ok")}>{stockLabel(p)}</span></div>
                 <div className="product-actions">
                   <button className="btn secondary small" onClick={() => openProduct(p)}>View Cake</button>
-                  <button className="btn primary small" disabled={isOutOfStock(p)} onClick={() => (fromPrice != null ? openProduct(p) : addToCart(normalizeProduct(p)))}>{isOutOfStock(p) ? "Out of Stock" : (fromPrice != null ? "Choose Size" : "Add to Cart")}</button>
+                  <button className="btn primary small" disabled={isOutOfStock(p)} onClick={() => (fromPrice != null ? openProduct(p) : addToCart(normalizeProduct(p)))}>{isOutOfStock(p) ? "Out of Stock" : (fromPrice != null ? "Order" : "Add to Cart")}</button>
                 </div>
               </div>
             </article>

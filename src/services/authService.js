@@ -389,8 +389,9 @@ export async function retryPayment(orderId, token) {
   });
 }
 
-export async function fetchOrders(token) {
-  return requestJson(`${API_BASE_URL}/api/orders/`, {
+export async function fetchOrders(token, params = null) {
+  const qs = params ? buildQuery(params) : "";
+  return requestJson(`${API_BASE_URL}/api/orders/${qs ? `?${qs}` : ""}`, {
     method: "GET",
     headers: {
       Authorization: `Token ${token}`,
@@ -1078,4 +1079,46 @@ export async function saveAdminSiteContent(kind, payload, id) {
 export async function deleteAdminSiteContent(kind, id) {
   await requestJson(adminContentUrl(kind, id), { method: "DELETE", headers: adminTokenHeader() });
   invalidateCatalogClientCache();
+}
+
+
+// Paginated reviews: approved reviews for everyone, plus (page 1, signed in) the
+// customer's own reviews still waiting for approval and whether they may review.
+export async function fetchProductReviewsPage(productId, { page = 1, pageSize = 10 } = {}, token = null) {
+  const qs = buildQuery({ page, page_size: pageSize });
+  return requestJson(`${API_BASE_URL}/api/catalog/products/${productId}/reviews/?${qs}`, {
+    method: "GET",
+    headers: token ? { Authorization: `Token ${token}` } : {},
+  });
+}
+
+// Signed-in customer's wishlist (guests keep theirs in the browser).
+export async function fetchWishlist(token) {
+  return requestJson(`${API_BASE_URL}/api/catalog/wishlist/`, {
+    method: "GET",
+    headers: { Authorization: `Token ${token}` },
+  });
+}
+
+export async function addWishlistItem(token, productId) {
+  return requestJson(`${API_BASE_URL}/api/catalog/wishlist/items/`, {
+    method: "POST",
+    headers: { Authorization: `Token ${token}` },
+    body: JSON.stringify({ id: productId }),
+  });
+}
+
+export async function removeWishlistItem(token, productId) {
+  return requestJson(`${API_BASE_URL}/api/catalog/wishlist/items/${encodeURIComponent(productId)}/`, {
+    method: "DELETE",
+    headers: { Authorization: `Token ${token}` },
+  });
+}
+
+export async function mergeWishlist(token, items) {
+  return requestJson(`${API_BASE_URL}/api/catalog/wishlist/merge/`, {
+    method: "POST",
+    headers: { Authorization: `Token ${token}` },
+    body: JSON.stringify({ items }),
+  });
 }

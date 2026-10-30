@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { WHATSAPP_LINK_NUMBER } from "../appConstants";
 
 export default function useStorefrontInteractions(notify) {
@@ -14,29 +14,7 @@ export default function useStorefrontInteractions(notify) {
     name: "",
     phone: "",
   });
-  const [wishlist, setWishlist] = useState(() => {
-    try {
-      const raw = localStorage.getItem("pinkbakes_wishlist");
-      const items = raw ? JSON.parse(raw) : [];
-      return Array.isArray(items) ? items.map(String) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("pinkbakes_wishlist", JSON.stringify(wishlist));
-    } catch (_) {}
-  }, [wishlist]);
-
-  function toggleWishlist(event, product) {
-    event.stopPropagation();
-    const id = String(product.id);
-    const exists = wishlist.includes(id);
-    setWishlist(exists ? wishlist.filter(item => item !== id) : [...wishlist, id]);
-    notify(exists ? `Removed "${product.name}" from wishlist` : `Added "${product.name}" to wishlist`);
-  }
+  // Phase 16: the wishlist moved to hooks/useWishlist (server-backed when signed in).
 
   function sendCustomBrief() {
     const brief = customBrief;
@@ -75,8 +53,6 @@ export default function useStorefrontInteractions(notify) {
     newsletterDone,
     customBrief,
     setCustomBrief,
-    wishlist,
-    toggleWishlist,
     sendCustomBrief,
     subscribe,
   };

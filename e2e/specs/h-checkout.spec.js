@@ -13,12 +13,24 @@ async function addVelvet(page) {
 function checkout(page) { return page.locator("form").filter({ has: page.getByRole("button", { name: "Place Order" }) }); }
 
 test.describe("H. Checkout (payment mocked)", () => {
-  test("guest checkout asks the customer to sign in", async ({ page }) => {
+  test("guest can open checkout; placing the order asks them to sign in", async ({ page }) => {
     await addVelvet(page);
     const s = new Storefront(page);
     await s.openCart();
+    await expect(page.locator(".cart-drawer")).not.toContainText(/sign in/i);
     await page.getByRole("button", { name: /Proceed to Checkout/ }).click();
-    await expect(page.locator("#auth-dialog-title, .auth-page-card").first()).toBeVisible();
+    const f = checkout(page);
+    await expect(f).toBeVisible();
+    await expect(f).not.toContainText(/sign in to/i);
+    const fills = { "Aisha Patel": "Guest Tester", "you@example.com": "guest@example.test", "9876543210": "9876543210",
+      "24 Rose Avenue": "1 Test Lane", Mumbai: "Mumbai", Maharashtra: "Maharashtra", "400001": "400001", India: "India" };
+    for (const [ph, v] of Object.entries(fills)) await f.getByPlaceholder(ph, { exact: true }).fill(v);
+    await f.getByRole("button", { name: "Place Order" }).click();
+    const prompt = page.getByRole("alertdialog");
+    await expect(prompt).toContainText("Please sign in to place your order");
+    await prompt.getByRole("button", { name: "Cancel" }).click();
+    await expect(prompt).toBeHidden();
+    await expect(f).toBeVisible();
   });
 
   test("signed-in checkout: saved address, delivery fee, coupon, place order", async ({ page }) => {

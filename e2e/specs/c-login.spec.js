@@ -9,10 +9,12 @@ test.describe("C. Login", () => {
     await s.goto("/");
     await s.openAuth();
     await new AuthDialog(page).signIn(meta().customers.a.username, PASSWORD);
-    await expect(s.accountButton()).toContainText("Orders");
+    await expect(s.accountButton()).toContainText("Account");
+    await expect(s.accountButton()).toHaveAttribute("title", /^Signed in as /);
     expect(await page.evaluate(() => !!localStorage.getItem("pinkbakes_token"))).toBe(true);
     await page.reload();
-    await expect(s.accountButton()).toContainText("Orders");
+    await expect(s.accountButton()).toContainText("Account");
+    await expect(s.accountButton()).toHaveAttribute("title", /^Signed in as /);
   });
 
   test("wrong password and unknown user show a generic error", async ({ page }) => {

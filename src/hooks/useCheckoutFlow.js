@@ -11,6 +11,12 @@ import {
 import { appConfig } from "../config";
 import { cartPayloadItems } from "../appConstants";
 
+export const CHECKOUT_DRAFT_KEY = "pinkbakes_checkout_draft_v1";
+
+export function clearCheckoutDraft() {
+  try { sessionStorage.removeItem(CHECKOUT_DRAFT_KEY); } catch { /* ignore */ }
+}
+
 export default function useCheckoutFlow({
   user,
   cart,
@@ -53,6 +59,42 @@ export default function useCheckoutFlow({
     shipping_latitude: "",
     shipping_longitude: "",
   });
+  // Guest sign-in prompt shown inside checkout: { reason: "coupon" | "order" } or null.
+  const [signInPrompt, setSignInPrompt] = useState(null);
+
+  function saveCheckoutDraft(extra = {}) {
+    try {
+      sessionStorage.setItem(CHECKOUT_DRAFT_KEY, JSON.stringify({ form: checkoutForm, couponCode: (couponCodeInput || "").trim(), ...extra }));
+    } catch {
+      // Storage blocked: the in-memory form is still kept for this visit.
+    }
+  }
+
+  function takeCheckoutDraft() {
+    try {
+      const raw = sessionStorage.getItem(CHECKOUT_DRAFT_KEY);
+      sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
+      const draft = raw ? JSON.parse(raw) : null;
+      return draft && typeof draft === "object" && draft.form && typeof draft.form === "object" ? draft : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function confirmSignInPrompt() {
+    const reason = signInPrompt?.reason || "coupon";
+    saveCheckoutDraft({ applyCoupon: reason === "coupon" });
+    setSignInPrompt(null);
+    setCheckoutOpen(false);
+    setPendingCheckout(true);
+    setAuthMode("signin");
+    setAuthMessage(reason === "coupon" ? "Sign in to use your promo code. We'll take you back to checkout." : "Sign in to place your order. We'll take you back to checkout.");
+    setAuthOpen(true);
+  }
+
+  function cancelSignInPrompt() {
+    setSignInPrompt(null);
+  }
 
   function openRazorpayForPayment(paymentInfo, token, { orderId, amountLabel, successSummary } = {}) {
     const loadRazorpay = () => new Promise((resolve, reject) => {
@@ -100,6 +142,7 @@ export default function useCheckoutFlow({
                 });
               }
               setCart([]);
+              clearCheckoutDraft();
               setCheckoutOpen(false);
               if (orderId) {
                 setSelectedOrder(previous => ({ ...(previous || {}), id: orderId, payment_status: "paid", status: "ORDER_CONFIRMED" }));
@@ -164,7 +207,7 @@ export default function useCheckoutFlow({
     refreshDeliveryQuote(address.postal_code, address.id, address.latitude, address.longitude);
   }
 
-  function loadSavedAddresses() {
+  function loadSavedAddresses({ applyDefault = true } = {}) {
     const token = localStorage.getItem("pinkbakes_token");
     if (!token) return;
     fetchAddresses(token)
@@ -172,18 +215,25 @@ export default function useCheckoutFlow({
         const list = data.results || [];
         setSavedAddresses(list);
         const defaultAddress = list.find(address => address.is_default) || list[0];
-        if (defaultAddress) applyAddressToCheckout(defaultAddress);
+        if (defaultAddress && applyDefault) applyAddressToCheckout(defaultAddress);
       })
       .catch(() => setSavedAddresses([]));
   }
 
-  function handleApplyCoupon() {
+  function handleApplyCoupon(codeOverride, formOverride) {
     const token = localStorage.getItem("pinkbakes_token");
-    if (!token || !user) {
-      setCouponMessage("Please sign in to apply a coupon.");
+    const code = (typeof codeOverride === "string" ? codeOverride : couponCodeInput || "").trim();
+    if (!token) {
+      // Guests are asked to sign in first; nothing is applied unless they continue.
+      if (!code) {
+        setCouponMessage("Enter a coupon code.");
+        return;
+      }
+      setCouponMessage("");
+      setSignInPrompt({ reason: "coupon" });
       return;
     }
-    const code = (couponCodeInput || "").trim();
+    const quoteForm = formOverride || checkoutForm;
     if (!code) {
       setCouponMessage("Enter a coupon code.");
       return;
@@ -210,7 +260,7 @@ export default function useCheckoutFlow({
           discount_amount: Number(data.discount_amount || 0),
         });
         setCouponMessage(data.message || "Coupon applied.");
-        refreshDeliveryQuote(checkoutForm.postal_code, selectedAddressId, checkoutForm.shipping_latitude, checkoutForm.shipping_longitude);
+        refreshDeliveryQuote(quoteForm.postal_code, formOverride ? null : selectedAddressId, quoteForm.shipping_latitude, quoteForm.shipping_longitude);
       })
       .catch(error => {
         setAppliedCoupon(null);
@@ -252,14 +302,9 @@ export default function useCheckoutFlow({
       .catch(error => setCheckoutMessage(error.message || "Unable to save address."));
   }
 
+  // Guests may fill in checkout; sign-in is only requested for promo codes and placing the order.
   function openCheckout(authedOverride) {
-    if (!(authedOverride || user)) {
-      setPendingCheckout(true);
-      setAuthOpen(true);
-      setAuthMode("signin");
-      setAuthMessage("Please sign in to continue to checkout.");
-      return;
-    }
+    const draft = takeCheckoutDraft();
     if (cart.length === 0) {
       notify("Add at least one cake to your cart before checking out.");
       return;
@@ -271,8 +316,22 @@ export default function useCheckoutFlow({
     setDeliveryQuote(null);
     setDeliveryQuoteMessage("");
     setShowNewAddressForm(false);
+    setSignInPrompt(null);
     setCheckoutOpen(true);
-    loadSavedAddresses();
+    const signedIn = !!((authedOverride && typeof authedOverride === "object" && !authedOverride.nativeEvent) || user) && !!localStorage.getItem("pinkbakes_token");
+    if (draft) {
+      // Back from sign-in: restore exactly what the customer typed, then finish what they asked for.
+      const form = { ...checkoutForm, ...draft.form };
+      setCheckoutForm(form);
+      setSelectedAddressId(null);
+      setShowNewAddressForm(true);
+      setCouponCodeInput(draft.couponCode || "");
+      if (signedIn) loadSavedAddresses({ applyDefault: false });
+      if (form.postal_code) refreshDeliveryQuote(form.postal_code, null, form.shipping_latitude, form.shipping_longitude);
+      if (signedIn && draft.applyCoupon && draft.couponCode) handleApplyCoupon(draft.couponCode, form);
+      return;
+    }
+    if (signedIn) loadSavedAddresses();
   }
 
   function handleRetryPayment(orderId) {
@@ -296,8 +355,9 @@ export default function useCheckoutFlow({
   function handleCheckoutSubmit(event) {
     event.preventDefault();
     const token = localStorage.getItem("pinkbakes_token");
-    if (!token || !user) {
-      setCheckoutMessage("Please sign in to complete checkout.");
+    if (!token) {
+      setCheckoutMessage("");
+      setSignInPrompt({ reason: "order" });
       return;
     }
     if (deliveryQuote && deliveryQuote.eligible === false) {
@@ -311,9 +371,9 @@ export default function useCheckoutFlow({
 
     const payload = {
       items: cartPayloadItems(cart),
-      customer_name: checkoutForm.customer_name || `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.username,
-      customer_email: checkoutForm.customer_email || user.email || "",
-      customer_mobile: checkoutForm.customer_mobile || user.mobile_number || "",
+      customer_name: checkoutForm.customer_name || `${user?.first_name || ""} ${user?.last_name || ""}`.trim() || user?.username || "",
+      customer_email: checkoutForm.customer_email || user?.email || "",
+      customer_mobile: checkoutForm.customer_mobile || user?.mobile_number || "",
       notes: checkoutForm.notes || "",
       ...(checkoutForm.delivery_slot_id && checkoutForm.delivery_date
         ? { delivery_slot_id: Number(checkoutForm.delivery_slot_id), delivery_date: checkoutForm.delivery_date }
@@ -388,5 +448,8 @@ export default function useCheckoutFlow({
     handleCheckoutSubmit,
     openRazorpayForPayment,
     handleRetryPayment,
+    signInPrompt,
+    confirmSignInPrompt,
+    cancelSignInPrompt,
   };
 }
