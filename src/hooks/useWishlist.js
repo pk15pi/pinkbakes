@@ -114,5 +114,10 @@ export default function useWishlist(notify, catalog = [], userId = null) {
     if (!silent) notify(`Removed "${product.name}" from wishlist`);
   }
 
-  return { wishlist: ids, wishlistItems: items, isWishlisted, toggleWishlist, removeFromWishlist };
+  function addToWishlist(product, { silent = false } = {}) {
+    setMembership(product, true);
+    if (!silent) notify(`Moved "${product.name}" to wishlist`);
+  }
+
+  return { wishlist: ids, wishlistItems: items, isWishlisted, toggleWishlist, removeFromWishlist, addToWishlist };
 }

@@ -2550,3 +2550,14 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 .signin-prompt-body{margin:0 0 18px;font-size:14px;color:#6d5d52;line-height:1.5}
 .cart-wishlist-title{display:flex;align-items:center;gap:8px;margin:0 0 10px;font:500 18px "Playfair Display",serif;color:#32251e}
 .review-form-title{margin:0 0 10px;font:500 18px "Playfair Display",serif;color:#32251e}
+
+/* Cart drawer: checkout right below items, wishlist clearly separated at the bottom */
+.cart-scroll .cart-summary{border-top:1px solid #eee;margin:0 20px;padding:16px 0 20px}
+.cart-scroll .cart-wishlist{margin-top:18px;border-top:8px solid #f6efe8;padding-top:20px}
+
+
+/* Cart item: move to wishlist */
+.qty .move-to-wishlist{margin-left:auto;width:auto;height:24px;border:1px solid #e7d6c4;border-radius:999px;padding:0 9px;display:inline-flex;align-items:center;gap:4px;font-size:10px;color:#8a5f32}
+.qty .move-to-wishlist svg{width:12px}
+.qty .move-to-wishlist + .delete{margin-left:0}
+

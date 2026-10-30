@@ -586,7 +586,7 @@ function App() {
     sendCustomBrief,
     subscribe,
   } = useStorefrontInteractions(notify);
-  const { wishlist, wishlistItems, isWishlisted, toggleWishlist, removeFromWishlist } = useWishlist(notify, catalog, user?.id ?? null);
+  const { wishlist, wishlistItems, isWishlisted, toggleWishlist, removeFromWishlist, addToWishlist } = useWishlist(notify, catalog, user?.id ?? null);
   const [focusWishlist, setFocusWishlist] = useState(false);
 
   function openWishlist() {
@@ -604,6 +604,13 @@ function App() {
     const sizes = pricedSizes(product);
     addToCart(product, sizes.length ? { size: sizes.includes("1 kg") ? "1 kg" : sizes[0] } : undefined);
     removeFromWishlist(product, { silent: true });
+  }
+
+  // "Move to wishlist" from the cart: save the cake to the wishlist and remove that cart line.
+  function moveCartItemToWishlist(item) {
+    if (item?.id == null) return;
+    addToWishlist({ id: item.id, name: item.name });
+    changeQty(item.lineId || item.id, -item.qty);
   }
 
   const { shareBakeryLocationOnWhatsApp, openBakeryInGoogleMaps } = useBakeryLocation(
@@ -1084,6 +1091,7 @@ function App() {
         scrollTo={scrollTo}
         wishlistItems={wishlistItems}
         onMoveWishlistToCart={moveWishlistToCart}
+        onMoveCartItemToWishlist={moveCartItemToWishlist}
         onViewWishlistItem={(item) => { setCartOpen(false); openProduct(item); }}
         onRemoveWishlistItem={(item) => removeFromWishlist(item)}
         isOutOfStock={isOutOfStock}

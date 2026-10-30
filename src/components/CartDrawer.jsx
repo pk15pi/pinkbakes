@@ -47,6 +47,7 @@ function CartDrawer({
   onMoveWishlistToCart,
   onViewWishlistItem,
   onRemoveWishlistItem,
+  onMoveCartItemToWishlist,
   isOutOfStock,
   focusWishlist = false,
   onWishlistFocused,
@@ -79,10 +80,10 @@ function CartDrawer({
         {cart.length === 0 ? <div className="cart-scroll"><div className="empty-cart"><ShoppingBag size={38}/><h3>Your cart is empty</h3><p>Pick a beautiful cake for your next celebration.</p><button className="btn primary" onClick={() => { setCartOpen(false); scrollTo("cakes"); }}>Explore Cakes</button></div>{wishlist}</div> :
           <>
             <div className="cart-scroll">
-              <div className="cart-items">{cart.map(item => <div className="cart-item" key={item.lineId || item.id}><img src={item.image} alt={item.name}/><div><b>{item.name}</b>{item.options && <small className="cart-options">{describeCartOptions(item.options)}</small>}<strong>{formatCurrency(cartUnitPrice(item)*item.qty, 2)}</strong><div className="qty"><button onClick={()=>changeQty(item.lineId || item.id,-1)} aria-label={`Decrease ${item.name} quantity`}><Minus/></button><span>{item.qty}</span><button onClick={()=>changeQty(item.lineId || item.id,1)} disabled={item.qty >= cartQtyCap(item)} title={item.qty >= cartQtyCap(item) ? `Maximum quantity is ${cartQtyCap(item)}` : undefined} aria-label={`Increase ${item.name} quantity`}><Plus/></button><button className="delete" onClick={()=>changeQty(item.lineId || item.id,-item.qty)} aria-label={`Remove ${item.name}`}><Trash2/></button></div></div></div>)}</div>
+              <div className="cart-items">{cart.map(item => <div className="cart-item" key={item.lineId || item.id}><img src={item.image} alt={item.name}/><div><b>{item.name}</b>{item.options && <small className="cart-options">{describeCartOptions(item.options)}</small>}<strong>{formatCurrency(cartUnitPrice(item)*item.qty, 2)}</strong><div className="qty"><button onClick={()=>changeQty(item.lineId || item.id,-1)} aria-label={`Decrease ${item.name} quantity`}><Minus/></button><span>{item.qty}</span><button onClick={()=>changeQty(item.lineId || item.id,1)} disabled={item.qty >= cartQtyCap(item)} title={item.qty >= cartQtyCap(item) ? `Maximum quantity is ${cartQtyCap(item)}` : undefined} aria-label={`Increase ${item.name} quantity`}><Plus/></button>{onMoveCartItemToWishlist && <button type="button" className="move-to-wishlist" onClick={()=>onMoveCartItemToWishlist(item)} aria-label={`Move ${item.name} to wishlist`} title="Move to wishlist"><Heart/><span>Save for later</span></button>}<button className="delete" onClick={()=>changeQty(item.lineId || item.id,-item.qty)} aria-label={`Remove ${item.name}`} title="Remove from cart"><Trash2/></button></div></div></div>)}</div>
+              <div className="cart-summary"><div><span>Subtotal</span><b>{formatCurrency(cartTotal, 2)}</b></div><small>Taxes and delivery calculated at checkout.</small><button className="btn primary checkout" onClick={openCheckout}>Proceed to Checkout <ArrowRight/></button></div>
               {wishlist}
             </div>
-            <div className="cart-summary"><div><span>Subtotal</span><b>{formatCurrency(cartTotal, 2)}</b></div><small>Taxes and delivery calculated at checkout.</small><button className="btn primary checkout" onClick={openCheckout}>Proceed to Checkout <ArrowRight/></button></div>
           </>
         }
       </aside>
