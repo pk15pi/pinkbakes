@@ -20,6 +20,9 @@ ZONE_PIN = '122001'
 CUSTOMERS = {
     'a': dict(username='e2e_alice', email='alice.e2e@example.test', first_name='Alice', last_name='Tester', mobile='9000000001'),
     'b': dict(username='e2e_bob', email='bob.e2e@example.test', first_name='Bob', last_name='Tester', mobile='9000000002'),
+    # Dedicated to server-cart specs (carts are per user and specs run in parallel).
+    'c': dict(username='e2e_carol', email='carol.e2e@example.test', first_name='Carol', last_name='Tester', mobile='9000000003'),
+    'd': dict(username='e2e_dave', email='dave.e2e@example.test', first_name='Dave', last_name='Tester', mobile='9000000004'),
 }
 ADMIN = dict(username='e2e_admin', email='admin.e2e@example.test')
 

@@ -167,7 +167,7 @@ function AdminDashboardPanel({
                   <div className="admin-reports-page">
                     <div className="report-topbar">
                       <div><span className="eyebrow">OVERVIEW</span><h3>Operations Dashboard</h3></div>
-                      <select value={adminDashPreset} onChange={(e) => { setAdminDashPreset(e.target.value); loadAdminSectionData("dashboard", e.target.value); }}>
+                      <select aria-label="Dashboard date range" value={adminDashPreset} onChange={(e) => { setAdminDashPreset(e.target.value); loadAdminSectionData("dashboard", e.target.value); }}>
                         <option value="today">Today</option>
                         <option value="yesterday">Yesterday</option>
                         <option value="last_7_days">Last 7 days</option>
@@ -203,11 +203,11 @@ function AdminDashboardPanel({
                     </div>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
                       <input placeholder="Search" value={adminOrderFilter.search} onChange={(e) => setAdminOrderFilter((p) => ({ ...p, search: e.target.value }))} />
-                      <select value={adminOrderFilter.status} onChange={(e) => setAdminOrderFilter((p) => ({ ...p, status: e.target.value }))}>
+                      <select aria-label="Filter by order status" value={adminOrderFilter.status} onChange={(e) => setAdminOrderFilter((p) => ({ ...p, status: e.target.value }))}>
                         <option value="">All statuses</option>
                         {["PENDING","ORDER_CONFIRMED","PREPARING","PACKING","READY_FOR_DELIVERY","DELIVERY_BOY_ASSIGNED","OUT_FOR_DELIVERY","DELIVERED","CANCELLED"].map((s) => <option key={s} value={s}>{s}</option>)}
                       </select>
-                      <select value={adminOrderFilter.payment_status} onChange={(e) => setAdminOrderFilter((p) => ({ ...p, payment_status: e.target.value }))}>
+                      <select aria-label="Filter by payment status" value={adminOrderFilter.payment_status} onChange={(e) => setAdminOrderFilter((p) => ({ ...p, payment_status: e.target.value }))}>
                         <option value="">All payments</option>
                         {["pending","paid","failed","refunded"].map((s) => <option key={s} value={s}>{s}</option>)}
                       </select>
@@ -436,7 +436,7 @@ function AdminDashboardPanel({
                 {!adminReportsView && !adminDeliveryView && adminSection === "reviews" && (
                   <div className="admin-reports-page">
                     <div className="report-topbar"><div><span className="eyebrow">REVIEWS</span><h3>Moderation</h3></div>
-                      <select value={adminReviewFilter} onChange={(e) => { const v = e.target.value; setAdminReviewFilter(v); setAdminLoadingSection(true); fetchAdminReviews({ status: v, page: 1, page_size: 25 }).then((d) => setAdminReviews(Array.isArray(d) ? d : (d.results || []))).catch((err) => setAdminOpsMessage(err.message || "Reviews failed")).finally(() => setAdminLoadingSection(false)); }}>
+                      <select aria-label="Filter reviews by status" value={adminReviewFilter} onChange={(e) => { const v = e.target.value; setAdminReviewFilter(v); setAdminLoadingSection(true); fetchAdminReviews({ status: v, page: 1, page_size: 25 }).then((d) => setAdminReviews(Array.isArray(d) ? d : (d.results || []))).catch((err) => setAdminOpsMessage(err.message || "Reviews failed")).finally(() => setAdminLoadingSection(false)); }}>
                         <option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="">All</option>
                       </select>
                     </div>

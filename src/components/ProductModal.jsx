@@ -142,7 +142,7 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
 
   return <div className="modal-backdrop" onClick={onClose}>
     <div className="product-modal" onClick={e=>e.stopPropagation()}>
-      <button className="modal-close" onClick={onClose}><X/></button>
+      <button className="modal-close" onClick={onClose} aria-label="Close"><X/></button>
       <div className="modal-gallery">
         <div className={zoom ? "modal-main zoomed" : "modal-main"}><img src={image || detail.image} alt={(detail.name || "Cake") + " cake"} width="800" height="800" /></div>
         <div className="thumbs">{gallery.map(src=><button className={src===image?"selected":""} key={src} onClick={()=>setImage(src)}><img src={src} alt={(detail.name || "Cake") + " photo"} loading="lazy" width="120" height="120" /></button>)}</div>

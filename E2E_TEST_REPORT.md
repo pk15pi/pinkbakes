@@ -58,3 +58,10 @@ Backend: already pushed (745243a), so redeploy the API. Frontend: review and com
 - Login merges guest cart (sum, cap 40) then removes local copy; logout clears view; cart cleared server-side when payment is marked paid (verify + webhook), so failed payments keep the cart.
 - Results: Django 238 OK; chromium full 61/61; firefox+webkit on a,c,d,g,h,i,p 59/60 + 1 startup connection-refused rerun green (6/6); p spec x3 15/15; build OK.
 - Deploy: backend pull, `python manage.py migrate` (0019_cart), restart API; then frontend build/deploy. Nothing committed/pushed.
+## Phase 11 (2026-10-30) - full re-audit after phase-10 deploy
+- Totals: Playwright 260/260 passed, 0 failed, 0 skipped (chromium/firefox/webkit 64 each + 17 viewports x 4 = 68); Django 238 OK; makemigrations --check clean; build OK.
+- New security tests (N2): cart endpoints 401 unauthenticated; cross-user cart isolation; SQLi-ish/oversized cart input -> 4xx, no traceback; cart option text with HTML rendered as text (no script execution).
+- Bugs: critical 0, high 0, medium 0 in app code. Test-harness fix: server carts are per user and specs run in parallel, which made a cart test fail intermittently; added dedicated seed customers c/d (e2e/backend/seed_e2e.py) for server-cart specs.
+- Live read-only: home 200 (~1.2s from test host), JS 57KB/40KB vendor/CSS 12KB compressed; CSP, HSTS, nosniff, X-Frame-Options DENY present; /api/cart, /api/orders, /api/admin/dashboard 401 unauthenticated; catalog API ~1.5s from test host (network latency, not reproducible locally). 12 product images total 2.4MB, 2 over 300KB (low: recompress in admin uploads, content-only).
+- Remaining/unverified: payment gateway, SMS/WhatsApp/email delivery, SECRET_KEY/DEBUG item (skipped by owner); live performance measured from a single remote host only.
+- Files modified: e2e/specs/n-security.spec.js, e2e/specs/p-persistence.spec.js, e2e/backend/seed_e2e.py (tests only). No app code, no migration. Nothing committed.

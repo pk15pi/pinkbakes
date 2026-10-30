@@ -2377,3 +2377,39 @@ button.btn.primary.full:disabled {
   /* The phone menu hangs off the sticky header; keep its last item reachable on short screens. */
   .nav.mobile-visible{max-height:calc(100vh - 65px);max-height:calc(100dvh - 65px);overflow-y:auto;overscroll-behavior:contain}
 }
+
+/* ---- Phase 12 UI/UX polish (accessibility + readability; no visual redesign) ---- */
+/* WCAG 2.4.7/2.4.11: visible keyboard focus (several controls set outline:none). */
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:2px solid #8c6a4b;outline-offset:2px}
+.footer a:focus-visible,.footer button:focus-visible,.footer input:focus-visible{outline-color:#e8c9a0}
+/* WCAG 1.4.3: same hues, slightly deeper so white/beige text reaches 4.5:1. */
+.order-top,.btn.primary,.auth-toggle button.active,.nav.mobile-visible .nav-order{background:#956d3c}
+.order-top:hover,.btn.primary:hover{background:#86622f}
+.chip.active{background:#946d3c;border-color:#946d3c}
+.option-row button.selected-option{background:#966d3d;border-color:#966d3d}
+.badge,.product-media-actions .view-3d{background:#926e4b}
+.eyebrow{color:#7a5b40}
+.benefit span{color:#7b6f65}
+.custom-brief .optional{color:#76665a}
+.cart-item small,.cart-summary>small{color:#807269}
+.secure{color:#827267}
+.rating{color:#996b32}
+.stars{color:#996c37}
+.price-row .strike,.modal-price-row .strike{color:#8a7057}
+.footer-bottom,.footer-sep{color:#a39488}
+.review small,.policy-page-updated{color:#7b6f65}
+.policy-page-kicker{color:#7a5b40}
+.is-current{background:#956d3c;border-color:#956d3c}
+.brand small{color:#85654a}
+/* Readability: lift the sub-9px labels to a 10px floor (brand subtitle to 8px to keep the header line). */
+.brand small{font-size:8px}
+.auth-brand-row small{font-size:9px}
+.badge,.sizes span,.benefit span,.review small,.viewer-controls span,.footer-bottom,.mini-3d span,.secure{font-size:10px}
+@media (max-width:900px){.product-media-actions .quick-view,.product-media-actions .view-3d{font-size:9px}}
+/* WCAG 2.5.8 target size (24px minimum) for desktop nav, footer links, icons and selects. */
+.nav button,.footer-top button,.text-link{min-height:24px}
+.footer .footer-bottom .footer-help-link,.footer .footer-bottom .footer-admin-link{display:inline-flex;align-items:center;min-height:24px}
+.social a.social-icon{min-width:24px;min-height:24px;justify-content:center}
+.auth-form button,select:not([multiple]){min-height:24px}
+/* WCAG 2.3.3 / user preference: honour reduced motion. */
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}

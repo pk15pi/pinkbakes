@@ -36,7 +36,7 @@ function ProductCatalog({
           )}
         </div>
         <div className="searchbox">
-          <Search size={16}/><input id="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search cakes..."/>
+          <Search size={16}/><input id="search" aria-label="Search cakes" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search cakes..."/>
         </div>
       </div>
 

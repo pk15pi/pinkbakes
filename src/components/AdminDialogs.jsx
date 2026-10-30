@@ -57,7 +57,7 @@ function AdminDialogs({
                 <div className="admin-modal" onClick={e => e.stopPropagation()}>
                   <div className="admin-modal-head">
                     <h3>Admin Login</h3>
-                    <button type="button" onClick={() => { setAdminOpen(false); try { if ((window.location.pathname || "").startsWith("/admin")) window.history.pushState({}, "", "/"); } catch (_) {} }}><X/></button>
+                    <button type="button" onClick={() => { setAdminOpen(false); try { if ((window.location.pathname || "").startsWith("/admin")) window.history.pushState({}, "", "/"); } catch (_) {} }} aria-label="Close admin login"><X/></button>
                   </div>
                   <form className="admin-form" onSubmit={handleAdminLogin}>
                     <label>

@@ -56,7 +56,7 @@ test.describe("P. Cart persistence & session restore", () => {
   });
 
   test("guest cart merges into server cart on sign-in; survives reload and shows in a second browser", async ({ page, browser }) => {
-    const token = await customerToken("b");
+    const token = await customerToken("c");
     await (await apiContext(token)).delete("/api/cart/");
     const slug = meta().products["E2E Chocolate Truffle Cake"].slug;
     await page.goto(`/products/${slug}`);
