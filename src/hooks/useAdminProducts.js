@@ -6,6 +6,7 @@ const EMPTY_CAKE_FORM = {
   name: "",
   price: "",
   discount: "",
+  size_prices: {},
   category: "Birthday Cakes",
   description: "",
   image: "",
@@ -32,6 +33,7 @@ export default function useAdminProducts({ catalog, setCatalog, notify }) {
       name: item.name || "",
       price: String(item.price ?? ""),
       discount: String(item.discount ?? 0),
+      size_prices: Object.fromEntries(Object.entries(item.size_prices || {}).map(([size, value]) => [size, String(value)])),
       category: item.category || "Birthday Cakes",
       description: item.description || item.short_description || "",
       image: item.image || "",
@@ -50,6 +52,18 @@ export default function useAdminProducts({ catalog, setCatalog, notify }) {
       return;
     }
 
+    // BUG-026: optional per-size prices; blank sizes are left out ({} clears them).
+    const sizePrices = Object.fromEntries(
+      Object.entries(cakeForm.size_prices || {})
+        .map(([size, value]) => [size, String(value ?? "").trim()])
+        .filter(([, value]) => value !== "")
+    );
+    const badSize = Object.entries(sizePrices).find(([, value]) => !(Number(value) > 0));
+    if (badSize) {
+      setAdminMessage(`Please enter a valid price for ${badSize[0]} or leave it blank.`);
+      return;
+    }
+
     const token = localStorage.getItem("pinkbakes_admin_token");
     const baseImage = cakeForm.image || catalog[0]?.image || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1000&q=85";
     const existingCake = editingCakeId != null ? catalog.find(item => item.id === editingCakeId) : null;
@@ -57,6 +71,7 @@ export default function useAdminProducts({ catalog, setCatalog, notify }) {
       name: cakeForm.name.trim(),
       price: Number(cakeForm.price),
       discount: Number(cakeForm.discount || 0),
+      size_prices: sizePrices,
       category: cakeForm.category,
       description: cakeForm.description.trim(),
       short_description: cakeForm.description.trim(),

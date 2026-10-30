@@ -1,0 +1,470 @@
+[
+ {
+  "vp": "320x568",
+  "positions": [
+   {
+    "y": 0,
+    "top": 0,
+    "h": 65,
+    "onTop": true,
+    "sw": 320,
+    "vw": 320
+   },
+   {
+    "y": 600,
+    "top": -600,
+    "h": 65,
+    "onTop": false,
+    "sw": 320,
+    "vw": 320
+   },
+   {
+    "y": 9024,
+    "top": -9024,
+    "h": 65,
+    "onTop": false,
+    "sw": 320,
+    "vw": 320
+   },
+   {
+    "y": 18048,
+    "top": -18048,
+    "h": 65,
+    "onTop": false,
+    "sw": 320,
+    "vw": 320
+   }
+  ],
+  "stuck": false,
+  "noHOverflow": true,
+  "menu": {
+   "navTop": 65,
+   "headerBottom": 65,
+   "navBottom": 550,
+   "vh": 568,
+   "lastInView": true,
+   "lastOnTop": true
+  },
+  "menuOk": true,
+  "anchors": {
+   "cakes": 2866,
+   "gallery": 15413,
+   "contact": 16992
+  },
+  "anchorsOk": true,
+  "pass": false
+ },
+ {
+  "vp": "360x800",
+  "positions": [
+   {
+    "y": 0,
+    "top": 0,
+    "h": 65,
+    "onTop": true,
+    "sw": 360,
+    "vw": 360
+   },
+   {
+    "y": 600,
+    "top": -600,
+    "h": 65,
+    "onTop": false,
+    "sw": 360,
+    "vw": 360
+   },
+   {
+    "y": 9049,
+    "top": -9049,
+    "h": 65,
+    "onTop": false,
+    "sw": 360,
+    "vw": 360
+   },
+   {
+    "y": 18098,
+    "top": -18098,
+    "h": 65,
+    "onTop": false,
+    "sw": 360,
+    "vw": 360
+   }
+  ],
+  "stuck": false,
+  "noHOverflow": true,
+  "menu": {
+   "navTop": 65,
+   "headerBottom": 65,
+   "navBottom": 550,
+   "vh": 800,
+   "lastInView": true,
+   "lastOnTop": true
+  },
+  "menuOk": true,
+  "anchors": {
+   "cakes": 2761,
+   "gallery": 15734,
+   "contact": 17293
+  },
+  "anchorsOk": true,
+  "pass": false
+ },
+ {
+  "vp": "375x812",
+  "positions": [
+   {
+    "y": 0,
+    "top": 0,
+    "h": 65,
+    "onTop": true,
+    "sw": 375,
+    "vw": 375
+   },
+   {
+    "y": 600,
+    "top": -600,
+    "h": 65,
+    "onTop": false,
+    "sw": 375,
+    "vw": 375
+   },
+   {
+    "y": 9116,
+    "top": -9116,
+    "h": 65,
+    "onTop": false,
+    "sw": 375,
+    "vw": 375
+   },
+   {
+    "y": 18231,
+    "top": -18231,
+    "h": 65,
+    "onTop": false,
+    "sw": 375,
+    "vw": 375
+   }
+  ],
+  "stuck": false,
+  "noHOverflow": true,
+  "menu": {
+   "navTop": 65,
+   "headerBottom": 65,
+   "navBottom": 550,
+   "vh": 812,
+   "lastInView": true,
+   "lastOnTop": true
+  },
+  "menuOk": true,
+  "anchors": {
+   "cakes": 2761,
+   "gallery": 15878,
+   "contact": 17437
+  },
+  "anchorsOk": true,
+  "pass": false
+ },
+ {
+  "vp": "390x844",
+  "positions": [
+   {
+    "y": 0,
+    "top": 0,
+    "h": 65,
+    "onTop": true,
+    "sw": 390,
+    "vw": 390
+   },
+   {
+    "y": 600,
+    "top": -600,
+    "h": 65,
+    "onTop": false,
+    "sw": 390,
+    "vw": 390
+   },
+   {
+    "y": 9159,
+    "top": -9159,
+    "h": 65,
+    "onTop": false,
+    "sw": 390,
+    "vw": 390
+   },
+   {
+    "y": 18317,
+    "top": -18317,
+    "h": 65,
+    "onTop": false,
+    "sw": 390,
+    "vw": 390
+   }
+  ],
+  "stuck": false,
+  "noHOverflow": true,
+  "menu": {
+   "navTop": 65,
+   "headerBottom": 65,
+   "navBottom": 550,
+   "vh": 844,
+   "lastInView": true,
+   "lastOnTop": true
+  },
+  "menuOk": true,
+  "anchors": {
+   "cakes": 2761,
+   "gallery": 16063,
+   "contact": 17622
+  },
+  "anchorsOk": true,
+  "pass": false
+ },
+ {
+  "vp": "414x896",
+  "positions": [
+   {
+    "y": 0,
+    "top": 0,
+    "h": 65,
+    "onTop": true,
+    "sw": 414,
+    "vw": 414
+   },
+   {
+    "y": 600,
+    "top": -600,
+    "h": 65,
+    "onTop": false,
+    "sw": 414,
+    "vw": 414
+   },
+   {
+    "y": 9317,
+    "top": -9317,
+    "h": 65,
+    "onTop": false,
+    "sw": 414,
+    "vw": 414
+   },
+   {
+    "y": 18633,
+    "top": -18633,
+    "h": 65,
+    "onTop": false,
+    "sw": 414,
+    "vw": 414
+   }
+  ],
+  "stuck": false,
+  "noHOverflow": true,
+  "menu": {
+   "navTop": 65,
+   "headerBottom": 65,
+   "navBottom": 487,
+   "vh": 896,
+   "lastInView": true,
+   "lastOnTop": true
+  },
+  "menuOk": true,
+  "anchors": {
+   "cakes": 2737,
+   "gallery": 16431,
+   "contact": 17990
+  },
+  "anchorsOk": true,
+  "pass": false
+ },
+ {
+  "vp": "768x1024",
+  "positions": [
+   {
+    "y": 0,
+    "top": 0,
+    "h": 74,
+    "onTop": true,
+    "sw": 768,
+    "vw": 768
+   },
+   {
+    "y": 600,
+    "top": -600,
+    "h": 74,
+    "onTop": false,
+    "sw": 768,
+    "vw": 768
+   },
+   {
+    "y": 5256,
+    "top": -5256,
+    "h": 74,
+    "onTop": false,
+    "sw": 768,
+    "vw": 768
+   },
+   {
+    "y": 10511,
+    "top": -10511,
+    "h": 74,
+    "onTop": false,
+    "sw": 768,
+    "vw": 768
+   }
+  ],
+  "stuck": false,
+  "noHOverflow": true,
+  "menu": {
+   "navTop": 74,
+   "headerBottom": 74,
+   "navBottom": 434,
+   "vh": 1024,
+   "lastInView": true,
+   "lastOnTop": true
+  },
+  "menuOk": true,
+  "anchors": {
+   "cakes": 1690,
+   "gallery": 8936,
+   "contact": 10464
+  },
+  "anchorsOk": true,
+  "pass": false
+ },
+ {
+  "vp": "1024x768",
+  "positions": [
+   {
+    "y": 0,
+    "top": 0,
+    "h": 74,
+    "onTop": true,
+    "sw": 1024,
+    "vw": 1024
+   },
+   {
+    "y": 600,
+    "top": -600,
+    "h": 74,
+    "onTop": false,
+    "sw": 1024,
+    "vw": 1024
+   },
+   {
+    "y": 3012,
+    "top": -3012,
+    "h": 74,
+    "onTop": false,
+    "sw": 1024,
+    "vw": 1024
+   },
+   {
+    "y": 6024,
+    "top": -6024,
+    "h": 74,
+    "onTop": false,
+    "sw": 1024,
+    "vw": 1024
+   }
+  ],
+  "stuck": false,
+  "noHOverflow": true,
+  "anchors": {
+   "cakes": 1146,
+   "gallery": 5144,
+   "contact": 6046
+  },
+  "anchorsOk": true,
+  "pass": false
+ },
+ {
+  "vp": "1280x800",
+  "positions": [
+   {
+    "y": 0,
+    "top": 0,
+    "h": 74,
+    "onTop": true,
+    "sw": 1280,
+    "vw": 1280
+   },
+   {
+    "y": 600,
+    "top": -600,
+    "h": 74,
+    "onTop": false,
+    "sw": 1280,
+    "vw": 1280
+   },
+   {
+    "y": 3076,
+    "top": -3076,
+    "h": 74,
+    "onTop": false,
+    "sw": 1280,
+    "vw": 1280
+   },
+   {
+    "y": 6152,
+    "top": -6152,
+    "h": 74,
+    "onTop": false,
+    "sw": 1280,
+    "vw": 1280
+   }
+  ],
+  "stuck": false,
+  "noHOverflow": true,
+  "anchors": {
+   "cakes": 1174,
+   "gallery": 5380,
+   "contact": 6282
+  },
+  "anchorsOk": true,
+  "pass": false
+ },
+ {
+  "vp": "1440x900",
+  "positions": [
+   {
+    "y": 0,
+    "top": 0,
+    "h": 74,
+    "onTop": true,
+    "sw": 1440,
+    "vw": 1440
+   },
+   {
+    "y": 600,
+    "top": -600,
+    "h": 74,
+    "onTop": false,
+    "sw": 1440,
+    "vw": 1440
+   },
+   {
+    "y": 3125,
+    "top": -3125,
+    "h": 74,
+    "onTop": false,
+    "sw": 1440,
+    "vw": 1440
+   },
+   {
+    "y": 6250,
+    "top": -6250,
+    "h": 74,
+    "onTop": false,
+    "sw": 1440,
+    "vw": 1440
+   }
+  ],
+  "stuck": false,
+  "noHOverflow": true,
+  "anchors": {
+   "cakes": 1237,
+   "gallery": 5592,
+   "contact": 6494
+  },
+  "anchorsOk": true,
+  "pass": false
+ }
+]

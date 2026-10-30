@@ -1,5 +1,6 @@
 import { MessageCircle } from "lucide-react";
 import { CustomCakePoints } from "./HomeSections";
+import { CUSTOM_CAKE_SERVINGS_OPTIONS, CUSTOM_CAKE_WEIGHT_OPTIONS } from "../appConstants";
 
 function CustomCakeSection({ customBrief, setCustomBrief, sendCustomBrief, setCategory, scrollTo }) {
   return (
@@ -24,14 +25,18 @@ function CustomCakeSection({ customBrief, setCustomBrief, sendCustomBrief, setCa
                 <option>Other</option>
               </select>
             </label>
-            <label>Servings
+            <label>Servings <span className="optional">(optional)</span>
               <select value={customBrief.servings} onChange={(e) => setCustomBrief({ ...customBrief, servings: e.target.value })}>
-                <option value="">Select size</option>
-                <option>6-8</option>
-                <option>10-12</option>
-                <option>15-20</option>
-                <option>25+</option>
-                <option>Not sure yet</option>
+                <option value="">Select servings</option>
+                {CUSTOM_CAKE_SERVINGS_OPTIONS.map((option) => <option key={option}>{option}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="custom-brief-row">
+            <label>Cake weight <span className="optional">(optional)</span>
+              <select value={customBrief.weight} onChange={(e) => setCustomBrief({ ...customBrief, weight: e.target.value })}>
+                <option value="">Select weight</option>
+                {CUSTOM_CAKE_WEIGHT_OPTIONS.map((option) => <option key={option}>{option}</option>)}
               </select>
             </label>
           </div>
@@ -43,8 +48,8 @@ function CustomCakeSection({ customBrief, setCustomBrief, sendCustomBrief, setCa
               <input type="date" value={customBrief.preferredDate} onChange={(e) => setCustomBrief({ ...customBrief, preferredDate: e.target.value })} />
             </label>
           </div>
-          <label>Theme / idea
-            <textarea rows={2} placeholder="Colors, character, photo cake, message..." value={customBrief.theme} onChange={(e) => setCustomBrief({ ...customBrief, theme: e.target.value })} />
+          <label>Your idea / remarks <span className="optional">(optional)</span>
+            <textarea rows={3} maxLength={1000} placeholder="Describe your idea: colors, theme, character, photo cake, message on cake, any special requests..." value={customBrief.theme} onChange={(e) => setCustomBrief({ ...customBrief, theme: e.target.value })} />
           </label>
           <div className="custom-brief-row">
             <label>Your name

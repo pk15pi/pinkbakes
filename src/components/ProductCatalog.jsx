@@ -1,5 +1,6 @@
 import { ArrowRight, Heart, Rotate3d, Search, Star, ZoomIn } from "lucide-react";
 import { normalizeProduct } from "../productUtils";
+import { fromSizePrice } from "../appConstants";
 
 function ProductCatalog({
   category,
@@ -42,6 +43,8 @@ function ProductCatalog({
       <div className="product-grid">
         {catalogLoading && catalog.length === 0 ? <div className="empty">Loading cakes...</div> : filtered.map(p => {
           const priceAfterDiscount = p.discounted_price || Number((p.price * (100 - (p.discount || 0)) / 100).toFixed(2));
+          // BUG-026: cakes with per-size prices show the lowest size price and need a size picked.
+          const fromPrice = fromSizePrice(p);
           return (
             <article className="product-card" key={p.id}>
               <div className="product-media">
@@ -65,14 +68,14 @@ function ProductCatalog({
                 <h3>{p.name}</h3>
                 {(p.short_description || p.description) && <p>{p.short_description || p.description}</p>}
                 <div className="price-row">
-                  <strong>{formatCurrency(priceAfterDiscount)}</strong>
-                  {p.discount > 0 && <span className="strike">{formatCurrency(p.price)}</span>}
+                  <strong>{fromPrice != null ? <>from {formatCurrency(fromPrice)}</> : formatCurrency(priceAfterDiscount)}</strong>
+                  {p.discount > 0 && fromPrice == null && <span className="strike">{formatCurrency(p.price)}</span>}
                 </div>
                 {p.discount > 0 && <small className="discount-badge">{p.discount}% OFF</small>}
                 <div className="sizes"><span className={isOutOfStock(p) ? "stock-out" : (p.is_low_stock || p.availability === "low_stock" ? "stock-low" : "stock-ok")}>{stockLabel(p)}</span></div>
                 <div className="product-actions">
                   <button className="btn secondary small" onClick={() => openProduct(p)}>View Cake</button>
-                  <button className="btn primary small" disabled={isOutOfStock(p)} onClick={() => addToCart(normalizeProduct(p))}>{isOutOfStock(p) ? "Out of Stock" : "Add to Cart"}</button>
+                  <button className="btn primary small" disabled={isOutOfStock(p)} onClick={() => (fromPrice != null ? openProduct(p) : addToCart(normalizeProduct(p)))}>{isOutOfStock(p) ? "Out of Stock" : (fromPrice != null ? "Choose Size" : "Add to Cart")}</button>
                 </div>
               </div>
             </article>

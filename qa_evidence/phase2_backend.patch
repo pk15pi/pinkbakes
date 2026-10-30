@@ -1,0 +1,353 @@
+diff --git a/accounts/email_service.py b/accounts/email_service.py
+index 9607556..482f789 100644
+--- a/accounts/email_service.py
++++ b/accounts/email_service.py
+@@ -163,12 +163,12 @@ def build_order_confirmation_email_html(order):
+         qty = getattr(item, 'quantity', 1)
+         sub = getattr(item, 'subtotal', 0)
+         name = getattr(item, 'product_name', 'Item')
+-        price_bit = f" @ Rs.{unit}" if unit is not None else ''
++        price_bit = f" @ ₹{unit}" if unit is not None else ''
+         item_rows += (
+             f"<tr>"
+             f"<td style='padding:8px 0; border-bottom:1px solid #f2dfe8;'>{name}</td>"
+             f"<td style='padding:8px 0; border-bottom:1px solid #f2dfe8; text-align:center;'>{qty}{price_bit}</td>"
+-            f"<td style='padding:8px 0; border-bottom:1px solid #f2dfe8; text-align:right;'>Rs.{sub}</td>"
++            f"<td style='padding:8px 0; border-bottom:1px solid #f2dfe8; text-align:right;'>₹{sub}</td>"
+             f"</tr>"
+         )
+     if not item_rows:
+@@ -188,12 +188,12 @@ def build_order_confirmation_email_html(order):
+     if coupon_code or float(discount_amount or 0) > 0 or float(coupon_discount or 0) > 0:
+         shown = coupon_discount or discount_amount
+         coupon_label = f' ({coupon_code})' if coupon_code else ''
+-        discount_block = f"<p style='font-size:14px; margin:0 0 6px;'><strong>Discount{coupon_label}:</strong> -Rs.{shown}</p>"
++        discount_block = f"<p style='font-size:14px; margin:0 0 6px;'><strong>Discount{coupon_label}:</strong> -₹{shown}</p>"
+ 
+-    delivery_block = f"<p style='font-size:14px; margin:0 0 6px;'><strong>Delivery charge:</strong> Rs.{delivery_fee}</p>"
++    delivery_block = f"<p style='font-size:14px; margin:0 0 6px;'><strong>Delivery charge:</strong> ₹{delivery_fee}</p>"
+     tax_block = ''
+     if float(tax_amount or 0) > 0:
+-        tax_block = f"<p style='font-size:14px; margin:0 0 6px;'><strong>Tax:</strong> Rs.{tax_amount}</p>"
++        tax_block = f"<p style='font-size:14px; margin:0 0 6px;'><strong>Tax:</strong> ₹{tax_amount}</p>"
+     eta_block = f"<p style='font-size:14px; margin:0 0 6px;'><strong>Estimated delivery:</strong> {eta_text}</p>" if eta_text else ''
+ 
+     return f"""
+@@ -220,11 +220,11 @@ def build_order_confirmation_email_html(order):
+               </tr>
+               {item_rows}
+             </table>
+-            <p style="font-size:14px; margin:12px 0 6px;"><strong>Subtotal:</strong> Rs.{subtotal_amount}</p>
++            <p style="font-size:14px; margin:12px 0 6px;"><strong>Subtotal:</strong> ₹{subtotal_amount}</p>
+             {discount_block}
+             {delivery_block}
+             {tax_block}
+-            <p style="font-size:16px; margin:8px 0 16px;"><strong>Total paid:</strong> Rs.{total_amount}</p>
++            <p style="font-size:16px; margin:8px 0 16px;"><strong>Total paid:</strong> ₹{total_amount}</p>
+             <p style="font-size:14px; margin:0 0 6px;"><strong>Delivery address:</strong><br>{address_lines}</p>
+             {eta_block}
+             <p style="font-size:14px; line-height:1.6; color:#5d4753; margin:20px 0 0;">
+@@ -304,11 +304,11 @@ def build_refund_email_html(order, refund, stage='initiated'):
+     amount = getattr(refund, 'amount', 0)
+     refund_status = getattr(refund, 'status', '')
+     if stage == 'completed':
+-        body = f"Your refund of <strong>Rs.{amount}</strong> for order <strong>{order_number}</strong> has been completed."
++        body = f"Your refund of <strong>₹{amount}</strong> for order <strong>{order_number}</strong> has been completed."
+     elif stage == 'failed':
+-        body = f"We could not complete the refund of <strong>Rs.{amount}</strong> for order <strong>{order_number}</strong>. Our team will review this shortly."
++        body = f"We could not complete the refund of <strong>₹{amount}</strong> for order <strong>{order_number}</strong>. Our team will review this shortly."
+     else:
+-        body = f"A refund of <strong>Rs.{amount}</strong> for order <strong>{order_number}</strong> has been initiated. Current status: <strong>{refund_status}</strong>."
++        body = f"A refund of <strong>₹{amount}</strong> for order <strong>{order_number}</strong> has been initiated. Current status: <strong>{refund_status}</strong>."
+     return f"""
+     <html>
+       <body style="font-family: Arial, sans-serif; background:#fff7fb; padding:24px; color:#3a2a34;">
+diff --git a/catalog/coupons.py b/catalog/coupons.py
+index 2a59a3e..9ab2903 100644
+--- a/catalog/coupons.py
++++ b/catalog/coupons.py
+@@ -176,7 +176,7 @@ def validate_coupon(user, code, cart_items, *, lock=False):
+ 
+     if coupon.minimum_order_amount and full_subtotal < _quantize(coupon.minimum_order_amount):
+         raise CouponError(
+-            f'Minimum order amount of Rs.{_quantize(coupon.minimum_order_amount)} required for this coupon.'
++            f'Minimum order amount of ₹{_quantize(coupon.minimum_order_amount)} required for this coupon.'
+         )
+ 
+     if coupon.new_customers_only and not _is_new_customer(user):
+diff --git a/catalog/delivery.py b/catalog/delivery.py
+index b3b593a..4042acd 100644
+--- a/catalog/delivery.py
++++ b/catalog/delivery.py
+@@ -161,8 +161,8 @@ def compute_delivery(
+         result["zone"] = zone
+         result["zone_id"] = zone.id
+         result["message"] = (
+-            f"Minimum order amount of Rs.{min_order} required for delivery to this area "
+-            f"(current merchandise total after coupon: Rs.{subtotal})."
++            f"Minimum order amount of ₹{min_order} required for delivery to this area "
++            f"(current merchandise total after coupon: ₹{subtotal})."
+         )
+         if zone:
+             result["eta_min_minutes"] = zone.eta_min_minutes
+diff --git a/catalog/migrations/0016_orderitem_options.py b/catalog/migrations/0016_orderitem_options.py
+new file mode 100644
+index 0000000..5be6ae5
+--- /dev/null
++++ b/catalog/migrations/0016_orderitem_options.py
+@@ -0,0 +1,18 @@
++# Generated by Django 5.2.18 on 2026-10-24 04:27
++
++from django.db import migrations, models
++
++
++class Migration(migrations.Migration):
++
++    dependencies = [
++        ('catalog', '0015_alter_employee_category'),
++    ]
++
++    operations = [
++        migrations.AddField(
++            model_name='orderitem',
++            name='options',
++            field=models.JSONField(blank=True, null=True),
++        ),
++    ]
+diff --git a/catalog/models.py b/catalog/models.py
+index 5d9dbe1..87d8490 100644
+--- a/catalog/models.py
++++ b/catalog/models.py
+@@ -296,6 +296,9 @@ class OrderItem(models.Model):
+     unit_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+     quantity = models.PositiveIntegerField(default=1)
+     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
++    # Customer choices from the product popup (size, eggless, message, delivery_date).
++    # Nullable/additive: legacy rows and option-less cart lines keep NULL.
++    options = models.JSONField(null=True, blank=True)
+     created_at = models.DateTimeField(auto_now_add=True)
+ 
+     class Meta:
+diff --git a/catalog/serializers.py b/catalog/serializers.py
+index 637fe1b..53af313 100644
+--- a/catalog/serializers.py
++++ b/catalog/serializers.py
+@@ -158,8 +158,9 @@ class OrderItemSerializer(serializers.ModelSerializer):
+             'unit_price',
+             'quantity',
+             'subtotal',
++            'options',
+         ]
+-        read_only_fields = ['id', 'product_name', 'product_image', 'unit_price', 'subtotal']
++        read_only_fields = ['id', 'product_name', 'product_image', 'unit_price', 'subtotal', 'options']
+ 
+     def get_product_name(self, obj):
+         return obj.product_name or (obj.product.name if obj.product else 'Product')
+diff --git a/catalog/tests.py b/catalog/tests.py
+index c1baafc..79dbf29 100644
+--- a/catalog/tests.py
++++ b/catalog/tests.py
+@@ -2634,3 +2634,81 @@ class DeliveryTrackingRegressionTests(TestCase):
+         response = self.client.post(self.location_url, {'latitude': '22.5726', 'longitude': '88.3639', 'accuracy': '12'}, format='json')
+         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+         self.assertEqual(self.order.delivery_locations.count(), 1)
++
++
++class OrderItemOptionsRegressionTests(TestCase):
++    """Bug 017: product popup options (size/eggless/message/delivery date) reach the order."""
++
++    def setUp(self):
++        from datetime import timedelta
++        self.client = APIClient()
++        self.user = User.objects.create_user(username='opts', email='opts@example.com', password='Pass12345!')
++        self.client.force_authenticate(user=self.user)
++        common = dict(
++            price=Decimal('800.00'), is_active=True, status='published', availability='in_stock',
++            available_quantity=20, reserved_quantity=0, sold_quantity=0, low_stock_threshold=2,
++        )
++        self.product = Product.objects.create(name='Options Truffle', category='Chocolate Cakes', **common)
++        self.eggless_product = Product.objects.create(name='Eggless Options Cake', category='Eggless Cakes', **common)
++        self.future = (timezone.now() + timedelta(days=3)).date().isoformat()
++
++    def _payload(self, items):
++        return {
++            'items': items,
++            'customer_name': 'Opts', 'customer_email': 'opts@example.com', 'customer_mobile': '9876543210',
++            'shipping_address': '1 Test Street', 'city': 'Mumbai', 'state': 'Maharashtra',
++            'postal_code': '400001', 'country': 'India',
++        }
++
++    def test_options_are_saved_and_returned(self):
++        opts = {'size': '1.5 kg', 'eggless': True, 'message': '  Happy   Birthday Riya ', 'delivery_date': self.future, 'evil': 'x'}
++        response = self.client.post('/api/orders/checkout/', self._payload([{'id': self.product.id, 'quantity': 1, 'options': opts}]), format='json')
++        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
++        item = response.json()['items'][0]
++        expected = {'size': '1.5 kg', 'eggless': True, 'message': 'Happy Birthday Riya', 'delivery_date': self.future}
++        self.assertEqual(item['options'], expected)
++        self.assertEqual(OrderItem.objects.get(id=item['id']).options, expected)
++        detail = self.client.get(f"/api/orders/{response.json()['id']}/")
++        self.assertEqual(detail.json()['items'][0]['options'], expected)
++
++    def test_same_product_with_different_options_stays_two_lines(self):
++        response = self.client.post('/api/orders/checkout/', self._payload([
++            {'id': self.product.id, 'quantity': 1, 'options': {'size': '1 kg', 'message': 'A'}},
++            {'id': self.product.id, 'quantity': 2, 'options': {'size': '2 kg', 'message': 'B'}},
++        ]), format='json')
++        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
++        items = response.json()['items']
++        self.assertEqual([(i['quantity'], i['options']['size']) for i in items], [(1, '1 kg'), (2, '2 kg')])
++
++    def test_legacy_payload_without_options_still_works(self):
++        response = self.client.post('/api/orders/checkout/', self._payload([{'id': self.product.id, 'quantity': 1}]), format='json')
++        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
++        self.assertIsNone(response.json()['items'][0]['options'])
++
++    def test_eggless_flag_not_recorded_for_already_eggless_cake(self):
++        response = self.client.post('/api/orders/checkout/', self._payload([
++            {'id': self.eggless_product.id, 'quantity': 1, 'options': {'size': '1 kg', 'eggless': True}},
++        ]), format='json')
++        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
++        self.assertEqual(response.json()['items'][0]['options'], {'size': '1 kg'})
++
++    def test_invalid_options_rejected_without_creating_order(self):
++        from datetime import timedelta
++        past = (timezone.now() - timedelta(days=3)).date().isoformat()
++        bad_options = [
++            'not-an-object',
++            {'size': '10 kg'},
++            {'eggless': 'yes'},
++            {'message': 'x' * 61},
++            {'message': 123},
++            {'delivery_date': 'tomorrow'},
++            {'delivery_date': past},
++        ]
++        for opts in bad_options:
++            response = self.client.post('/api/orders/checkout/', self._payload([{'id': self.product.id, 'quantity': 1, 'options': opts}]), format='json')
++            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, opts)
++        self.assertFalse(Order.objects.filter(user=self.user).exists())
++
++    def test_cart_validate_accepts_options(self):
++        response = self.client.post('/api/cart/validate/', {'items': [{'id': self.product.id, 'quantity': 1, 'options': {'size': '1 kg'}}]}, format='json')
++        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+diff --git a/catalog/views.py b/catalog/views.py
+index 45660a0..2b88720 100644
+--- a/catalog/views.py
++++ b/catalog/views.py
+@@ -4,6 +4,7 @@ import json
+ import math
+ from datetime import date
+ from decimal import Decimal
++from zoneinfo import ZoneInfo
+ 
+ from django.conf import settings
+ from django.core.cache import cache
+@@ -130,6 +131,72 @@ class PaymentService:
+             subtotal += (product.discounted_price * quantity)
+         return subtotal.quantize(Decimal('0.01'))
+ 
++    CAKE_SIZE_OPTIONS = ('0.5 kg', '1 kg', '1.5 kg', '2 kg')
++    CAKE_MESSAGE_MAX_LENGTH = 60
++    DELIVERY_DATE_MAX_DAYS_AHEAD = 365
++
++    @staticmethod
++    def is_eggless_product(product):
++        text = ' '.join([
++            str(getattr(product, 'category', '') or ''),
++            str(getattr(product, 'name', '') or ''),
++            str(getattr(product, 'badge', '') or ''),
++        ]).lower()
++        return 'eggless' in text
++
++    @staticmethod
++    def clean_item_options(raw, product):
++        """
++        Whitelist + validate the optional per-line choices from the product popup.
++        Returns a dict with only the recognised keys, or None when nothing was chosen.
++        Unknown keys are dropped; invalid values raise ValueError (400 to the client).
++        """
++        if raw in (None, '', {}):
++            return None
++        if not isinstance(raw, dict):
++            raise ValueError('Item options must be an object.')
++        cleaned = {}
++        size = raw.get('size')
++        if size not in (None, ''):
++            if not isinstance(size, str) or size.strip() not in PaymentService.CAKE_SIZE_OPTIONS:
++                raise ValueError('Please choose a valid cake size.')
++            cleaned['size'] = size.strip()
++        eggless = raw.get('eggless')
++        if eggless not in (None, ''):
++            if not isinstance(eggless, bool):
++                raise ValueError('Eggless preference must be true or false.')
++            # Already-eggless cakes do not offer the choice; nothing to record.
++            if eggless and not PaymentService.is_eggless_product(product):
++                cleaned['eggless'] = True
++        message = raw.get('message')
++        if message not in (None, ''):
++            if not isinstance(message, str):
++                raise ValueError('Cake message must be text.')
++            message = ' '.join(''.join(ch for ch in message if ch.isprintable()).split())
++            if len(message) > PaymentService.CAKE_MESSAGE_MAX_LENGTH:
++                raise ValueError(
++                    f'Cake message must be at most {PaymentService.CAKE_MESSAGE_MAX_LENGTH} characters.'
++                )
++            if message:
++                cleaned['message'] = message
++        delivery_date = raw.get('delivery_date')
++        if delivery_date not in (None, ''):
++            try:
++                parsed = date.fromisoformat(str(delivery_date).strip())
++            except ValueError:
++                raise ValueError('Delivery date must be a valid date (YYYY-MM-DD).')
++            try:
++                store_tz = ZoneInfo(getattr(settings, 'STORE_TIME_ZONE', '') or 'Asia/Kolkata')
++            except Exception:
++                store_tz = timezone.get_current_timezone()
++            today = timezone.now().astimezone(store_tz).date()
++            if parsed < today:
++                raise ValueError('Delivery date cannot be in the past.')
++            if (parsed - today).days > PaymentService.DELIVERY_DATE_MAX_DAYS_AHEAD:
++                raise ValueError('Delivery date is too far in the future.')
++            cleaned['delivery_date'] = parsed.isoformat()
++        return cleaned or None
++
+     @staticmethod
+     def ensure_valid_cart(items):
+         normalized = []
+@@ -159,6 +226,7 @@ class PaymentService:
+                 'product': product,
+                 'quantity': quantity,
+                 'unit_price': product.discounted_price,
++                'options': PaymentService.clean_item_options(item.get('options'), product),
+             })
+         # Re-check aggregated quantities under current stock.
+         totals = {}
+@@ -723,6 +791,7 @@ class PaymentCreateView(APIView):
+                     unit_price=item['unit_price'],
+                     quantity=item['quantity'],
+                     subtotal=(item['unit_price'] * item['quantity']).quantize(Decimal('0.01')),
++                    options=item.get('options'),
+                 )
+ 
+             if coupon_code:
+@@ -1621,6 +1690,7 @@ class OrderCheckoutView(APIView):
+                     unit_price=row['unit_price'],
+                     quantity=row['quantity'],
+                     subtotal=(row['unit_price'] * row['quantity']).quantize(Decimal('0.01')),
++                    options=row.get('options'),
+                 )
+ 
+             if coupon_code:
+diff --git a/notifications/service.py b/notifications/service.py
+index 0c0414a..ecb8456 100644
+--- a/notifications/service.py
++++ b/notifications/service.py
+@@ -368,7 +368,7 @@ def notify_staff_new_order(order):
+         context={
+             'order': order,
+             'title': f'New order {order.order_number}',
+-            'message': f'New order {order.order_number} from {getattr(order, "customer_name", "")} — Rs.{getattr(order, "total_amount", "")}',
++            'message': f'New order {order.order_number} from {getattr(order, "customer_name", "")} — ₹{getattr(order, "total_amount", "")}',
+         },
+         idempotency_key=f'new_order:{order.pk}',
+         reference_type='order',

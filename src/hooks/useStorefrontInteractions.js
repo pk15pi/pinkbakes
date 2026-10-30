@@ -7,6 +7,7 @@ export default function useStorefrontInteractions(notify) {
   const [customBrief, setCustomBrief] = useState({
     occasion: "",
     servings: "",
+    weight: "",
     flavor: "",
     theme: "",
     preferredDate: "",
@@ -40,10 +41,9 @@ export default function useStorefrontInteractions(notify) {
   function sendCustomBrief() {
     const brief = customBrief;
     const hasOccasion = Boolean(brief.occasion?.trim());
-    const hasTheme = Boolean(brief.theme?.trim());
-    const hasServings = Boolean(brief.servings?.trim());
-    if (!hasOccasion || (!hasTheme && !hasServings)) {
-      notify("Please add occasion and either theme or servings");
+    // Servings, weight and idea/remarks are all optional; only the occasion is required.
+    if (!hasOccasion) {
+      notify("Please select an occasion");
       return;
     }
     const lines = [
@@ -51,8 +51,9 @@ export default function useStorefrontInteractions(notify) {
       `* Name: ${brief.name?.trim() || "-"}`,
       `* Occasion: ${brief.occasion.trim()}`,
       `* Servings: ${brief.servings?.trim() || "-"}`,
+      `* Weight: ${brief.weight?.trim() || "-"}`,
       `* Flavor: ${brief.flavor?.trim() || "-"}`,
-      `* Theme: ${brief.theme?.trim() || "-"}`,
+      `* Idea / remarks: ${brief.theme?.trim() || "-"}`,
       `* Preferred date: ${brief.preferredDate || "-"}`,
       `* Phone: ${brief.phone?.trim() || "-"}`,
     ];

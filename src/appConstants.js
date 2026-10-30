@@ -43,6 +43,9 @@ export const STICKY_HEADER_OFFSET = 80;
 export const CART_QTY_MAX = 40;
 
 export const cartUnitPrice = (item) => {
+  // BUG-026: a line with a chosen size uses that size's admin-set price (less discount).
+  const sized = sizePriceFor(item, item?.options?.size);
+  if (sized != null) return sized;
   const list = Number(item?.price ?? 0);
   const discount = Number(item?.discount ?? 0);
   const fromField = Number(item?.discounted_price);
@@ -74,7 +77,38 @@ export const formatCurrency = (value, fractionDigits = 0) => {
 };
 
 // Product popup options (bug 017). Mirrors the whitelist enforced by the backend.
+// Weight choices for the "Create Your Custom Cake" brief (optional; customers may pick servings, weight, or both).
+export const CUSTOM_CAKE_SERVINGS_OPTIONS = ["6-8", "10-12", "15-20", "25-49", "50+", "75+", "100+", "Not sure yet"];
+export const CUSTOM_CAKE_WEIGHT_OPTIONS = ["0.5 kg", "1 kg", "1.5 kg", "2 kg", "3 kg", "4 kg", "5 kg", "Not sure yet"];
+
 export const CAKE_SIZE_OPTIONS = ["0.5 kg", "1 kg", "1.5 kg", "2 kg"];
+
+// BUG-026: optional per-size list prices set in admin, e.g. { "1 kg": "799.00" }.
+// The backend recomputes every price at checkout; these helpers only drive display.
+// No size prices -> every size sells at the product's main price.
+export const sizeListPrice = (product, size) => {
+  const prices = product?.size_prices;
+  if (!size || !prices || typeof prices !== "object") return null;
+  const list = Number(prices[size]);
+  return Number.isFinite(list) && list > 0 ? list : null;
+};
+
+export const pricedSizes = (product) => CAKE_SIZE_OPTIONS.filter((size) => sizeListPrice(product, size) != null);
+
+export const hasSizePrices = (product) => pricedSizes(product).length > 0;
+
+export const sizePriceFor = (product, size) => {
+  const list = sizeListPrice(product, size);
+  if (list == null) return null;
+  const discount = Math.min(100, Math.max(0, Number(product?.discount ?? 0) || 0));
+  return discount > 0 ? Number(((list * (100 - discount)) / 100).toFixed(2)) : list;
+};
+
+// Lowest discounted size price, for "from <price>" on listings; null when no size prices.
+export const fromSizePrice = (product) => {
+  const prices = pricedSizes(product).map((size) => sizePriceFor(product, size));
+  return prices.length ? Math.min(...prices) : null;
+};
 export const CAKE_MESSAGE_MAX_LENGTH = 60;
 
 export const isEgglessProduct = (product) =>

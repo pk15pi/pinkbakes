@@ -1,5 +1,3 @@
-import { policyFromPath } from "./policies";
-
 /**
  * Lightweight document-head helper for the PinkBakes SPA.
  * Equivalent to a head manager (no react-helmet dependency).

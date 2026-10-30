@@ -1,0 +1,137 @@
+[
+ {
+  "vp": "320x568",
+  "nameTruncated": true,
+  "search": false,
+  "auth": [
+   12,
+   484,
+   48
+  ],
+  "chat": [
+   12,
+   556,
+   56
+  ]
+ },
+ {
+  "vp": "360x800",
+  "nameTruncated": false,
+  "search": false,
+  "auth": [
+   12,
+   716,
+   48
+  ],
+  "chat": [
+   12,
+   788,
+   56
+  ]
+ },
+ {
+  "vp": "375x812",
+  "nameTruncated": false,
+  "search": false,
+  "auth": [
+   12,
+   728,
+   48
+  ],
+  "chat": [
+   12,
+   800,
+   56
+  ]
+ },
+ {
+  "vp": "390x844",
+  "nameTruncated": false,
+  "search": false,
+  "auth": [
+   12,
+   760,
+   48
+  ],
+  "chat": [
+   12,
+   832,
+   56
+  ]
+ },
+ {
+  "vp": "414x896",
+  "nameTruncated": false,
+  "search": false,
+  "auth": [
+   12,
+   812,
+   48
+  ],
+  "chat": [
+   12,
+   884,
+   56
+  ]
+ },
+ {
+  "vp": "768x1024",
+  "nameTruncated": false,
+  "search": true,
+  "auth": [
+   0,
+   0,
+   0
+  ],
+  "chat": [
+   22,
+   1002,
+   56
+  ]
+ },
+ {
+  "vp": "1024x768",
+  "nameTruncated": false,
+  "search": true,
+  "auth": [
+   22,
+   746,
+   48
+  ],
+  "chat": [
+   22,
+   746,
+   56
+  ]
+ },
+ {
+  "vp": "1280x800",
+  "nameTruncated": false,
+  "search": true,
+  "auth": [
+   22,
+   778,
+   48
+  ],
+  "chat": [
+   22,
+   778,
+   56
+  ]
+ },
+ {
+  "vp": "1440x900",
+  "nameTruncated": false,
+  "search": true,
+  "auth": [
+   22,
+   878,
+   48
+  ],
+  "chat": [
+   22,
+   878,
+   56
+  ]
+ }
+]

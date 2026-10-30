@@ -1,0 +1,1546 @@
+diff --git a/src/adminRefundUtils.jsx b/src/adminRefundUtils.jsx
+index 4a1302e..ca84028 100644
+--- a/src/adminRefundUtils.jsx
++++ b/src/adminRefundUtils.jsx
+@@ -1,3 +1,5 @@
++import { formatCurrency } from "./appConstants";
++
+ const PENDING_STATUSES = ["requested", "pending", "processing"];
+ 
+ function isRefundPendingStatus(status) {
+@@ -27,7 +29,7 @@ export function buildRefundTableRows(refunds, refundFilter) {
+     <tr key={refund.id}>
+       <td>{refund.id}</td>
+       <td>{refundOrderLabel(refund)}</td>
+-      <td>Rs.{Number(refund.amount || 0).toLocaleString("en-IN")}</td>
++      <td>{formatCurrency(Number(refund.amount || 0), 2)}</td>
+       <td>{refund.status}</td>
+       <td>{refund.initiated_by_type || "-"}</td>
+       <td>{refund.reason || "-"}</td>
+diff --git a/src/appConstants.js b/src/appConstants.js
+index b586eda..1ca3767 100644
+--- a/src/appConstants.js
++++ b/src/appConstants.js
+@@ -61,11 +61,67 @@ export const cartQtyCap = (item) => {
+   return CART_QTY_MAX;
+ };
+ 
+-export const formatCurrency = (value) => new Intl.NumberFormat("en-IN", {
+-  style: "currency",
+-  currency: "INR",
+-  maximumFractionDigits: 0,
+-}).format(Number(value || 0));
++// Single rupee formatter for every price shown in the app (always the "₹" symbol).
++// fractionDigits 0 rounds to whole rupees (catalog cards); 2 keeps paise for cart,
++// checkout, order and admin amounts while dropping ".00" on whole amounts.
++export const formatCurrency = (value, fractionDigits = 0) => {
++  const amount = Number(value || 0);
++  const options = fractionDigits > 0
++    ? { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits, trailingZeroDisplay: "stripIfInteger" }
++    : { minimumFractionDigits: 0, maximumFractionDigits: 0 };
++  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", ...options })
++    .format(Number.isFinite(amount) ? amount : 0);
++};
++
++// Product popup options (bug 017). Mirrors the whitelist enforced by the backend.
++export const CAKE_SIZE_OPTIONS = ["0.5 kg", "1 kg", "1.5 kg", "2 kg"];
++export const CAKE_MESSAGE_MAX_LENGTH = 60;
++
++export const isEgglessProduct = (product) =>
++  /eggless/i.test([product?.category, product?.name, product?.badge].filter(Boolean).join(" "));
++
++export const localIsoDate = (date = new Date()) => {
++  const pad = (n) => String(n).padStart(2, "0");
++  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
++};
++
++export function cleanCartOptions(options) {
++  if (!options || typeof options !== "object") return null;
++  const cleaned = {};
++  if (CAKE_SIZE_OPTIONS.includes(options.size)) cleaned.size = options.size;
++  if (options.eggless === true) cleaned.eggless = true;
++  const message = typeof options.message === "string" ? options.message.replace(/\s+/g, " ").trim().slice(0, CAKE_MESSAGE_MAX_LENGTH) : "";
++  if (message) cleaned.message = message;
++  if (typeof options.delivery_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(options.delivery_date)) cleaned.delivery_date = options.delivery_date;
++  return Object.keys(cleaned).length ? cleaned : null;
++}
++
++export const cartLineKey = (id, options) => {
++  if (!options) return String(id);
++  return [id, options.size || "", options.eggless ? "eggless" : "", options.message || "", options.delivery_date || ""].join("|");
++};
++
++export function describeCartOptions(options) {
++  if (!options) return "";
++  const parts = [];
++  if (options.size) parts.push(options.size);
++  if (options.eggless) parts.push("Eggless");
++  if (options.message) parts.push(`Message: "${options.message}"`);
++  if (options.delivery_date) {
++    const [y, m, d] = options.delivery_date.split("-").map(Number);
++    const when = new Date(y, (m || 1) - 1, d || 1);
++    parts.push(`Delivery: ${Number.isNaN(when.getTime()) ? options.delivery_date : when.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`);
++  }
++  return parts.join(" | ");
++}
++
++// Shape sent to /cart, /coupons, /delivery quote and checkout endpoints.
++export const cartPayloadItems = (cart) =>
++  (cart || []).map((item) => ({
++    id: item.id,
++    quantity: item.qty || 1,
++    ...(item.options ? { options: item.options } : {}),
++  }));
+ 
+ export function mapShopCategories(fromApi, items) {
+   if (fromApi && fromApi.length) {
+diff --git a/src/chatbotFaq.js b/src/chatbotFaq.js
+index 9342071..aa3dea3 100644
+--- a/src/chatbotFaq.js
++++ b/src/chatbotFaq.js
+@@ -62,7 +62,7 @@ export const CHATBOT_FAQS = [
+   { id: "eggless", q: "Do you make eggless cakes?", keywords: ["eggless", "egg less", "without egg", "no egg", "veg cake", "vegetarian"], a: "Yes. Many products have an Eggless toggle on the product page, and there is an Eggless Cakes category. Availability can vary by design — check the product before checkout." },
+   { id: "ingredients", q: "What ingredients do you use?", keywords: ["ingredients", "what is in", "made of", "recipe", "composition", "fresh"], a: "We bake with bakery-grade ingredients suited to each flavor (flour, sugar, dairy, cocoa, fruits, etc.). Exact recipes vary by cake. For a specific product, open its page or WhatsApp us with the cake name." },
+   { id: "allergens", q: "Do your cakes contain allergens?", keywords: ["allergen", "allergy", "nuts", "gluten", "dairy", "milk", "contains", "nut free"], a: "Cakes may contain dairy, gluten, eggs (unless eggless), nuts, or traces of allergens from a shared kitchen. Tell us about allergies in order notes or WhatsApp before you confirm — we will advise as best we can." },
+-  { id: "prices", q: "How much do cakes cost?", keywords: ["price", "pricing", "cost", "budget", "how much", "rate", "expensive", "cheap"], a: "Listed cakes often start around Rs 1,099 depending on the design. Final price depends on size, flavor, eggless option, custom work, and delivery. Always use the product page and checkout total as the source of truth." },
++  { id: "prices", q: "How much do cakes cost?", keywords: ["price", "pricing", "cost", "budget", "how much", "rate", "expensive", "cheap"], a: "Listed cakes often start around ₹1,099 depending on the design. Final price depends on size, flavor, eggless option, custom work, and delivery. Always use the product page and checkout total as the source of truth." },
+   { id: "offers", q: "Do you have offers or coupons?", keywords: ["coupon", "discount", "promo", "promocode", "offer", "voucher", "code", "offers"], a: "At checkout, enter a coupon code and tap Apply. Valid codes show the discount before payment. Coupons may have minimum order, expiry, or usage limits." },
+   { id: "delivery-areas", q: "Which areas do you deliver to?", keywords: ["delivery area", "areas", "pincode", "postal code", "zone", "do you deliver to", "serviceable"], a: "We deliver to covered pincodes/zones configured in our delivery settings. At checkout, add your address — if the pincode is serviceable you will see a delivery quote; if not, try another address or ask about pickup." },
+   { id: "delivery-charges", q: "How much is delivery?", keywords: ["delivery charge", "delivery fee", "shipping fee", "delivery cost", "free delivery", "minimum order"], a: "Delivery charge depends on your zone and order value. Some zones offer free delivery above a threshold. The exact charge appears at checkout after you select an address — we do not invent a flat rate here." },
+diff --git a/src/components/AdminCustomerDrawer.jsx b/src/components/AdminCustomerDrawer.jsx
+index 80c3be5..3f708f7 100644
+--- a/src/components/AdminCustomerDrawer.jsx
++++ b/src/components/AdminCustomerDrawer.jsx
+@@ -1,4 +1,5 @@
+ import { X } from "lucide-react";
++import { formatCurrency } from "../appConstants";
+ 
+ function AdminCustomerDrawer({ customer, loading, onClose, onToggleStatus }) {
+   if (!customer && !loading) return null;
+@@ -21,7 +22,7 @@ function AdminCustomerDrawer({ customer, loading, onClose, onToggleStatus }) {
+                 {" | "}Verified: {customer.is_verified ? "Yes" : "No"}
+                 {" | "}Joined: {customer.date_joined ? new Date(customer.date_joined).toLocaleDateString() : "-"}
+               </p>
+-              <p>Orders: <strong>{customer.order_count ?? 0}</strong> | Purchase: <strong>Rs.{Number(customer.total_purchase || 0).toLocaleString("en-IN")}</strong></p>
++              <p>Orders: <strong>{customer.order_count ?? 0}</strong> | Purchase: <strong>{formatCurrency(Number(customer.total_purchase || 0), 2)}</strong></p>
+               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                 <button type="button" className="btn primary small" onClick={onToggleStatus}>
+                   {customer.is_active ? "Deactivate" : "Activate"}
+@@ -39,7 +40,7 @@ function AdminCustomerDrawer({ customer, loading, onClose, onToggleStatus }) {
+               {(customer.orders || []).length === 0 ? <div className="admin-empty">No orders.</div> : (
+                 <div className="table-wrap"><table className="report-table"><thead><tr><th>Order</th><th>Status</th><th>Total</th></tr></thead><tbody>
+                   {(customer.orders || []).slice(0, 15).map(order => (
+-                    <tr key={order.id}><td>{order.order_number}</td><td>{order.status}</td><td>Rs.{Number(order.total_amount || 0).toLocaleString("en-IN")}</td></tr>
++                    <tr key={order.id}><td>{order.order_number}</td><td>{order.status}</td><td>{formatCurrency(Number(order.total_amount || 0), 2)}</td></tr>
+                   ))}
+                 </tbody></table></div>
+               )}
+diff --git a/src/components/AdminDashboardPanel.jsx b/src/components/AdminDashboardPanel.jsx
+index 90b1259..d2285b3 100644
+--- a/src/components/AdminDashboardPanel.jsx
++++ b/src/components/AdminDashboardPanel.jsx
+@@ -1,6 +1,7 @@
+ import { Trash2 } from "lucide-react";
+ import AdminEmployeesPanel from "./AdminEmployeesPanel";
+ import { buildRefundTableRows } from "../adminRefundUtils";
++import { describeCartOptions, formatCurrency } from "../appConstants";
+ 
+ function AdminDashboardPanel({
+   BRAND_NAME,
+@@ -179,16 +180,16 @@ function AdminDashboardPanel({
+                       <div className="report-card" role="button" onClick={() => goAdminSection("employees")}><span>Out for delivery</span><strong>{adminDashboard?.orders?.out_for_delivery ?? 0}</strong></div>
+                       <div className="report-card"><span>Delivered</span><strong>{adminDashboard?.orders?.delivered ?? 0}</strong></div>
+                       <div className="report-card"><span>Cancelled</span><strong>{adminDashboard?.orders?.cancelled ?? 0}</strong></div>
+-                      <div className="report-card" role="button" onClick={() => goAdminSection("reports")}><span>Net revenue</span><strong>Rs.{Number(adminDashboard?.revenue ?? 0).toLocaleString("en-IN")}</strong></div>
++                      <div className="report-card" role="button" onClick={() => goAdminSection("reports")}><span>Net revenue</span><strong>{formatCurrency(Number(adminDashboard?.revenue ?? 0), 2)}</strong></div>
+                       <div className="report-card" role="button" onClick={() => goAdminSection("payments")}><span>Payments OK</span><strong>{adminDashboard?.payments?.successful ?? 0}</strong></div>
+                       <div className="report-card" role="button" onClick={() => goAdminSection("refunds")}><span>Refunds pending</span><strong>{adminDashboard?.payments?.refunds_pending ?? 0}</strong></div>
+                       <div className="report-card" role="button" onClick={() => goAdminSection("inventory")}><span>Low stock</span><strong>{adminDashboard?.low_stock ?? 0}</strong></div>
+                       <div className="report-card" role="button" onClick={() => goAdminSection("coupons")}><span>Active coupons</span><strong>{adminDashboard?.active_coupons ?? 0}</strong></div>
+                       <div className="report-card" role="button" onClick={() => goAdminSection("reviews")}><span>Reviews pending</span><strong>{adminDashboard?.reviews?.pending ?? 0}</strong></div>
+                       <div className="report-card" role="button" onClick={() => goAdminSection("customers")}><span>Customers</span><strong>{adminDashboard?.customers?.total ?? 0}</strong></div>
+-                      <div className="report-card"><span>Gross sales</span><strong>Rs.{Number(adminDashboard?.sales_summary?.gross_sales ?? 0).toLocaleString("en-IN")}</strong></div>
+-                      <div className="report-card"><span>Refunds</span><strong>Rs.{Number(adminDashboard?.sales_summary?.refunds ?? 0).toLocaleString("en-IN")}</strong></div>
+-                      <div className="report-card"><span>Delivery fees</span><strong>Rs.{Number(adminDashboard?.sales_summary?.delivery_charges ?? 0).toLocaleString("en-IN")}</strong></div>
++                      <div className="report-card"><span>Gross sales</span><strong>{formatCurrency(Number(adminDashboard?.sales_summary?.gross_sales ?? 0), 2)}</strong></div>
++                      <div className="report-card"><span>Refunds</span><strong>{formatCurrency(Number(adminDashboard?.sales_summary?.refunds ?? 0), 2)}</strong></div>
++                      <div className="report-card"><span>Delivery fees</span><strong>{formatCurrency(Number(adminDashboard?.sales_summary?.delivery_charges ?? 0), 2)}</strong></div>
+                     </div>
+                   </div>
+                 )}
+@@ -216,7 +217,7 @@ function AdminDashboardPanel({
+                         <h4>{adminOrderDetail.order_number} - {adminOrderDetail.status}</h4>
+                         <p>{adminOrderDetail.customer_name} | {adminOrderDetail.customer_email} | {adminOrderDetail.customer_mobile}</p>
+                         <p>{adminOrderDetail.shipping_address}, {adminOrderDetail.city} {adminOrderDetail.postal_code}</p>
+-                        <p>Payment: {adminOrderDetail.payment_status} | Total Rs.{Number(adminOrderDetail.total_amount || 0).toLocaleString("en-IN")} | Coupon {adminOrderDetail.coupon_code || "-"}</p>
++                        <p>Payment: {adminOrderDetail.payment_status} | Total {formatCurrency(Number(adminOrderDetail.total_amount || 0), 2)} | Coupon {adminOrderDetail.coupon_code || "-"}</p>
+                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "12px 0" }}>
+                           <select id="admin-next-status" key={adminOrderDetail.status} defaultValue="">
+                             <option value="">Next status...</option>
+@@ -253,7 +254,7 @@ function AdminDashboardPanel({
+                             : "Not assigned"}
+                         </p>
+                         <div className="table-wrap"><table className="report-table"><thead><tr><th>Item</th><th>Qty</th><th>Price</th></tr></thead><tbody>
+-                          {(adminOrderDetail.items || []).map((it) => <tr key={it.id}><td>{it.product_name}</td><td>{it.quantity}</td><td>Rs.{Number(it.subtotal || 0).toLocaleString("en-IN")}</td></tr>)}
++                          {(adminOrderDetail.items || []).map((it) => <tr key={it.id}><td>{it.product_name}{it.options && <small className="admin-muted" style={{ display: "block" }}>{describeCartOptions(it.options)}</small>}</td><td>{it.quantity}</td><td>{formatCurrency(Number(it.subtotal || 0), 2)}</td></tr>)}
+                         </tbody></table></div>
+                         <h4>History</h4>
+                         <ul>{(adminOrderDetail.status_history || []).map((h) => <li key={h.id}>{h.status} - {h.message} <small>{new Date(h.created_at).toLocaleString()}</small></li>)}</ul>
+@@ -263,7 +264,7 @@ function AdminDashboardPanel({
+                         {adminOrders.length === 0 && (<tr><td colSpan={6}><div className="admin-empty">No orders match filters.</div></td></tr>)}{adminOrders.map((o) => (
+                           <tr key={o.id}>
+                             <td>{o.order_number}</td><td>{o.customer_name}</td><td>{o.status}</td><td>{o.payment_status}</td>
+-                            <td>Rs.{Number(o.total_amount || 0).toLocaleString("en-IN")}</td>
++                            <td>{formatCurrency(Number(o.total_amount || 0), 2)}</td>
+                             <td><button type="button" className="btn secondary small" onClick={() => fetchAdminOrderDetail(o.id).then(setAdminOrderDetail).catch((e) => setAdminOpsMessage(e.message))}>Open</button></td>
+                           </tr>
+                         ))}
+@@ -278,7 +279,7 @@ function AdminDashboardPanel({
+                       <button type="button" className="btn secondary small" onClick={() => downloadAdminExport("payments").catch((e) => setAdminOpsMessage(e.message))}>Export CSV</button>
+                     </div>
+                     <div className="table-wrap"><table className="report-table"><thead><tr><th>Order</th><th>Customer</th><th>Amount</th><th>Status</th><th>Method</th><th>Gateway order</th><th>Failure</th></tr></thead><tbody>
+-                      {adminPayments.length === 0 && (<tr><td colSpan={7}><div className="admin-empty">No payments yet.</div></td></tr>)}{adminPayments.map((p) => <tr key={p.id != null ? `pay-${p.id}` : `order-${p.order_id}`}><td>{p.order_number || "-"}</td><td>{p.customer_name || "-"}</td><td>Rs.{Number(p.amount || 0).toLocaleString("en-IN")}</td><td>{p.status}{p.source === "order_derived" ? " (from order)" : ""}</td><td>{p.payment_method || "-"}</td><td>{p.gateway_order_id || "-"}</td><td>{p.failure_reason || "-"}</td></tr>)}
++                      {adminPayments.length === 0 && (<tr><td colSpan={7}><div className="admin-empty">No payments yet.</div></td></tr>)}{adminPayments.map((p) => <tr key={p.id != null ? `pay-${p.id}` : `order-${p.order_id}`}><td>{p.order_number || "-"}</td><td>{p.customer_name || "-"}</td><td>{formatCurrency(Number(p.amount || 0), 2)}</td><td>{p.status}{p.source === "order_derived" ? " (from order)" : ""}</td><td>{p.payment_method || "-"}</td><td>{p.gateway_order_id || "-"}</td><td>{p.failure_reason || "-"}</td></tr>)}
+                     </tbody></table></div>
+                   </div>
+                 )}
+@@ -372,7 +373,7 @@ function AdminDashboardPanel({
+                         <tr><td colSpan={7}><div className="admin-empty">No customers found.</div></td></tr>
+                       )}
+                       {adminCustomers.map((c) => (
+-                        <tr key={c.id}><td>{c.username}</td><td>{c.email}</td><td>{c.mobile_number || "-"}</td><td>{c.order_count}</td><td>Rs.{Number(c.total_purchase || 0).toLocaleString("en-IN")}</td><td>{c.is_active ? "Yes" : "No"}</td>
++                        <tr key={c.id}><td>{c.username}</td><td>{c.email}</td><td>{c.mobile_number || "-"}</td><td>{c.order_count}</td><td>{formatCurrency(Number(c.total_purchase || 0), 2)}</td><td>{c.is_active ? "Yes" : "No"}</td>
+                           <td style={{ display: "flex", gap: 6 }}>
+                             <button type="button" className="btn secondary small" onClick={() => openCustomerDetail(c.id)}>View</button>
+                             <button type="button" className="btn secondary small" onClick={() => updateAdminCustomerStatus(c.id, !c.is_active).then(() => { loadAdminSectionData("customers"); if (adminCustomerDetail?.id === c.id) openCustomerDetail(c.id); }).catch((e) => setAdminOpsMessage(e.message))}>{c.is_active ? "Deactivate" : "Activate"}</button>
+@@ -519,13 +520,13 @@ function AdminDashboardPanel({
+                           <div className="report-card"><span>Total reviews</span><strong>{reportSummary.review_stats?.total_reviews ?? 0}</strong></div>
+                           <div className="report-card"><span>Average rating</span><strong>{Number(reportSummary.review_stats?.average_rating ?? 0).toFixed(1)}</strong></div>
+                           <div className="report-card"><span>Pending reviews</span><strong>{reportSummary.review_stats?.pending_reviews ?? 0}</strong></div>
+-                          <div className="report-card"><span>Revenue</span><strong>Rs.{Number(reportSummary.sales_stats?.total_sales ?? 0).toLocaleString("en-IN")}</strong></div>
++                          <div className="report-card"><span>Revenue</span><strong>{formatCurrency(Number(reportSummary.sales_stats?.total_sales ?? 0), 2)}</strong></div>
+                           <div className="report-card"><span>Successful payments</span><strong>{reportSummary.sales_stats?.successful_payments ?? 0}</strong></div>
+                           <div className="report-card"><span>Failed payments</span><strong>{reportSummary.sales_stats?.failed_payments ?? 0}</strong></div>
+                           <div className="report-card"><span>Pending payments</span><strong>{reportSummary.sales_stats?.pending_payments ?? 0}</strong></div>
+                           <div className="report-card"><span>Orders</span><strong>{reportSummary.sales_stats?.total_orders ?? 0}</strong></div>
+                           <div className="report-card"><span>Orders with coupon</span><strong>{reportSummary.sales_stats?.orders_with_coupon ?? 0}</strong></div>
+-                          <div className="report-card"><span>Coupon discount</span><strong>Rs.{Number(reportSummary.sales_stats?.total_coupon_discount ?? 0).toLocaleString("en-IN")}</strong></div>
++                          <div className="report-card"><span>Coupon discount</span><strong>{formatCurrency(Number(reportSummary.sales_stats?.total_coupon_discount ?? 0), 2)}</strong></div>
+                           <div className="report-card"><span>Coupons used</span><strong>{reportSummary.sales_stats?.coupons_used_count ?? 0}</strong></div>
+                         </div>
+     
+@@ -677,7 +678,7 @@ function AdminDashboardPanel({
+                         <input value={cakeForm.name} onChange={e => setCakeForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Strawberry Delight" />
+                       </label>
+                       <label>
+-                        Price (Rs.)
++                        Price (₹)
+                         <input type="number" value={cakeForm.price} onChange={e => setCakeForm(prev => ({ ...prev, price: e.target.value }))} placeholder="1299" />
+                       </label>
+                       <label>
+@@ -736,7 +737,7 @@ function AdminDashboardPanel({
+                               <strong>{item.name}</strong>
+                               <span>{item.category}</span>
+                               <small className="stock-meta">Stock: {item.available_quantity ?? item.stock_remaining ?? 0} ({item.availability || "in_stock"})</small>
+-                              <small>Rs.{item.price.toLocaleString("en-IN")}</small>
++                              <small>{formatCurrency(item.price, 2)}</small>
+                             </div>
+                           </div>
+                           <div className="admin-item-actions">
+diff --git a/src/components/AdminDialogs.jsx b/src/components/AdminDialogs.jsx
+index dbf1df5..877d2f7 100644
+--- a/src/components/AdminDialogs.jsx
++++ b/src/components/AdminDialogs.jsx
+@@ -1,3 +1,5 @@
++import { formatCurrency } from "../appConstants";
++
+ function AdminDialogs({
+   X,
+   adminCredentials,
+@@ -194,10 +196,10 @@ function AdminDialogs({
+                           </p>
+                           <p className="admin-muted" style={{ margin: 0 }}>
+                             Payment: {info.paymentStatus || "-"}
+-                            {info.paymentAmount != null ? ` | original Rs.${Number(info.paymentAmount).toLocaleString("en-IN")}` : ""}
++                            {info.paymentAmount != null ? ` | original ${formatCurrency(Number(info.paymentAmount), 2)}` : ""}
+                           </p>
+                           <p className="admin-muted" style={{ margin: 0 }}>
+-                            Max refundable (estimate): {info.maxRefundable != null ? `Rs.${Number(info.maxRefundable).toLocaleString("en-IN")}` : "-"}
++                            Max refundable (estimate): {info.maxRefundable != null ? `${formatCurrency(Number(info.maxRefundable), 2)}` : "-"}
+                             <span className="admin-muted"> - backend is source of truth</span>
+                           </p>
+                         </div>
+diff --git a/src/components/CartDrawer.jsx b/src/components/CartDrawer.jsx
+index e647130..4da769f 100644
+--- a/src/components/CartDrawer.jsx
++++ b/src/components/CartDrawer.jsx
+@@ -1,4 +1,5 @@
+ import { ArrowRight, Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
++import { describeCartOptions, formatCurrency } from "../appConstants";
+ 
+ function CartDrawer({
+   cartOpen,
+@@ -17,8 +18,8 @@ function CartDrawer({
+         <div className="drawer-head"><h2>Your Cart</h2><button onClick={() => setCartOpen(false)} aria-label="Close cart"><X/></button></div>
+         {cart.length === 0 ? <div className="empty-cart"><ShoppingBag size={38}/><h3>Your cart is empty</h3><p>Pick a beautiful cake for your next celebration.</p><button className="btn primary" onClick={() => { setCartOpen(false); scrollTo("cakes"); }}>Explore Cakes</button></div> :
+           <>
+-            <div className="cart-items">{cart.map(item => <div className="cart-item" key={item.id}><img src={item.image} alt={item.name}/><div><b>{item.name}</b><small>{item.size}</small><strong>Rs.{(cartUnitPrice(item)*item.qty).toLocaleString("en-IN")}</strong><div className="qty"><button onClick={()=>changeQty(item.id,-1)} aria-label={`Decrease ${item.name} quantity`}><Minus/></button><span>{item.qty}</span><button onClick={()=>changeQty(item.id,1)} disabled={item.qty >= cartQtyCap(item)} title={item.qty >= cartQtyCap(item) ? `Maximum quantity is ${cartQtyCap(item)}` : undefined} aria-label={`Increase ${item.name} quantity`}><Plus/></button><button className="delete" onClick={()=>changeQty(item.id,-item.qty)} aria-label={`Remove ${item.name}`}><Trash2/></button></div></div></div>)}</div>
+-            <div className="cart-summary"><div><span>Subtotal</span><b>Rs.{cartTotal.toLocaleString("en-IN")}</b></div><small>Taxes and delivery calculated at checkout.</small><button className="btn primary checkout" onClick={openCheckout}>Proceed to Checkout <ArrowRight/></button></div>
++            <div className="cart-items">{cart.map(item => <div className="cart-item" key={item.lineId || item.id}><img src={item.image} alt={item.name}/><div><b>{item.name}</b>{item.options && <small className="cart-options">{describeCartOptions(item.options)}</small>}<strong>{formatCurrency(cartUnitPrice(item)*item.qty, 2)}</strong><div className="qty"><button onClick={()=>changeQty(item.lineId || item.id,-1)} aria-label={`Decrease ${item.name} quantity`}><Minus/></button><span>{item.qty}</span><button onClick={()=>changeQty(item.lineId || item.id,1)} disabled={item.qty >= cartQtyCap(item)} title={item.qty >= cartQtyCap(item) ? `Maximum quantity is ${cartQtyCap(item)}` : undefined} aria-label={`Increase ${item.name} quantity`}><Plus/></button><button className="delete" onClick={()=>changeQty(item.lineId || item.id,-item.qty)} aria-label={`Remove ${item.name}`}><Trash2/></button></div></div></div>)}</div>
++            <div className="cart-summary"><div><span>Subtotal</span><b>{formatCurrency(cartTotal, 2)}</b></div><small>Taxes and delivery calculated at checkout.</small><button className="btn primary checkout" onClick={openCheckout}>Proceed to Checkout <ArrowRight/></button></div>
+           </>
+         }
+       </aside>
+diff --git a/src/components/CheckoutForm.jsx b/src/components/CheckoutForm.jsx
+index 46558bf..1914477 100644
+--- a/src/components/CheckoutForm.jsx
++++ b/src/components/CheckoutForm.jsx
+@@ -1,4 +1,5 @@
+ import { X } from "lucide-react";
++import { formatCurrency } from "../appConstants";
+ 
+ function CheckoutForm({
+   setCheckoutOpen,
+@@ -162,14 +163,14 @@ function CheckoutForm({
+             </div>
+ 
+             <div className="cart-summary" style={{ marginTop: 12, padding: 0, border: "none" }}>
+-              <div><span>Subtotal</span><b>Rs.{cartTotal.toLocaleString("en-IN")}</b></div>
++              <div><span>Subtotal</span><b>{formatCurrency(cartTotal, 2)}</b></div>
+               {appliedCoupon ? (
+-                <div><span>Coupon ({appliedCoupon.code})</span><b>-Rs.{couponDiscountPreview.toLocaleString("en-IN")}</b></div>
++                <div><span>Coupon ({appliedCoupon.code})</span><b>-{formatCurrency(couponDiscountPreview, 2)}</b></div>
+               ) : null}
+               <div><span>Delivery</span><b>{deliveryQuote?.eligible ? (String.fromCharCode(8377) + deliveryFeePreview.toLocaleString("en-IN")) : (deliveryQuote ? "Not available" : "Enter address")}</b></div>
+               {deliveryQuoteMessage ? <div className="auth-error" style={{ color: deliveryQuote?.eligible ? "#2f6b4f" : undefined }}>{deliveryQuoteMessage}</div> : null}
+               {deliveryQuote?.eta_min_minutes ? <small>ETA {deliveryQuote.eta_min_minutes}-{deliveryQuote.eta_max_minutes || "?"} min</small> : null}
+-              <div><span>Total</span><b>Rs.{checkoutPayable.toLocaleString("en-IN")}</b></div>
++              <div><span>Total</span><b>{formatCurrency(checkoutPayable, 2)}</b></div>
+             </div>
+ 
+             {checkoutMessage && <div className="auth-error">{checkoutMessage}</div>}
+diff --git a/src/components/ErrorBoundary.jsx b/src/components/ErrorBoundary.jsx
+new file mode 100644
+index 0000000..a6f2f43
+--- /dev/null
++++ b/src/components/ErrorBoundary.jsx
+@@ -0,0 +1,41 @@
++import { Component } from "react";
++
++// App-wide safety net (bug 013): a render error shows a friendly page instead of a blank screen.
++class ErrorBoundary extends Component {
++  constructor(props) {
++    super(props);
++    this.state = { hasError: false };
++  }
++
++  static getDerivedStateFromError() {
++    return { hasError: true };
++  }
++
++  componentDidCatch(error, info) {
++    console.error("pinkbakes UI error", error, info?.componentStack);
++  }
++
++  render() {
++    if (!this.state.hasError) return this.props.children;
++    return (
++      <div className="policy-page error-fallback" role="alert">
++        <div className="policy-page-bar">
++          <a className="policy-page-brand" href="/">{this.props.brandName || "pinkbakes"}</a>
++        </div>
++        <article className="policy-page-sheet">
++          <p className="policy-page-kicker">Oops</p>
++          <h1>Something went wrong</h1>
++          <p className="policy-page-summary">
++            This page hit an unexpected problem. Please reload, or head back to the homepage. Your cart may need to be refilled.
++          </p>
++          <nav className="policy-page-nav" aria-label="Recovery options">
++            <button type="button" className="is-current" onClick={() => window.location.reload()}>Reload page</button>
++            <button type="button" onClick={() => window.location.assign("/")}>Go to homepage</button>
++          </nav>
++        </article>
++      </div>
++    );
++  }
++}
++
++export default ErrorBoundary;
+diff --git a/src/components/NotFoundPage.jsx b/src/components/NotFoundPage.jsx
+new file mode 100644
+index 0000000..ac550a9
+--- /dev/null
++++ b/src/components/NotFoundPage.jsx
+@@ -0,0 +1,44 @@
++import { useEffect, useRef } from "react";
++import { X } from "lucide-react";
++
++// Full-page "not found" view for unknown URLs (bug 011). Reuses the policy-page styling.
++function NotFoundPage({ brandName, onHome, onBrowse }) {
++  const onHomeRef = useRef(onHome);
++  onHomeRef.current = onHome;
++  useEffect(() => {
++    const onKey = (event) => {
++      if (event.key === "Escape") onHomeRef.current();
++    };
++    const previousOverflow = document.body.style.overflow;
++    document.body.style.overflow = "hidden";
++    window.addEventListener("keydown", onKey);
++    return () => {
++      document.body.style.overflow = previousOverflow;
++      window.removeEventListener("keydown", onKey);
++    };
++  }, []);
++
++  return (
++    <div className="policy-page not-found-page" role="region" aria-labelledby="not-found-title">
++      <div className="policy-page-bar">
++        <button type="button" className="policy-page-brand" onClick={onHome}>{brandName}</button>
++        <button type="button" className="policy-page-close" onClick={onHome} aria-label="Go to homepage">
++          <X size={18}/>
++        </button>
++      </div>
++      <article className="policy-page-sheet">
++        <p className="policy-page-kicker">404</p>
++        <h1 id="not-found-title">Page not found</h1>
++        <p className="policy-page-summary">
++          We couldn't find the page you were looking for. It may have moved, or the link may be mistyped.
++        </p>
++        <nav className="policy-page-nav" aria-label="Helpful links">
++          <button type="button" className="is-current" onClick={onHome}>Go to homepage</button>
++          <button type="button" onClick={onBrowse}>Browse cakes</button>
++        </nav>
++      </article>
++    </div>
++  );
++}
++
++export default NotFoundPage;
+diff --git a/src/components/OrderSuccessDialog.jsx b/src/components/OrderSuccessDialog.jsx
+index 70a794d..8b69bba 100644
+--- a/src/components/OrderSuccessDialog.jsx
++++ b/src/components/OrderSuccessDialog.jsx
+@@ -1,3 +1,5 @@
++import { formatCurrency } from "../appConstants";
++
+ function OrderSuccessDialog({ orderSuccess, onDismiss }) {
+   return (
+     <div className="auth-page-shell" onClick={onDismiss}>
+@@ -10,7 +12,7 @@ function OrderSuccessDialog({ orderSuccess, onDismiss }) {
+           <div className="auth-form" style={{ gap: 14 }}>
+             <div className="cart-summary" style={{ marginTop: 0, padding: 0, border: "none" }}>
+               <div><span>Order</span><b>{orderSuccess.orderNumber || "PinkBakes Order"}</b></div>
+-              <div><span>Amount</span><b>Rs.{Number(orderSuccess.amount || 0).toLocaleString("en-IN")}</b></div>
++              <div><span>Amount</span><b>{formatCurrency(Number(orderSuccess.amount || 0), 2)}</b></div>
+             </div>
+             <div className="empty">Payment ID: {orderSuccess.paymentId || "-"}</div>
+             <div className="auth-row">
+diff --git a/src/components/ProductModal.jsx b/src/components/ProductModal.jsx
+index 11e7f9d..6173f71 100644
+--- a/src/components/ProductModal.jsx
++++ b/src/components/ProductModal.jsx
+@@ -6,6 +6,7 @@ import {
+   submitReview,
+ } from "../services/authService";
+ import { hasCakeContent, normalizeProduct } from "../productUtils";
++import { CAKE_MESSAGE_MAX_LENGTH, CAKE_SIZE_OPTIONS, formatCurrency, isEgglessProduct, localIsoDate } from "../appConstants";
+ 
+ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
+   const [detail, setDetail] = useState(() => normalizeProduct(product));
+@@ -15,6 +16,9 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
+   const [threeD,setThreeD] = useState(false);
+   const [size,setSize] = useState("1 kg");
+   const [eggless,setEggless] = useState(false);
++  const [cakeMessage,setCakeMessage] = useState("");
++  const [deliveryDate,setDeliveryDate] = useState("");
++  const [optionError,setOptionError] = useState("");
+   const [detailLoading, setDetailLoading] = useState(false);
+   const [detailError, setDetailError] = useState("");
+   const [reviewForm,setReviewForm] = useState({ rating: 5, comment: "" });
+@@ -114,6 +118,20 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
+   }
+ 
+   const currentPrice = Number(detail.discounted_price ?? ((detail.price * (100 - (detail.discount || 0))) / 100 || detail.price));
++  const egglessProduct = isEgglessProduct(detail);
++
++  function handleAdd() {
++    if (deliveryDate && deliveryDate < localIsoDate()) {
++      setOptionError("Delivery date cannot be in the past.");
++      return;
++    }
++    onAdd(detail, {
++      size,
++      eggless: egglessProduct ? undefined : eggless,
++      message: cakeMessage,
++      delivery_date: deliveryDate,
++    });
++  }
+   const gallery = detail.gallery && detail.gallery.length ? detail.gallery : [detail.image || ""];
+ 
+   return <div className="modal-backdrop" onClick={onClose}>
+@@ -153,15 +171,18 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
+             <h1 className="product-title">{detail.name}</h1>
+             {(detail.description || detail.short_description) && <p className="modal-desc">{detail.description || detail.short_description}</p>}
+             <div className="modal-price-row">
+-              <span className="modal-price">Rs.{Number(currentPrice || 0).toLocaleString("en-IN")}</span>
+-              {Number(detail.discount || 0) > 0 && <span className="strike">Rs.{Number(detail.price || 0).toLocaleString("en-IN")}</span>}
++              <span className="modal-price">{formatCurrency(currentPrice, 2)}</span>
++              {Number(detail.discount || 0) > 0 && <span className="strike">{formatCurrency(detail.price, 2)}</span>}
+             </div>
+             {Number(detail.discount || 0) > 0 && <small className="discount-badge">{detail.discount}% OFF</small>}
+-            <label>Choose Size</label><div className="option-row">{["0.5 kg","1 kg","1.5 kg","2 kg"].map(x=><button className={size===x?"selected-option":""} key={x} onClick={()=>setSize(x)}>{x}</button>)}</div>
+-            <label>Preference</label><div className="option-row"><button className={!eggless?"selected-option":""} onClick={()=>setEggless(false)}>Regular</button><button className={eggless?"selected-option":""} onClick={()=>setEggless(true)}>Eggless</button></div>
+-            <label>Message on Cake</label><input className="cake-message" placeholder="Happy Birthday..."/>
+-            <label>Delivery Date</label><input className="cake-message" type="date"/>
+-            <button className="btn primary full" disabled={isOutOfStock ? isOutOfStock(detail) : false} onClick={() => onAdd(detail)}>{(isOutOfStock && isOutOfStock(detail)) ? "Out of Stock" : <>Add to Cart <ShoppingBag size={17}/></>}</button>
++            <label>Choose Size</label><div className="option-row">{CAKE_SIZE_OPTIONS.map(x=><button className={size===x?"selected-option":""} key={x} onClick={()=>setSize(x)}>{x}</button>)}</div>
++            {egglessProduct
++              ? <><label>Preference</label><div className="option-row"><button type="button" className="selected-option" disabled>Eggless</button></div><small className="option-note">This cake is already eggless.</small></>
++              : <><label>Preference</label><div className="option-row"><button className={!eggless?"selected-option":""} onClick={()=>setEggless(false)}>Regular</button><button className={eggless?"selected-option":""} onClick={()=>setEggless(true)}>Eggless</button></div></>}
++            <label htmlFor="cake-message-input">Message on Cake</label><input id="cake-message-input" className="cake-message" placeholder="Happy Birthday..." maxLength={CAKE_MESSAGE_MAX_LENGTH} value={cakeMessage} onChange={e => setCakeMessage(e.target.value)}/>
++            <label htmlFor="cake-delivery-date">Delivery Date</label><input id="cake-delivery-date" className="cake-message" type="date" min={localIsoDate()} value={deliveryDate} onChange={e => { setDeliveryDate(e.target.value); setOptionError(""); }}/>
++            {optionError && <div className="auth-error" role="alert">{optionError}</div>}
++            <button className="btn primary full" disabled={isOutOfStock ? isOutOfStock(detail) : false} onClick={handleAdd}>{(isOutOfStock && isOutOfStock(detail)) ? "Out of Stock" : <>Add to Cart <ShoppingBag size={17}/></>}</button>
+             <div className="secure"><ShieldCheck/> Freshly made * Secure checkout * Delivery support</div>
+ 
+             <div className="review-panel">
+diff --git a/src/components/SiteHeader.jsx b/src/components/SiteHeader.jsx
+index 698df1d..9082d8e 100644
+--- a/src/components/SiteHeader.jsx
++++ b/src/components/SiteHeader.jsx
+@@ -32,9 +32,24 @@ function SiteHeader({
+         <button onClick={() => { setMobileOpen(false); scrollTo("about"); }}>About Us</button>
+         <button onClick={() => { setMobileOpen(false); scrollTo("gallery"); }}>Gallery</button>
+         <button onClick={() => { setMobileOpen(false); scrollTo("contact"); }}>Contact</button>
++        {/* Narrow phones have no room for Order Now in the bar; the menu carries it there. */}
++        <button type="button" className="nav-order" onClick={() => { setMobileOpen(false); openCheckout(); }}>Order Now</button>
+       </nav>
+       <div className="header-actions">
+-        <button type="button" className="icon-btn search-toggle" onClick={() => document.getElementById("search")?.focus()} aria-label="Search cakes" title="Search cakes">
++        <button
++          type="button"
++          className="icon-btn search-toggle"
++          onClick={() => {
++            // Focus inside the tap so phones open the keyboard, then bring the catalog search box
++            // itself just under the header (not the section top, which leaves it behind the floats on phones).
++            setMobileOpen(false);
++            const searchInput = document.getElementById("search");
++            searchInput?.focus({ preventScroll: true });
++            scrollTo(searchInput ? "search" : "cakes");
++          }}
++          aria-label="Search cakes"
++          title="Search cakes"
++        >
+           <Search/>
+         </button>
+ 
+diff --git a/src/components/UserOrdersDialog.jsx b/src/components/UserOrdersDialog.jsx
+index 9e355a0..ae4d6d7 100644
+--- a/src/components/UserOrdersDialog.jsx
++++ b/src/components/UserOrdersDialog.jsx
+@@ -1,4 +1,5 @@
+ import { X } from "lucide-react";
++import { describeCartOptions, formatCurrency } from "../appConstants";
+ 
+ function UserOrdersDialog({
+   setOrderHistoryOpen,
+@@ -103,9 +104,9 @@ function UserOrdersDialog({
+                 <div><span>Payment</span><b>{selectedOrder.payment_status || "pending"}</b></div>
+                 {selectedOrder.coupon_code ? <div><span>Coupon</span><b>{selectedOrder.coupon_code}</b></div> : null}
+                 {Number(selectedOrder.coupon_discount_amount || selectedOrder.discount_amount || 0) > 0 ? (
+-                  <div><span>Coupon discount</span><b>-Rs.{Number(selectedOrder.coupon_discount_amount || selectedOrder.discount_amount || 0).toLocaleString("en-IN")}</b></div>
++                  <div><span>Coupon discount</span><b>-{formatCurrency(Number(selectedOrder.coupon_discount_amount || selectedOrder.discount_amount || 0), 2)}</b></div>
+                 ) : null}
+-                <div><span>Total</span><b>Rs.{Number(selectedOrder.total_amount || 0).toLocaleString("en-IN")}</b></div>
++                <div><span>Total</span><b>{formatCurrency(Number(selectedOrder.total_amount || 0), 2)}</b></div>
+                 {Number(selectedOrder.delivery_fee || 0) > 0 ? (
+                   <div><span>Delivery fee</span><b>{String.fromCharCode(8377)}{Number(selectedOrder.delivery_fee || 0).toLocaleString("en-IN")}</b></div>
+                 ) : (
+@@ -191,7 +192,8 @@ function UserOrdersDialog({
+                   <div>
+                     <b>{item.product_name}</b>
+                     <small>Qty: {item.quantity}</small>
+-                    <strong>Rs.{Number(item.subtotal || 0).toLocaleString("en-IN")}</strong>
++                    {item.options && <small className="cart-options">{describeCartOptions(item.options)}</small>}
++                    <strong>{formatCurrency(Number(item.subtotal || 0), 2)}</strong>
+                   </div>
+                 </div>
+               ))}
+@@ -250,7 +252,7 @@ function UserOrdersDialog({
+                       </div>
+                     </div>
+                     <div className="admin-item-actions">
+-                      <strong>Rs.{Number(order.total_amount || 0).toLocaleString("en-IN")}</strong>
++                      <strong>{formatCurrency(Number(order.total_amount || 0), 2)}</strong>
+                       <span>{order.payment_status || "pending"}</span>
+                     </div>
+                   </button>
+diff --git a/src/hooks/useAdminActionDialogs.js b/src/hooks/useAdminActionDialogs.js
+index 89c60b3..5d6fdc9 100644
+--- a/src/hooks/useAdminActionDialogs.js
++++ b/src/hooks/useAdminActionDialogs.js
+@@ -11,6 +11,7 @@ import {
+ } from "../services/authService";
+ import { asListResponse } from "../services/authService";
+ import { normalizeProduct } from "../productUtils";
++import { formatCurrency } from "../appConstants";
+ 
+ export default function useAdminActionDialogs({
+   adminOrderDetail,
+@@ -188,7 +189,7 @@ export default function useAdminActionDialogs({
+         return;
+       }
+       if (maxRefundable != null && amount > maxRefundable + 1e-9) {
+-        setRefundModalError(`Amount cannot exceed max refundable (Rs.${maxRefundable.toLocaleString("en-IN")}).`);
++        setRefundModalError(`Amount cannot exceed max refundable (${formatCurrency(maxRefundable, 2)}).`);
+         return;
+       }
+       payload.amount = amountString;
+diff --git a/src/hooks/useCart.js b/src/hooks/useCart.js
+index 96f5625..8fc1f5b 100644
+--- a/src/hooks/useCart.js
++++ b/src/hooks/useCart.js
+@@ -1,44 +1,54 @@
+ import { useState } from "react";
+ import { validateCart } from "../services/authService";
+-import { CART_QTY_MAX, cartQtyCap, cartUnitPrice } from "../appConstants";
++import { CART_QTY_MAX, cartLineKey, cartQtyCap, cartUnitPrice, cleanCartOptions } from "../appConstants";
+ import { isOutOfStock, normalizeProduct } from "../productUtils";
+ 
++// Cart lines are keyed by product id + chosen options (size, eggless, message,
++// delivery date) so the same cake with different choices stays on separate lines.
++const lineIdOf = (entry) => entry.lineId || String(entry.id);
++const productQtyInCart = (cart, productId, exceptLineId) =>
++  cart.reduce((sum, entry) => (entry.id === productId && lineIdOf(entry) !== exceptLineId ? sum + entry.qty : sum), 0);
++
+ export default function useCart(notify) {
+   const [cart, setCart] = useState([]);
+ 
+-  function addToCart(item) {
++  function addToCart(item, options) {
+     const product = normalizeProduct(item);
+     if (isOutOfStock(product)) {
+       notify("This cake is currently out of stock.");
+       return;
+     }
++    const chosen = cleanCartOptions(options);
++    const lineId = cartLineKey(product.id, chosen);
+     const available = Number(product.available_quantity ?? product.stock_remaining ?? 0);
+     setCart(previous => {
+-      const found = previous.find(entry => entry.id === product.id);
++      const found = previous.find(entry => lineIdOf(entry) === lineId);
+       const nextQty = found ? found.qty + 1 : 1;
+-      if (available > 0 && nextQty > available) {
++      const productTotal = productQtyInCart(previous, product.id, lineId) + nextQty;
++      if (available > 0 && productTotal > available) {
+         notify(`Only ${available} units of "${product.name}" are currently available.`);
+         return previous;
+       }
+       const priced = {
+         ...found,
+         ...product,
++        lineId,
++        options: chosen,
+         qty: nextQty,
+-        size: found?.size || "1 kg",
+         discounted_price: cartUnitPrice(product),
+       };
+-      if (found) return previous.map(entry => entry.id === product.id ? priced : entry);
++      if (found) return previous.map(entry => lineIdOf(entry) === lineId ? priced : entry);
+       return [...previous, priced];
+     });
+     notify(`${product.name} added to your cart`);
+   }
+ 
+-  async function changeQty(id, delta) {
+-    const current = cart.find(item => item.id === id);
++  async function changeQty(lineId, delta) {
++    const current = cart.find(item => lineIdOf(item) === lineId);
+     if (!current) return;
+     const nextQty = current.qty + delta;
+     if (nextQty <= 0) {
+-      setCart(previous => previous.filter(item => item.id !== id));
++      setCart(previous => previous.filter(item => lineIdOf(item) !== lineId));
+       return;
+     }
+     const maxAllowed = cartQtyCap(current);
+@@ -52,13 +62,15 @@ export default function useCart(notify) {
+       return;
+     }
+     try {
+-      const result = await validateCart({ items: [{ id, quantity: nextQty }] });
++      // Stock is per product, so validate the total across every line of this cake.
++      const productTotal = productQtyInCart(cart, current.id, lineId) + nextQty;
++      const result = await validateCart({ items: [{ id: current.id, quantity: productTotal }] });
+       if (!result?.valid || result.ok === false) {
+         notify(result?.detail || result?.message || "Not enough stock for that quantity.");
+         return;
+       }
+       const available = result.items?.[0]?.available ?? current.available_quantity;
+-      setCart(previous => previous.map(item => item.id === id ? { ...item, qty: nextQty, available_quantity: available } : item));
++      setCart(previous => previous.map(item => lineIdOf(item) === lineId ? { ...item, qty: nextQty, available_quantity: available } : item));
+     } catch (error) {
+       notify(error.message || "Unable to validate cart quantity.");
+     }
+diff --git a/src/hooks/useCheckoutFlow.js b/src/hooks/useCheckoutFlow.js
+index a6480ba..8b5a55a 100644
+--- a/src/hooks/useCheckoutFlow.js
++++ b/src/hooks/useCheckoutFlow.js
+@@ -9,6 +9,7 @@ import {
+   verifyPayment,
+ } from "../services/authService";
+ import { appConfig } from "../config";
++import { cartPayloadItems } from "../appConstants";
+ 
+ export default function useCheckoutFlow({
+   user,
+@@ -124,7 +125,7 @@ export default function useCheckoutFlow({
+     }
+     const payload = {
+       postal_code: pin,
+-      items: cart.map(item => ({ id: item.id, quantity: item.qty || 1 })),
++      items: cartPayloadItems(cart),
+       ...(appliedCoupon?.code ? { coupon_code: appliedCoupon.code } : {}),
+       ...(addressId ? { address_id: addressId } : {}),
+       ...(lat != null && lat !== "" ? { shipping_latitude: lat } : {}),
+@@ -194,7 +195,7 @@ export default function useCheckoutFlow({
+     setCouponMessage("");
+     validateCoupon({
+       code,
+-      items: cart.map(item => ({ id: item.id, quantity: item.qty || 1 })),
++      items: cartPayloadItems(cart),
+     }, token)
+       .then(data => {
+         if (!data?.valid) {
+@@ -304,7 +305,7 @@ export default function useCheckoutFlow({
+     }
+ 
+     const payload = {
+-      items: cart.map(item => ({ id: item.id, quantity: item.qty || 1 })),
++      items: cartPayloadItems(cart),
+       customer_name: checkoutForm.customer_name || `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.username,
+       customer_email: checkoutForm.customer_email || user.email || "",
+       customer_mobile: checkoutForm.customer_mobile || user.mobile_number || "",
+diff --git a/src/hooks/usePageMetadata.js b/src/hooks/usePageMetadata.js
+index 0f2670d..f4fb518 100644
+--- a/src/hooks/usePageMetadata.js
++++ b/src/hooks/usePageMetadata.js
+@@ -23,6 +23,7 @@ export default function usePageMetadata({
+   orderHistoryOpen,
+   catalogLoading,
+   policySlug,
++  pageNotFound,
+ }) {
+   useEffect(() => {
+     const path = window.location.pathname || "/";
+@@ -57,6 +58,17 @@ export default function usePageMetadata({
+       return;
+     }
+ 
++    if (pageNotFound) {
++      setPageMeta({
++        title: "Page not found | pinkbakes",
++        description: "This page could not be found on pinkbakes.",
++        canonical: SITE_URL + "/",
++        robots: "noindex,follow",
++        jsonLd: [],
++      });
++      return;
++    }
++
+     if (productNotFound) {
+       setPageMeta({
+         title: "Cake not found | pinkbakes",
+@@ -108,5 +120,5 @@ export default function usePageMetadata({
+         buildWebSiteJsonLd(),
+       ],
+     });
+-  }, [product, productNotFound, adminOpen, authOpen, cartOpen, checkoutOpen, orderHistoryOpen, catalogLoading, policySlug]);
++  }, [product, productNotFound, adminOpen, authOpen, cartOpen, checkoutOpen, orderHistoryOpen, catalogLoading, policySlug, pageNotFound]);
+ }
+diff --git a/src/main.jsx b/src/main.jsx
+index 1d29dfe..39616ac 100644
+--- a/src/main.jsx
++++ b/src/main.jsx
+@@ -64,6 +64,9 @@ import usePolicyRoute from "./hooks/usePolicyRoute";
+ import { POLICIES } from "./policies";
+ import ProductModal from "./components/ProductModal";
+ import PolicyPage from "./components/PolicyPage";
++import NotFoundPage from "./components/NotFoundPage";
++import ErrorBoundary from "./components/ErrorBoundary";
++import { isKnownAppPath } from "./seo";
+ import AdminDashboardPanel from "./components/AdminDashboardPanel";
+ import AdminDialogs from "./components/AdminDialogs";
+ import AdminCustomerDrawer from "./components/AdminCustomerDrawer";
+@@ -123,6 +126,7 @@ function App() {
+   const [adminOpsMessage, setAdminOpsMessage] = useState("");
+   const [adminLoadingSection, setAdminLoadingSection] = useState(false);
+   const scrollRoomRef = useRef(null);
++  const scrollCorrectionRef = useRef(null);
+   const [orderSuccess, setOrderSuccess] = useState(null);
+   const [product3d, setProduct3d] = useState(null);
+   const {
+@@ -314,6 +318,19 @@ function App() {
+     openHelpDeskTopic,
+   } = useChatAssistant(catalog);
+   const { policySlug, openPolicy, closePolicy } = usePolicyRoute(setChatOpen);
++  // Bug 011: unknown URLs get a real not-found page instead of silently showing home.
++  const [pageNotFound, setPageNotFound] = useState(() => !isKnownAppPath(window.location.pathname));
++  useEffect(() => {
++    const onPop = () => setPageNotFound(!isKnownAppPath(window.location.pathname));
++    window.addEventListener("popstate", onPop);
++    return () => window.removeEventListener("popstate", onPop);
++  }, []);
++  function leaveNotFound(sectionId) {
++    try { window.history.pushState({}, "", "/"); } catch { /* ignore */ }
++    setPageNotFound(false);
++    if (sectionId) window.setTimeout(() => scrollTo(sectionId), 0);
++    else window.scrollTo(0, 0);
++  }
+   const {
+     orderHistoryOpen,
+     setOrderHistoryOpen,
+@@ -476,6 +493,7 @@ function App() {
+     orderHistoryOpen,
+     catalogLoading,
+     policySlug,
++    pageNotFound,
+   });
+   const couponDiscountPreview = Number(appliedCoupon?.discount_amount || 0);
+   const deliveryFeePreview = deliveryQuote?.eligible ? Number(deliveryQuote.delivery_fee || 0) : 0;
+@@ -515,20 +533,93 @@ function App() {
+     return "In stock";
+   }
+ 
++  // Phones: the Sign in and Help floats sit in the bottom corners. Fade them while the hero
++  // buttons pass through that strip so they never cover the main call to action.
++  useEffect(() => {
++    const target = document.querySelector(".hero-buttons");
++    if (!target || typeof IntersectionObserver === "undefined") return undefined;
++    const FLOAT_STRIP = 88;
++    let observer = null;
++    const observe = () => {
++      if (observer) observer.disconnect();
++      observer = new IntersectionObserver(
++        ([entry]) => document.body.classList.toggle("floats-yield", entry.isIntersecting),
++        { rootMargin: `-${Math.max(0, window.innerHeight - FLOAT_STRIP)}px 0px 0px 0px` },
++      );
++      observer.observe(target);
++    };
++    observe();
++    window.addEventListener("resize", observe);
++    return () => {
++      if (observer) observer.disconnect();
++      window.removeEventListener("resize", observe);
++      document.body.classList.remove("floats-yield");
++    };
++  }, []);
++
+   function scrollTo(id) {
+     setMobileOpen(false);
+     const el = document.getElementById(id);
+     if (!el) return;
+-    // Contact is the last in-page section. Without extra room below the footer,
+-    // the browser is already at max scroll and scrollIntoView cannot move it.
+-    const room = scrollRoomRef.current;
+-    if (room) room.style.height = "0px";
+-    const absTop = el.getBoundingClientRect().top + window.scrollY;
+-    const target = Math.max(0, absTop - STICKY_HEADER_OFFSET);
+-    const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+-    const extra = Math.ceil(target - maxScroll);
+-    if (room && extra > 1) room.style.height = `${extra}px`;
+-    window.scrollTo({ top: target, behavior: "smooth" });
++    const aim = () => {
++      // Contact is the last in-page section. Without extra room below the footer,
++      // the browser is already at max scroll and scrollIntoView cannot move it.
++      const room = scrollRoomRef.current;
++      if (room) room.style.height = "0px";
++      const absTop = el.getBoundingClientRect().top + window.scrollY;
++      const target = Math.max(0, absTop - STICKY_HEADER_OFFSET);
++      const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
++      const extra = Math.ceil(target - maxScroll);
++      if (room && extra > 1) room.style.height = `${extra}px`;
++      window.scrollTo({ top: target, behavior: "smooth" });
++    };
++    aim();
++    // Bug 021: lazy images above the section load during the smooth scroll and push it down,
++    // so the first target goes stale. Re-aim as soon as the section moves, and once more after
++    // scrolling settles (bounded). Any user scroll input cancels the correction.
++    stopScrollCorrection();
++    const sectionTop = () => el.getBoundingClientRect().top + window.scrollY;
++    let aimedTop = sectionTop();
++    let lastY = -1;
++    let stableTicks = 0;
++    let ticks = 0;
++    let corrections = 0;
++    const cancel = () => stopScrollCorrection();
++    const timer = window.setInterval(() => {
++      ticks += 1;
++      if (ticks > 60 || corrections >= 8) return stopScrollCorrection();
++      const top = sectionTop();
++      if (Math.abs(top - aimedTop) > 4) {
++        corrections += 1;
++        aimedTop = top;
++        stableTicks = 0;
++        aim();
++        return;
++      }
++      const y = window.scrollY;
++      stableTicks = Math.abs(y - lastY) < 1 ? stableTicks + 1 : 0;
++      lastY = y;
++      if (stableTicks < 2) return;
++      const drift = el.getBoundingClientRect().top - STICKY_HEADER_OFFSET;
++      if (Math.abs(drift) > 4 && corrections < 3) {
++        corrections += 1;
++        stableTicks = 0;
++        aim();
++        return;
++      }
++      stopScrollCorrection();
++    }, 100);
++    ["wheel", "touchstart", "keydown"].forEach((type) => window.addEventListener(type, cancel, { passive: true }));
++    scrollCorrectionRef.current = () => {
++      window.clearInterval(timer);
++      ["wheel", "touchstart", "keydown"].forEach((type) => window.removeEventListener(type, cancel));
++    };
++  }
++
++  function stopScrollCorrection() {
++    const stop = scrollCorrectionRef.current;
++    scrollCorrectionRef.current = null;
++    if (stop) stop();
+   }
+ 
+   function goAdminSection(section) {
+@@ -660,6 +751,14 @@ function App() {
+         scrollRoomRef,
+       }} />
+ 
++      {pageNotFound && (
++        <NotFoundPage
++          brandName={BRAND_NAME}
++          onHome={() => leaveNotFound()}
++          onBrowse={() => leaveNotFound("cakes")}
++        />
++      )}
++
+       {policySlug && POLICIES[policySlug] && (
+         <PolicyPage
+           policy={POLICIES[policySlug]}
+@@ -682,7 +781,7 @@ function App() {
+         />
+       )}
+ 
+-      {product && <ProductModal key={product.id || product.slug || product.name} product={product} onClose={closeProduct} onAdd={(item) => {addToCart(item || product); closeProduct()}} stockLabel={stockLabel} isOutOfStock={isOutOfStock}/>}
++      {product && <ProductModal key={product.id || product.slug || product.name} product={product} onClose={closeProduct} onAdd={(item, options) => {addToCart(item || product, options); closeProduct()}} stockLabel={stockLabel} isOutOfStock={isOutOfStock}/>}
+       {product3d && (
+         <Suspense fallback={null}>
+           <Product3DViewer product={product3d} onClose={() => setProduct3d(null)} />
+@@ -960,12 +1059,17 @@ function App() {
+       )}
+ 
+       {!authOpen && (
+-        <div className="auth-float" onClick={() => setAuthOpen(true)}>
+-          <div className="auth-float-badge">
+-            <UserRound size={16}/>
+-            <span>{user ? `Hi, ${user.first_name || user.username}` : "Sign in"}</span>
+-          </div>
+-        </div>
++        <button
++          type="button"
++          className="auth-float"
++          onClick={() => setAuthOpen(true)}
++          aria-label={user ? `Signed in as ${user.first_name || user.username}` : "Sign in or sign up"}
++        >
++          <span className="auth-float-badge">
++            <UserRound size={16} aria-hidden="true"/>
++            <span className="auth-float-label">{user ? `Hi, ${user.first_name || user.username}` : "Sign in"}</span>
++          </span>
++        </button>
+       )}
+ 
+       {authOpen && (
+@@ -1022,4 +1126,8 @@ function App() {
+   );
+ }
+ 
+-createRoot(document.getElementById("root")).render(<App />);
++createRoot(document.getElementById("root")).render(
++  <ErrorBoundary brandName={BRAND_NAME}>
++    <App />
++  </ErrorBoundary>
++);
+diff --git a/src/seo.js b/src/seo.js
+index 4177b53..bd28909 100644
+--- a/src/seo.js
++++ b/src/seo.js
+@@ -1,238 +1,249 @@
+-/**
+- * Lightweight document-head helper for the PinkBakes SPA.
+- * Equivalent to a head manager (no react-helmet dependency).
+- * Always escapes text before writing into meta/JSON-LD.
+- */
+-
+-export const SITE_URL = (import.meta.env.VITE_PUBLIC_SITE_URL || "https://pinkbakes.com").replace(/\/$/, "");
+-export const BRAND = "pinkbakes";
+-export const DEFAULT_DESCRIPTION =
+-  "pinkbakes - handcrafted cakes for birthdays, anniversaries, weddings, and custom celebrations.";
+-
+-let jsonLdNodes = [];
+-
+-function ensureMetaByName(name) {
+-  let el = document.head.querySelector(`meta[name="${name}"]`);
+-  if (!el) {
+-    el = document.createElement("meta");
+-    el.setAttribute("name", name);
+-    document.head.appendChild(el);
+-  }
+-  return el;
+-}
+-
+-function ensureMetaByProperty(property) {
+-  let el = document.head.querySelector(`meta[property="${property}"]`);
+-  if (!el) {
+-    el = document.createElement("meta");
+-    el.setAttribute("property", property);
+-    document.head.appendChild(el);
+-  }
+-  return el;
+-}
+-
+-function ensureLink(rel) {
+-  let el = document.head.querySelector(`link[rel="${rel}"]`);
+-  if (!el) {
+-    el = document.createElement("link");
+-    el.setAttribute("rel", rel);
+-    document.head.appendChild(el);
+-  }
+-  return el;
+-}
+-
+-/** Escape for HTML attribute / text content contexts. */
+-export function escapeHtml(value) {
+-  return String(value ?? "")
+-    .replace(/&/g, "&amp;")
+-    .replace(/</g, "&lt;")
+-    .replace(/>/g, "&gt;")
+-    .replace(/"/g, "&quot;")
+-    .replace(/'/g, "&#39;");
+-}
+-
+-/** Strip tags and collapse whitespace for meta / JSON-LD text fields. */
+-export function plainText(value, maxLen = 300) {
+-  let text = String(value ?? "").replace(/<[^>]*>/g, " ");
+-  text = text.replace(/\s+/g, " ").trim();
+-  if (text.length > maxLen) {
+-    text = text.slice(0, maxLen - 1).trimEnd() + "...";
+-  }
+-  return text;
+-}
+-
+-function setJsonLd(blocks) {
+-  jsonLdNodes.forEach((n) => n.remove());
+-  jsonLdNodes = [];
+-  (blocks || []).filter(Boolean).forEach((block) => {
+-    const script = document.createElement("script");
+-    script.type = "application/ld+json";
+-    script.textContent = JSON.stringify(block).replace(/</g, "\\u003c");
+-    document.head.appendChild(script);
+-    jsonLdNodes.push(script);
+-  });
+-}
+-
+-/**
+- * Update document title, robots, canonical, Open Graph, Twitter, and JSON-LD.
+- */
+-export function setPageMeta({
+-  title,
+-  description = DEFAULT_DESCRIPTION,
+-  canonical,
+-  robots = "index,follow",
+-  image,
+-  type = "website",
+-  jsonLd = [],
+-} = {}) {
+-  const safeTitle = plainText(title || BRAND, 70);
+-  const safeDesc = plainText(description || DEFAULT_DESCRIPTION, 160);
+-  document.title = safeTitle;
+-
+-  ensureMetaByName("description").setAttribute("content", safeDesc);
+-  ensureMetaByName("robots").setAttribute("content", robots);
+-  ensureMetaByName("twitter:card").setAttribute("content", image ? "summary_large_image" : "summary");
+-  ensureMetaByName("twitter:title").setAttribute("content", safeTitle);
+-  ensureMetaByName("twitter:description").setAttribute("content", safeDesc);
+-
+-  ensureMetaByProperty("og:title").setAttribute("content", safeTitle);
+-  ensureMetaByProperty("og:description").setAttribute("content", safeDesc);
+-  ensureMetaByProperty("og:type").setAttribute("content", type || "website");
+-  ensureMetaByProperty("og:site_name").setAttribute("content", BRAND);
+-
+-  let canon = canonical || SITE_URL + "/";
+-  if (canon.startsWith("/")) canon = SITE_URL + canon;
+-  ensureLink("canonical").setAttribute("href", canon);
+-  ensureMetaByProperty("og:url").setAttribute("content", canon);
+-
+-  if (image) {
+-    ensureMetaByProperty("og:image").setAttribute("content", image);
+-    ensureMetaByName("twitter:image").setAttribute("content", image);
+-  }
+-
+-  setJsonLd(jsonLd);
+-}
+-
+-export function absoluteUrl(path) {
+-  if (!path) return SITE_URL + "/";
+-  if (/^https?:\/\//i.test(path)) return path;
+-  return SITE_URL + (path.startsWith("/") ? path : "/" + path);
+-}
+-
+-export function productPath(product) {
+-  if (!product) return "/";
+-  const slug = (product.slug || "").trim();
+-  if (slug) return `/products/${slug}`;
+-  if (product.id != null) return `/products/${product.id}`;
+-  return "/";
+-}
+-
+-const AVAIL = {
+-  in_stock: "https://schema.org/InStock",
+-  low_stock: "https://schema.org/InStock",
+-  out_of_stock: "https://schema.org/OutOfStock",
+-};
+-
+-export function buildProductJsonLd(product) {
+-  if (!product) return null;
+-  const name = plainText(product.name || "Cake", 120);
+-  const description = plainText(product.short_description || product.description || "", 5000);
+-  const image = product.main_image || product.image || (product.gallery && product.gallery[0]) || "";
+-  const url = absoluteUrl(productPath(product));
+-  const priceNum = Number(
+-    product.discounted_price ??
+-      (Number(product.price || 0) * (100 - Number(product.discount || 0))) / 100
+-  );
+-  const price = (Math.round(priceNum * 100) / 100).toFixed(2);
+-  let availability = AVAIL[product.availability] || AVAIL.in_stock;
+-  const qty = Number(product.available_quantity ?? product.stock_remaining ?? 0);
+-  if (Number.isFinite(qty) && qty <= 0) availability = AVAIL.out_of_stock;
+-
+-  const data = {
+-    "@context": "https://schema.org",
+-    "@type": "Product",
+-    name,
+-    url,
+-    sku: String(product.id ?? ""),
+-    offers: {
+-      "@type": "Offer",
+-      url,
+-      priceCurrency: "INR",
+-      price,
+-      availability,
+-    },
+-  };
+-  if (description) data.description = description;
+-  if (image) data.image = [image];
+-  if (product.category) data.category = plainText(product.category, 80);
+-
+-  const reviewCount = Number(product.review_count || 0);
+-  const ratingValue = Number(product.average_rating ?? product.rating ?? 0);
+-  if (reviewCount > 0 && ratingValue > 0) {
+-    data.aggregateRating = {
+-      "@type": "AggregateRating",
+-      ratingValue: Math.round(ratingValue * 10) / 10,
+-      reviewCount,
+-      bestRating: 5,
+-      worstRating: 1,
+-    };
+-  }
+-  return data;
+-}
+-
+-export function buildOrganizationJsonLd({ email, telephone } = {}) {
+-  const data = {
+-    "@context": "https://schema.org",
+-    "@type": "Organization",
+-    name: BRAND,
+-    url: SITE_URL,
+-  };
+-  if (email) data.email = email;
+-  if (telephone) data.telephone = String(telephone);
+-  return data;
+-}
+-
+-export function buildWebSiteJsonLd() {
+-  return {
+-    "@context": "https://schema.org",
+-    "@type": "WebSite",
+-    name: BRAND,
+-    url: SITE_URL,
+-  };
+-}
+-
+-export function buildBreadcrumbJsonLd(items) {
+-  if (!items || !items.length) return null;
+-  return {
+-    "@context": "https://schema.org",
+-    "@type": "BreadcrumbList",
+-    itemListElement: items.map((item, index) => ({
+-      "@type": "ListItem",
+-      position: index + 1,
+-      name: plainText(item.name, 80),
+-      item: absoluteUrl(item.path || "/"),
+-    })),
+-  };
+-}
+-
+-/** Match /products/:slugOrId from location.pathname */
+-export function parseProductPath(pathname) {
+-  const m = String(pathname || "").match(/^\/products\/([^/?#]+)\/?$/);
+-  if (!m) return null;
+-  return decodeURIComponent(m[1]);
+-}
+-
+-export function isPrivatePath(pathname) {
+-  const p = String(pathname || "");
+-  return (
+-    p.startsWith("/admin") ||
+-    p.startsWith("/admin-login") ||
+-    p.startsWith("/reset-password") ||
+-    p.startsWith("/cart") ||
+-    p.startsWith("/checkout") ||
+-    p.startsWith("/account") ||
+-    p.startsWith("/orders") ||
+-    p.startsWith("/login") ||
+-    p.startsWith("/signup")
+-  );
++import { policyFromPath } from "./policies";
++
++/**
++ * Lightweight document-head helper for the PinkBakes SPA.
++ * Equivalent to a head manager (no react-helmet dependency).
++ * Always escapes text before writing into meta/JSON-LD.
++ */
++
++export const SITE_URL = (import.meta.env.VITE_PUBLIC_SITE_URL || "https://pinkbakes.com").replace(/\/$/, "");
++export const BRAND = "pinkbakes";
++export const DEFAULT_DESCRIPTION =
++  "pinkbakes - handcrafted cakes for birthdays, anniversaries, weddings, and custom celebrations.";
++
++let jsonLdNodes = [];
++
++function ensureMetaByName(name) {
++  let el = document.head.querySelector(`meta[name="${name}"]`);
++  if (!el) {
++    el = document.createElement("meta");
++    el.setAttribute("name", name);
++    document.head.appendChild(el);
++  }
++  return el;
++}
++
++function ensureMetaByProperty(property) {
++  let el = document.head.querySelector(`meta[property="${property}"]`);
++  if (!el) {
++    el = document.createElement("meta");
++    el.setAttribute("property", property);
++    document.head.appendChild(el);
++  }
++  return el;
++}
++
++function ensureLink(rel) {
++  let el = document.head.querySelector(`link[rel="${rel}"]`);
++  if (!el) {
++    el = document.createElement("link");
++    el.setAttribute("rel", rel);
++    document.head.appendChild(el);
++  }
++  return el;
++}
++
++/** Escape for HTML attribute / text content contexts. */
++export function escapeHtml(value) {
++  return String(value ?? "")
++    .replace(/&/g, "&amp;")
++    .replace(/</g, "&lt;")
++    .replace(/>/g, "&gt;")
++    .replace(/"/g, "&quot;")
++    .replace(/'/g, "&#39;");
++}
++
++/** Strip tags and collapse whitespace for meta / JSON-LD text fields. */
++export function plainText(value, maxLen = 300) {
++  let text = String(value ?? "").replace(/<[^>]*>/g, " ");
++  text = text.replace(/\s+/g, " ").trim();
++  if (text.length > maxLen) {
++    text = text.slice(0, maxLen - 1).trimEnd() + "...";
++  }
++  return text;
++}
++
++function setJsonLd(blocks) {
++  jsonLdNodes.forEach((n) => n.remove());
++  jsonLdNodes = [];
++  (blocks || []).filter(Boolean).forEach((block) => {
++    const script = document.createElement("script");
++    script.type = "application/ld+json";
++    script.textContent = JSON.stringify(block).replace(/</g, "\\u003c");
++    document.head.appendChild(script);
++    jsonLdNodes.push(script);
++  });
++}
++
++/**
++ * Update document title, robots, canonical, Open Graph, Twitter, and JSON-LD.
++ */
++export function setPageMeta({
++  title,
++  description = DEFAULT_DESCRIPTION,
++  canonical,
++  robots = "index,follow",
++  image,
++  type = "website",
++  jsonLd = [],
++} = {}) {
++  const safeTitle = plainText(title || BRAND, 70);
++  const safeDesc = plainText(description || DEFAULT_DESCRIPTION, 160);
++  document.title = safeTitle;
++
++  ensureMetaByName("description").setAttribute("content", safeDesc);
++  ensureMetaByName("robots").setAttribute("content", robots);
++  ensureMetaByName("twitter:card").setAttribute("content", image ? "summary_large_image" : "summary");
++  ensureMetaByName("twitter:title").setAttribute("content", safeTitle);
++  ensureMetaByName("twitter:description").setAttribute("content", safeDesc);
++
++  ensureMetaByProperty("og:title").setAttribute("content", safeTitle);
++  ensureMetaByProperty("og:description").setAttribute("content", safeDesc);
++  ensureMetaByProperty("og:type").setAttribute("content", type || "website");
++  ensureMetaByProperty("og:site_name").setAttribute("content", BRAND);
++
++  let canon = canonical || SITE_URL + "/";
++  if (canon.startsWith("/")) canon = SITE_URL + canon;
++  ensureLink("canonical").setAttribute("href", canon);
++  ensureMetaByProperty("og:url").setAttribute("content", canon);
++
++  if (image) {
++    ensureMetaByProperty("og:image").setAttribute("content", image);
++    ensureMetaByName("twitter:image").setAttribute("content", image);
++  }
++
++  setJsonLd(jsonLd);
++}
++
++export function absoluteUrl(path) {
++  if (!path) return SITE_URL + "/";
++  if (/^https?:\/\//i.test(path)) return path;
++  return SITE_URL + (path.startsWith("/") ? path : "/" + path);
++}
++
++export function productPath(product) {
++  if (!product) return "/";
++  const slug = (product.slug || "").trim();
++  if (slug) return `/products/${slug}`;
++  if (product.id != null) return `/products/${product.id}`;
++  return "/";
++}
++
++const AVAIL = {
++  in_stock: "https://schema.org/InStock",
++  low_stock: "https://schema.org/InStock",
++  out_of_stock: "https://schema.org/OutOfStock",
++};
++
++export function buildProductJsonLd(product) {
++  if (!product) return null;
++  const name = plainText(product.name || "Cake", 120);
++  const description = plainText(product.short_description || product.description || "", 5000);
++  const image = product.main_image || product.image || (product.gallery && product.gallery[0]) || "";
++  const url = absoluteUrl(productPath(product));
++  const priceNum = Number(
++    product.discounted_price ??
++      (Number(product.price || 0) * (100 - Number(product.discount || 0))) / 100
++  );
++  const price = (Math.round(priceNum * 100) / 100).toFixed(2);
++  let availability = AVAIL[product.availability] || AVAIL.in_stock;
++  const qty = Number(product.available_quantity ?? product.stock_remaining ?? 0);
++  if (Number.isFinite(qty) && qty <= 0) availability = AVAIL.out_of_stock;
++
++  const data = {
++    "@context": "https://schema.org",
++    "@type": "Product",
++    name,
++    url,
++    sku: String(product.id ?? ""),
++    offers: {
++      "@type": "Offer",
++      url,
++      priceCurrency: "INR",
++      price,
++      availability,
++    },
++  };
++  if (description) data.description = description;
++  if (image) data.image = [image];
++  if (product.category) data.category = plainText(product.category, 80);
++
++  const reviewCount = Number(product.review_count || 0);
++  const ratingValue = Number(product.average_rating ?? product.rating ?? 0);
++  if (reviewCount > 0 && ratingValue > 0) {
++    data.aggregateRating = {
++      "@type": "AggregateRating",
++      ratingValue: Math.round(ratingValue * 10) / 10,
++      reviewCount,
++      bestRating: 5,
++      worstRating: 1,
++    };
++  }
++  return data;
++}
++
++export function buildOrganizationJsonLd({ email, telephone } = {}) {
++  const data = {
++    "@context": "https://schema.org",
++    "@type": "Organization",
++    name: BRAND,
++    url: SITE_URL,
++  };
++  if (email) data.email = email;
++  if (telephone) data.telephone = String(telephone);
++  return data;
++}
++
++export function buildWebSiteJsonLd() {
++  return {
++    "@context": "https://schema.org",
++    "@type": "WebSite",
++    name: BRAND,
++    url: SITE_URL,
++  };
++}
++
++export function buildBreadcrumbJsonLd(items) {
++  if (!items || !items.length) return null;
++  return {
++    "@context": "https://schema.org",
++    "@type": "BreadcrumbList",
++    itemListElement: items.map((item, index) => ({
++      "@type": "ListItem",
++      position: index + 1,
++      name: plainText(item.name, 80),
++      item: absoluteUrl(item.path || "/"),
++    })),
++  };
++}
++
++/** Match /products/:slugOrId from location.pathname */
++export function parseProductPath(pathname) {
++  const m = String(pathname || "").match(/^\/products\/([^/?#]+)\/?$/);
++  if (!m) return null;
++  return decodeURIComponent(m[1]);
++}
++
++// Paths the single-page app understands; anything else shows the not-found page (bug 011).
++// Account/order/verify links are kept as known so emailed links still open the site.
++export function isKnownAppPath(pathname) {
++  const p = String(pathname || "/");
++  if (p === "/" || p === "/index.html") return true;
++  if (parseProductPath(p) || policyFromPath(p)) return true;
++  return isPrivatePath(p) || p.startsWith("/verify-email");
++}
++
++export function isPrivatePath(pathname) {
++  const p = String(pathname || "");
++  return (
++    p.startsWith("/admin") ||
++    p.startsWith("/admin-login") ||
++    p.startsWith("/reset-password") ||
++    p.startsWith("/cart") ||
++    p.startsWith("/checkout") ||
++    p.startsWith("/account") ||
++    p.startsWith("/orders") ||
++    p.startsWith("/login") ||
++    p.startsWith("/signup")
++  );
+ }
+diff --git a/src/styles.css b/src/styles.css
+index 4356337..caaf1d9 100644
+--- a/src/styles.css
++++ b/src/styles.css
+@@ -2289,3 +2289,78 @@ button.btn.primary.full:disabled {
+   font-weight: 500;
+   text-decoration: line-through;
+ }
++
++/* Product popup: note shown when a cake is already eggless (bug 017). */
++.option-note{display:block;font-size:10px;color:#89796d;margin-top:6px}
++.option-row button:disabled{cursor:default;opacity:.9}
++.cart-options{line-height:1.5}
++/* Not-found page and error fallback reuse the policy-page look (bugs 011/013). */
++.policy-page-brand{text-decoration:none}
++.not-found-page .policy-page-nav button,.error-fallback .policy-page-nav button{padding:10px 16px;font-size:14px}
++
++/* Phone header and floating buttons (owner report, 24 Oct):
++   - the brand is never shrunk or covered: the action buttons give way instead;
++   - the search icon is shown on phones too (it was hidden at <=720px since the original code)
++     and jumps to the catalog search box;
++   - Order Now moves into the menu on the narrowest phones, where the bar has no room for it;
++   - the Sign in float and the Help button share one bottom line, size and edge spacing. */
++.nav-order{display:none}
++.auth-float{padding:0;border:0;background:none;font:inherit;color:inherit}
++.auth-float:focus-visible .auth-float-badge,.chatbot-launch:focus-visible{outline:2px solid #8e6536;outline-offset:3px}
++.auth-float-badge{height:56px;padding:0 20px}
++
++@media (max-width: 720px) {
++  .header{padding:0 12px;gap:6px}
++  .header .brand{flex:0 0 auto;min-width:auto;overflow:visible;gap:7px}
++  .header .brand strong{overflow:visible;text-overflow:clip}
++  .header .brand-mark{width:32px;height:32px;flex:0 0 32px}
++  .header .header-actions{flex:0 1 auto;min-width:0;margin-left:auto;gap:4px}
++  .header .search-toggle{display:inline-flex;width:44px;height:44px;min-width:44px;box-shadow:none}
++  .header .header-action{min-width:44px}
++
++  .auth-float{left:16px;bottom:calc(16px + env(safe-area-inset-bottom, 0px))}
++  .auth-float-badge{height:48px;padding:0 16px}
++  .chatbot-dock{right:16px;bottom:calc(16px + env(safe-area-inset-bottom, 0px))}
++  .chatbot-launch{height:48px;min-width:48px;box-shadow:0 12px 28px rgba(142,101,54,.34)}
++  /* Keep the last footer line clear of the two floats. */
++  .footer-bottom{padding-bottom:72px}
++}
++
++/* Tablet-portrait phones (481-600px): labels make the bar too wide once search is back. */
++@media (min-width: 481px) and (max-width: 600px) {
++  .header .header-action .action-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
++  .header .header-action{padding:0 12px}
++}
++
++@media (max-width: 480px) {
++  .header .brand small{display:none}
++  .header .order-top{padding:0 12px;font-size:11px}
++  /* Both floats become 48px circles so they read as a pair and cover as little as possible. */
++  .auth-float-badge{width:48px;padding:0;justify-content:center}
++  .auth-float-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
++  .chatbot-launch{width:48px;padding:0}
++}
++
++@media (max-width: 413px) {
++  .header .order-top{display:none}
++  .nav.mobile-visible .nav-order{
++    display:block;width:100%;margin-top:6px;padding:12px 16px;text-align:center;
++    border-radius:25px;background:#a67a43;color:#fff;font-weight:600;
++  }
++}
++
++@media (max-width: 359px) {
++  .header{padding:0 8px;gap:4px}
++  .header .brand{gap:6px}
++  .header .brand-mark{width:30px;height:30px;flex-basis:30px}
++}
++
++/* Header icons share one size; the cart badge stays inside the bar on phones. */
++.header .search-toggle svg{width:18px;height:18px}
++@media (max-width: 720px) {
++  .header .cart-count{right:0;top:-2px}
++  .auth-float,.chatbot-dock{transition:opacity .2s ease,transform .2s ease}
++  body.floats-yield .auth-float,
++  body.floats-yield .chatbot-dock:not(.is-open){opacity:0;transform:translateY(12px);pointer-events:none}
++  body.floats-yield .chatbot-dock:not(.is-open) > *{pointer-events:none}
++}

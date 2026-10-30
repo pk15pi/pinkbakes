@@ -6,7 +6,7 @@ import {
   submitReview,
 } from "../services/authService";
 import { hasCakeContent, normalizeProduct } from "../productUtils";
-import { CAKE_MESSAGE_MAX_LENGTH, CAKE_SIZE_OPTIONS, formatCurrency, isEgglessProduct, localIsoDate } from "../appConstants";
+import { CAKE_MESSAGE_MAX_LENGTH, CAKE_SIZE_OPTIONS, formatCurrency, isEgglessProduct, localIsoDate, pricedSizes, sizeListPrice, sizePriceFor } from "../appConstants";
 
 function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
   const [detail, setDetail] = useState(() => normalizeProduct(product));
@@ -117,7 +117,13 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
       .finally(() => setReviewSubmitting(false));
   }
 
-  const currentPrice = Number(detail.discounted_price ?? ((detail.price * (100 - (detail.discount || 0))) / 100 || detail.price));
+  // BUG-026: when admin set per-size prices, only those sizes are offered and the
+  // price shown follows the selected size (the server recomputes it at checkout).
+  const sizeChoices = pricedSizes(detail).length ? pricedSizes(detail) : CAKE_SIZE_OPTIONS;
+  const activeSize = sizeChoices.includes(size) ? size : (sizeChoices.includes("1 kg") ? "1 kg" : sizeChoices[0]);
+  const sizeList = sizeListPrice(detail, activeSize);
+  const currentPrice = sizePriceFor(detail, activeSize) ?? Number(detail.discounted_price ?? ((detail.price * (100 - (detail.discount || 0))) / 100 || detail.price));
+  const listPrice = sizeList ?? detail.price;
   const egglessProduct = isEgglessProduct(detail);
 
   function handleAdd() {
@@ -126,7 +132,7 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
       return;
     }
     onAdd(detail, {
-      size,
+      size: activeSize,
       eggless: egglessProduct ? undefined : eggless,
       message: cakeMessage,
       delivery_date: deliveryDate,
@@ -172,10 +178,10 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
             {(detail.description || detail.short_description) && <p className="modal-desc">{detail.description || detail.short_description}</p>}
             <div className="modal-price-row">
               <span className="modal-price">{formatCurrency(currentPrice, 2)}</span>
-              {Number(detail.discount || 0) > 0 && <span className="strike">{formatCurrency(detail.price, 2)}</span>}
+              {Number(detail.discount || 0) > 0 && <span className="strike">{formatCurrency(listPrice, 2)}</span>}
             </div>
             {Number(detail.discount || 0) > 0 && <small className="discount-badge">{detail.discount}% OFF</small>}
-            <label>Choose Size</label><div className="option-row">{CAKE_SIZE_OPTIONS.map(x=><button className={size===x?"selected-option":""} key={x} onClick={()=>setSize(x)}>{x}</button>)}</div>
+            <label>Choose Size</label><div className="option-row">{sizeChoices.map(x=><button className={activeSize===x?"selected-option":""} key={x} onClick={()=>setSize(x)} aria-pressed={activeSize===x}>{x}</button>)}</div>
             {egglessProduct
               ? <><label>Preference</label><div className="option-row"><button type="button" className="selected-option" disabled>Eggless</button></div><small className="option-note">This cake is already eggless.</small></>
               : <><label>Preference</label><div className="option-row"><button className={!eggless?"selected-option":""} onClick={()=>setEggless(false)}>Regular</button><button className={eggless?"selected-option":""} onClick={()=>setEggless(true)}>Eggless</button></div></>}

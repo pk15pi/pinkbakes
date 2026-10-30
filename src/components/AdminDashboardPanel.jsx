@@ -1,7 +1,7 @@
 import { Trash2 } from "lucide-react";
 import AdminEmployeesPanel from "./AdminEmployeesPanel";
 import { buildRefundTableRows } from "../adminRefundUtils";
-import { describeCartOptions, formatCurrency } from "../appConstants";
+import { CAKE_SIZE_OPTIONS, describeCartOptions, formatCurrency } from "../appConstants";
 
 function AdminDashboardPanel({
   BRAND_NAME,
@@ -685,6 +685,17 @@ function AdminDashboardPanel({
                         Discount (%)
                         <input type="number" min="0" max="100" value={cakeForm.discount} onChange={e => setCakeForm(prev => ({ ...prev, discount: e.target.value }))} placeholder="10" />
                       </label>
+                      <div className="size-price-fields">
+                        <small>Price per size (₹, optional). Leave all blank to sell every size at the main price. If any size has a price, customers can order only the priced sizes; the discount applies to them too.</small>
+                        <div className="admin-form-row">
+                          {CAKE_SIZE_OPTIONS.map(sizeLabel => (
+                            <label key={sizeLabel}>
+                              {sizeLabel}
+                              <input type="number" min="0.01" step="0.01" value={cakeForm.size_prices?.[sizeLabel] ?? ""} onChange={e => setCakeForm(prev => ({ ...prev, size_prices: { ...(prev.size_prices || {}), [sizeLabel]: e.target.value } }))} placeholder="Main price" />
+                            </label>
+                          ))}
+                        </div>
+                      </div>
                       <label>
                         Category
                         <select value={cakeForm.category} onChange={e => setCakeForm(prev => ({ ...prev, category: e.target.value }))}>
