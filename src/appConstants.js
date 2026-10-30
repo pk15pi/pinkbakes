@@ -42,6 +42,19 @@ export const STICKY_HEADER_OFFSET = 80;
 
 export const CART_QTY_MAX = 40;
 
+// Mirrors the backend (catalog/pricing.py): discounted unit prices are rounded to
+// whole rupees, half-up, so previews match what checkout charges.
+export const roundRupees = (value) => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return 0;
+  return Math.round(Number(amount.toFixed(2)));
+};
+
+export const discountedUnitPrice = (list, discount) => {
+  const pct = Math.min(100, Math.max(0, Number(discount ?? 0) || 0));
+  return pct > 0 ? roundRupees((Number(list) * (100 - pct)) / 100) : Number(list);
+};
+
 export const cartUnitPrice = (item) => {
   // BUG-026: a line with a chosen size uses that size's admin-set price (less discount).
   const sized = sizePriceFor(item, item?.options?.size);
@@ -53,7 +66,7 @@ export const cartUnitPrice = (item) => {
     return fromField;
   }
   if (discount > 0 && list > 0) {
-    return Number(((list * (100 - discount)) / 100).toFixed(2));
+    return discountedUnitPrice(list, discount);
   }
   return Number.isFinite(fromField) && fromField > 0 ? fromField : list;
 };
@@ -100,8 +113,7 @@ export const hasSizePrices = (product) => pricedSizes(product).length > 0;
 export const sizePriceFor = (product, size) => {
   const list = sizeListPrice(product, size);
   if (list == null) return null;
-  const discount = Math.min(100, Math.max(0, Number(product?.discount ?? 0) || 0));
-  return discount > 0 ? Number(((list * (100 - discount)) / 100).toFixed(2)) : list;
+  return discountedUnitPrice(list, product?.discount);
 };
 
 // Lowest discounted size price, for "from <price>" on listings; null when no size prices.
@@ -187,4 +199,21 @@ export function catalogLoadErrorMessage(error) {
   if (error?.timeout) return "Loading cakes took too long. Please retry.";
   if (error?.status) return error.message || "Unable to load cakes. Please try again.";
   return "Unable to load cakes. Check your connection and retry.";
+}
+
+// Build a srcset for CDN images that resize by a "w" query param (Unsplash, Pexels).
+// Returns undefined for other URLs (e.g. /media uploads) so the plain src is used.
+export function responsiveImageSrcSet(url, widths = [360, 600, 900]) {
+  if (!url || typeof url !== "string") return undefined;
+  let parsed;
+  try { parsed = new URL(url); } catch { return undefined; }
+  if (!/(^|\.)(images\.unsplash\.com|images\.pexels\.com)$/.test(parsed.hostname)) return undefined;
+  return widths
+    .map((w) => {
+      const u = new URL(parsed.toString());
+      u.searchParams.set("w", String(w));
+      u.searchParams.delete("h");
+      return `${u.toString()} ${w}w`;
+    })
+    .join(", ");
 }

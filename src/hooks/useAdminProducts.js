@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createProduct, deleteProduct, updateProduct } from "../services/authService";
+import { createProduct, deleteProduct, updateProduct, uploadProductImageFile } from "../services/authService";
 import { normalizeProduct } from "../productUtils";
 
 const EMPTY_CAKE_FORM = {
@@ -10,6 +10,7 @@ const EMPTY_CAKE_FORM = {
   category: "Birthday Cakes",
   description: "",
   image: "",
+  imageFile: null,
   availability: "in_stock",
   status: "published",
   available_quantity: 50,
@@ -37,6 +38,7 @@ export default function useAdminProducts({ catalog, setCatalog, notify }) {
       category: item.category || "Birthday Cakes",
       description: item.description || item.short_description || "",
       image: item.image || "",
+      imageFile: null,
       availability: item.availability || "in_stock",
       available_quantity: item.available_quantity ?? item.stock_remaining ?? 50,
       low_stock_threshold: item.low_stock_threshold ?? 5,
@@ -89,9 +91,12 @@ export default function useAdminProducts({ catalog, setCatalog, notify }) {
       low_stock_threshold: Number(cakeForm.low_stock_threshold ?? 5),
       is_active: true,
     };
-    const request = editingCakeId != null
+    const imageFile = cakeForm.imageFile || null;
+    const request = (editingCakeId != null
       ? updateProduct(editingCakeId, payload, token)
-      : createProduct(payload, token);
+      : createProduct(payload, token))
+      // Optional file upload: save the product first, then upload the image to it.
+      .then(product => (imageFile && product?.id != null ? uploadProductImageFile(product.id, imageFile, token) : product));
 
     request
       .then(product => {

@@ -1,5 +1,50 @@
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { formatCurrency } from "../appConstants";
+import { fetchDeliverySlots } from "../services/authService";
+
+const SLOT_DAYS_AHEAD = 30;
+
+function localIsoDate(offsetDays = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Optional delivery date + time slot; hidden when the bakery has not set up any slots. */
+function DeliverySlotPicker({ checkoutForm, setCheckoutForm }) {
+  const [slots, setSlots] = useState([]);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchDeliverySlots({ signal: controller.signal }).then(data => setSlots(Array.isArray(data) ? data : [])).catch(() => setSlots([]));
+    return () => controller.abort();
+  }, []);
+  if (!slots.length) return null;
+  return (
+    <div className="auth-row">
+      <label style={{ flex: 1 }}>
+        Delivery date (optional)
+        <input
+          type="date"
+          min={localIsoDate(0)}
+          max={localIsoDate(SLOT_DAYS_AHEAD)}
+          value={checkoutForm.delivery_date || ""}
+          onChange={e => setCheckoutForm(prev => ({ ...prev, delivery_date: e.target.value }))}
+        />
+      </label>
+      <label style={{ flex: 1 }}>
+        Time slot (optional)
+        <select
+          value={checkoutForm.delivery_slot_id || ""}
+          onChange={e => setCheckoutForm(prev => ({ ...prev, delivery_slot_id: e.target.value }))}
+        >
+          <option value="">Any time</option>
+          {slots.map(slot => <option key={slot.id} value={slot.id}>{slot.label}</option>)}
+        </select>
+      </label>
+    </div>
+  );
+}
 
 function CheckoutForm({
   setCheckoutOpen,
@@ -29,6 +74,8 @@ function CheckoutForm({
   checkoutPayable,
   checkoutMessage,
   checkoutLoading,
+  isSignedIn = true,
+  onSignIn,
 }) {
   return (
     <div className="auth-page-shell checkout-shell" onClick={() => setCheckoutOpen(false)}>
@@ -135,6 +182,8 @@ function CheckoutForm({
               </>
             )}
 
+            <DeliverySlotPicker checkoutForm={checkoutForm} setCheckoutForm={setCheckoutForm} />
+
             <label>
               Order notes
               <textarea value={checkoutForm.notes} onChange={e => setCheckoutForm(prev => ({ ...prev, notes: e.target.value }))} rows={3} placeholder="Add a note for your order" />
@@ -159,6 +208,12 @@ function CheckoutForm({
                   <button type="button" className="btn secondary" onClick={handleRemoveCoupon}>Remove</button>
                 )}
               </div>
+              {!isSignedIn && (
+                <div className="guest-hint" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 14 }}>
+                  <span>Sign in to apply coupons.</span>
+                  <button type="button" className="btn secondary" onClick={onSignIn}>Sign in</button>
+                </div>
+              )}
               {couponMessage && <div className="auth-error" style={{ color: appliedCoupon ? "#2f6b4f" : undefined }}>{couponMessage}</div>}
             </div>
 
@@ -167,7 +222,7 @@ function CheckoutForm({
               {appliedCoupon ? (
                 <div><span>Coupon ({appliedCoupon.code})</span><b>-{formatCurrency(couponDiscountPreview, 2)}</b></div>
               ) : null}
-              <div><span>Delivery</span><b>{deliveryQuote?.eligible ? (String.fromCharCode(8377) + deliveryFeePreview.toLocaleString("en-IN")) : (deliveryQuote ? "Not available" : "Enter address")}</b></div>
+              <div><span>Delivery</span><b>{deliveryQuote?.eligible ? (String.fromCharCode(8377) + deliveryFeePreview.toLocaleString("en-IN")) : (deliveryQuote ? "Not available" : (isSignedIn ? "Enter address" : "Enter PIN code"))}</b></div>
               {deliveryQuoteMessage ? <div className="auth-error" style={{ color: deliveryQuote?.eligible ? "#2f6b4f" : undefined }}>{deliveryQuoteMessage}</div> : null}
               {deliveryQuote?.eta_min_minutes ? <small>ETA {deliveryQuote.eta_min_minutes}-{deliveryQuote.eta_max_minutes || "?"} min</small> : null}
               <div><span>Total</span><b>{formatCurrency(checkoutPayable, 2)}</b></div>

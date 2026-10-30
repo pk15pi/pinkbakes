@@ -48,6 +48,8 @@ export default function useCheckoutFlow({
     postal_code: "",
     country: "India",
     notes: "",
+    delivery_slot_id: "",
+    delivery_date: "",
     shipping_latitude: "",
     shipping_longitude: "",
   });
@@ -117,7 +119,6 @@ export default function useCheckoutFlow({
 
   function refreshDeliveryQuote(postalCode, addressId, lat, lng) {
     const token = localStorage.getItem("pinkbakes_token");
-    if (!token) return;
     const pin = (postalCode || checkoutForm.postal_code || "").trim();
     if (!pin || cart.length === 0) {
       setDeliveryQuote(null);
@@ -126,8 +127,8 @@ export default function useCheckoutFlow({
     const payload = {
       postal_code: pin,
       items: cartPayloadItems(cart),
-      ...(appliedCoupon?.code ? { coupon_code: appliedCoupon.code } : {}),
-      ...(addressId ? { address_id: addressId } : {}),
+      ...(token && appliedCoupon?.code ? { coupon_code: appliedCoupon.code } : {}),
+      ...(token && addressId ? { address_id: addressId } : {}),
       ...(lat != null && lat !== "" ? { shipping_latitude: lat } : {}),
       ...(lng != null && lng !== "" ? { shipping_longitude: lng } : {}),
     };
@@ -303,6 +304,10 @@ export default function useCheckoutFlow({
       setCheckoutMessage(deliveryQuote.message || "Delivery is not available for this address.");
       return;
     }
+    if (!!checkoutForm.delivery_slot_id !== !!checkoutForm.delivery_date) {
+      setCheckoutMessage("Choose both a delivery date and a time slot, or leave both empty.");
+      return;
+    }
 
     const payload = {
       items: cartPayloadItems(cart),
@@ -310,6 +315,9 @@ export default function useCheckoutFlow({
       customer_email: checkoutForm.customer_email || user.email || "",
       customer_mobile: checkoutForm.customer_mobile || user.mobile_number || "",
       notes: checkoutForm.notes || "",
+      ...(checkoutForm.delivery_slot_id && checkoutForm.delivery_date
+        ? { delivery_slot_id: Number(checkoutForm.delivery_slot_id), delivery_date: checkoutForm.delivery_date }
+        : {}),
       ...(appliedCoupon?.code ? { coupon_code: appliedCoupon.code } : {}),
       ...(selectedAddressId
         ? { address_id: selectedAddressId }

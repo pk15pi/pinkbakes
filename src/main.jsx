@@ -705,9 +705,12 @@ function App() {
     }
   }
 
+  const adminStandalone = adminOpen || isAdminLoggedIn;
+
   return (
     <div className="site">
-      <SiteHeader {...{
+      {/* Admin renders standalone: hide the storefront while the admin panel/login is open. */}
+      {!adminStandalone && <SiteHeader {...{
         mobileOpen,
         setMobileOpen,
         brandName: BRAND_NAME,
@@ -721,9 +724,9 @@ function App() {
         cartCount,
         setCartOpen,
         openCheckout,
-      }} />
+      }} />}
 
-      <main>
+      {!adminStandalone && (<main>
         <HeroSection scrollTo={scrollTo} openCheckout={openCheckout} />
         <CategorySection
           categoriesLoading={categoriesLoading}
@@ -778,9 +781,9 @@ function App() {
           onVisit={() => setBakeryLocationOpen(true)}
           bakeryLocationOpen={bakeryLocationOpen}
         />
-      </main>
+      </main>)}
 
-      <SiteFooter {...{
+      {!adminStandalone && <SiteFooter {...{
         brandName: BRAND_NAME,
         whatsappLinkNumber: WHATSAPP_LINK_NUMBER,
         scrollTo,
@@ -793,7 +796,7 @@ function App() {
         openFooterAdmin,
         isAdminLoggedIn,
         scrollRoomRef,
-      }} />
+      }} />}
 
       {pageNotFound && (
         <NotFoundPage
@@ -1032,6 +1035,8 @@ function App() {
         cartTotal={cartTotal}
         openCheckout={openCheckout}
         scrollTo={scrollTo}
+        isSignedIn={!!user}
+        onSignIn={() => { setCartOpen(false); setAuthMode("signin"); setAuthMessage(""); setAuthOpen(true); }}
       />
 
       {checkoutOpen && (
@@ -1063,6 +1068,14 @@ function App() {
           checkoutPayable,
           checkoutMessage,
           checkoutLoading,
+          isSignedIn: !!user && !!localStorage.getItem("pinkbakes_token"),
+          onSignIn: () => {
+            setCheckoutOpen(false);
+            setPendingCheckout(true);
+            setAuthMode("signin");
+            setAuthMessage("Sign in to apply coupons and see your delivery charge.");
+            setAuthOpen(true);
+          },
         }} />
       )}
 
@@ -1154,7 +1167,7 @@ function App() {
         }} />
       )}
 
-      <ChatbotDock {...{
+      {!adminStandalone && <ChatbotDock {...{
         chatOpen,
         setChatOpen,
         chatMessagesRef,
@@ -1163,7 +1176,7 @@ function App() {
         handleChatSubmit,
         chatInput,
         setChatInput,
-      }} />
+      }} />}
 
       {toast && <div className="toast"><Check size={17}/>{toast}</div>}
     </div>

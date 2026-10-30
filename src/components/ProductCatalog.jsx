@@ -1,6 +1,6 @@
 import { ArrowRight, Heart, Rotate3d, Search, Star, ZoomIn } from "lucide-react";
 import { normalizeProduct } from "../productUtils";
-import { fromSizePrice } from "../appConstants";
+import { discountedUnitPrice, fromSizePrice, responsiveImageSrcSet } from "../appConstants";
 
 function ProductCatalog({
   category,
@@ -42,13 +42,13 @@ function ProductCatalog({
 
       <div className="product-grid">
         {catalogLoading && catalog.length === 0 ? <div className="empty">Loading cakes...</div> : filtered.map(p => {
-          const priceAfterDiscount = p.discounted_price || Number((p.price * (100 - (p.discount || 0)) / 100).toFixed(2));
+          const priceAfterDiscount = p.discounted_price || discountedUnitPrice(p.price, p.discount);
           // BUG-026: cakes with per-size prices show the lowest size price and need a size picked.
           const fromPrice = fromSizePrice(p);
           return (
             <article className="product-card" key={p.id}>
               <div className="product-media">
-                <img src={p.image || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1000&q=85"} alt={(p.name || "Cake") + " cake"} loading="lazy" width="600" height="750" />
+                <img src={p.image || "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1000&q=85"} srcSet={responsiveImageSrcSet(p.image, [360, 600, 900])} sizes="(max-width: 640px) 50vw, (max-width: 1100px) 33vw, 300px" alt={(p.name || "Cake") + " cake"} loading="lazy" decoding="async" width="600" height="750" />
                 {p.badge && <span className="badge">{p.badge}</span>}
                 <button
                   type="button"
@@ -86,9 +86,11 @@ function ProductCatalog({
         <div className="empty">
           {catalog.length === 0
             ? "No cakes are currently available."
-            : category === "All Cakes"
-              ? "No cakes match your search."
-              : `No cakes match "${category}" right now.`}
+            : search.trim() && category !== "All Cakes"
+              ? `No ${category} match "${search.trim()}". Try "All Cakes" to search every category.`
+              : category === "All Cakes"
+                ? "No cakes match your search."
+                : `No cakes match "${category}" right now.`}
         </div>
       )}
       {catalogError && !catalogLoading && (

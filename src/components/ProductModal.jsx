@@ -6,7 +6,7 @@ import {
   submitReview,
 } from "../services/authService";
 import { hasCakeContent, normalizeProduct } from "../productUtils";
-import { CAKE_MESSAGE_MAX_LENGTH, CAKE_SIZE_OPTIONS, formatCurrency, isEgglessProduct, localIsoDate, pricedSizes, sizeListPrice, sizePriceFor } from "../appConstants";
+import { CAKE_MESSAGE_MAX_LENGTH, CAKE_SIZE_OPTIONS, discountedUnitPrice, formatCurrency, isEgglessProduct, localIsoDate, pricedSizes, sizeListPrice, sizePriceFor } from "../appConstants";
 
 function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
   const [detail, setDetail] = useState(() => normalizeProduct(product));
@@ -122,7 +122,7 @@ function ProductModal({product,onClose,onAdd,stockLabel,isOutOfStock}) {
   const sizeChoices = pricedSizes(detail).length ? pricedSizes(detail) : CAKE_SIZE_OPTIONS;
   const activeSize = sizeChoices.includes(size) ? size : (sizeChoices.includes("1 kg") ? "1 kg" : sizeChoices[0]);
   const sizeList = sizeListPrice(detail, activeSize);
-  const currentPrice = sizePriceFor(detail, activeSize) ?? Number(detail.discounted_price ?? ((detail.price * (100 - (detail.discount || 0))) / 100 || detail.price));
+  const currentPrice = sizePriceFor(detail, activeSize) ?? Number(detail.discounted_price ?? discountedUnitPrice(detail.price, detail.discount));
   const listPrice = sizeList ?? detail.price;
   const egglessProduct = isEgglessProduct(detail);
 

@@ -12,7 +12,7 @@ import {
 export default function useAdminCommerceConfig({ setAdminDeliverySettings }) {
   const [adminCouponsView, setAdminCouponsView] = useState(false);
   const [adminCoupons, setAdminCoupons] = useState([]);
-  const [adminCouponForm, setAdminCouponForm] = useState({ code: "", name: "", discount_type: "percentage", discount_value: "10", is_active: true });
+  const [adminCouponForm, setAdminCouponForm] = useState({ code: "", name: "", discount_type: "percentage", discount_value: "10", is_active: true, minimum_order_amount: "", maximum_discount_amount: "", start_at: "", end_at: "", usage_limit: "", usage_limit_per_user: "" });
   const [adminCouponMessage, setAdminCouponMessage] = useState("");
   const [adminDeliveryView, setAdminDeliveryView] = useState(false);
   const [adminZones, setAdminZones] = useState([]);

@@ -124,6 +124,14 @@ function UserOrdersDialog({
                     {selectedOrder.country}
                   </b>
                 </div>
+                {selectedOrder.delivery_date && (
+                  <div style={{ marginTop: 8 }}>
+                    <span>Delivery slot</span>
+                    <b style={{ display: "block", fontWeight: 500 }}>
+                      {selectedOrder.delivery_date}{selectedOrder.delivery_slot_label ? `, ${selectedOrder.delivery_slot_label}` : ""}
+                    </b>
+                  </div>
+                )}
               </div>
 
               {selectedOrder.payment_status !== "paid" && selectedOrder.payment_status !== "refunded" && selectedOrder.status !== "CANCELLED" && (

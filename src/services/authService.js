@@ -3,12 +3,14 @@ import { appConfig } from "../config";
 const API_BASE_URL = appConfig.apiBaseUrl;
 
 async function requestJson(url, options = {}) {
+  // Spread options first so callers passing their own headers (e.g. Authorization)
+  // do not wipe the JSON Content-Type; otherwise fetch sends text/plain and DRF returns 415.
   const response = await fetch(url, {
+    ...options,
     headers: {
       "Content-Type": "application/json",
-      ...(options.headers || {})
+      ...(options.headers || {}),
     },
-    ...options,
   });
 
   const data = await response.json().catch(() => ({}));
@@ -429,6 +431,24 @@ export async function createProduct(payload, token) {
   return __data;
 }
 
+// Multipart upload of a product's main image (JPEG/PNG/WebP). Uses fetch directly so the
+// browser sets the multipart boundary (requestJson would force a JSON Content-Type).
+export async function uploadProductImageFile(id, file, token) {
+  const body = new FormData();
+  body.append("image_file", file);
+  const response = await fetch(`${API_BASE_URL}/api/catalog/products/${id}/image/`, {
+    method: "POST",
+    headers: { Authorization: `Token ${token}` },
+    body,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error((typeof data.detail === "string" && data.detail) || "Image upload failed.");
+  }
+  invalidateCatalogClientCache();
+  return data;
+}
+
 export async function updateProduct(id, payload, token) {
   const __data = await requestJson(`${API_BASE_URL}/api/catalog/admin/products/${id}/`, {
     method: "PUT",
@@ -590,12 +610,11 @@ export async function setDefaultAddress(id, token) {
   });
 }
 
+// Guests may quote too (no token): the API then ignores saved addresses and rejects coupons.
 export async function quoteDelivery(payload, token) {
   return requestJson(`${API_BASE_URL}/api/delivery/quote/`, {
     method: "POST",
-    headers: {
-      Authorization: `Token ${token}`,
-    },
+    headers: token ? { Authorization: `Token ${token}` } : {},
     body: JSON.stringify(payload),
   });
 }
@@ -979,4 +998,60 @@ export async function adminLogout(token) {
       Authorization: `Token ${token}`,
     },
   });
+}
+
+/* Admin-managed site content (gallery, testimonials) and delivery time slots. */
+const SITE_CONTENT_PATHS = {
+  gallery: "gallery",
+  testimonials: "testimonials",
+  slots: "delivery-slots",
+};
+
+async function fetchPublicList(key, path, options = {}) {
+  const cached = _cacheGet(key);
+  if (cached) return cached;
+  const data = await requestCatalogJson(`${API_BASE_URL}/api/catalog/${path}`, { method: "GET", signal: options.signal });
+  return _cacheSet(key, asListResponse(data), CATALOG_TTL_MS);
+}
+
+export function fetchSiteGallery(options = {}) {
+  return fetchPublicList("site:gallery", "site/gallery/", options);
+}
+
+export function fetchSiteTestimonials(options = {}) {
+  return fetchPublicList("site:testimonials", "site/testimonials/", options);
+}
+
+export function fetchDeliverySlots(options = {}) {
+  return fetchPublicList("site:slots", "delivery/slots/", options);
+}
+
+function adminContentUrl(kind, id) {
+  const path = SITE_CONTENT_PATHS[kind];
+  if (!path) throw new Error(`Unknown site content type: ${kind}`);
+  return `${API_BASE_URL}/api/catalog/admin/${path}/${id ? `${id}/` : ""}`;
+}
+
+function adminTokenHeader() {
+  return { Authorization: `Token ${localStorage.getItem("pinkbakes_admin_token") || ""}` };
+}
+
+export async function fetchAdminSiteContent(kind) {
+  const data = await requestJson(adminContentUrl(kind), { method: "GET", headers: adminTokenHeader() });
+  return asListResponse(data);
+}
+
+export async function saveAdminSiteContent(kind, payload, id) {
+  const data = await requestJson(adminContentUrl(kind, id), {
+    method: id ? "PATCH" : "POST",
+    headers: adminTokenHeader(),
+    body: JSON.stringify(payload),
+  });
+  invalidateCatalogClientCache();
+  return data;
+}
+
+export async function deleteAdminSiteContent(kind, id) {
+  await requestJson(adminContentUrl(kind, id), { method: "DELETE", headers: adminTokenHeader() });
+  invalidateCatalogClientCache();
 }

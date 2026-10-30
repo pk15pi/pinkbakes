@@ -1,5 +1,6 @@
 import { Trash2 } from "lucide-react";
 import AdminEmployeesPanel from "./AdminEmployeesPanel";
+import AdminSiteContentPanel from "./AdminSiteContentPanel";
 import { buildRefundTableRows } from "../adminRefundUtils";
 import { CAKE_SIZE_OPTIONS, describeCartOptions, formatCurrency } from "../appConstants";
 
@@ -142,6 +143,7 @@ function AdminDashboardPanel({
                     ["employees", "Delivery"],
                     ["reviews", "Reviews"],
                     ["notifications", "Notifications"],
+                    ["site", "Site content"],
                     ["reports", "Reports"],
                     ["settings", "Settings"],
                     ["delivery", "Zones"],
@@ -217,6 +219,7 @@ function AdminDashboardPanel({
                         <h4>{adminOrderDetail.order_number} - {adminOrderDetail.status}</h4>
                         <p>{adminOrderDetail.customer_name} | {adminOrderDetail.customer_email} | {adminOrderDetail.customer_mobile}</p>
                         <p>{adminOrderDetail.shipping_address}, {adminOrderDetail.city} {adminOrderDetail.postal_code}</p>
+                        {adminOrderDetail.delivery_date && <p>Delivery: {adminOrderDetail.delivery_date}{adminOrderDetail.delivery_slot_label ? `, ${adminOrderDetail.delivery_slot_label}` : ""}</p>}
                         <p>Payment: {adminOrderDetail.payment_status} | Total {formatCurrency(Number(adminOrderDetail.total_amount || 0), 2)} | Coupon {adminOrderDetail.coupon_code || "-"}</p>
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "12px 0" }}>
                           <select id="admin-next-status" key={adminOrderDetail.status} defaultValue="">
@@ -341,17 +344,29 @@ function AdminDashboardPanel({
                     <form className="admin-form" onSubmit={(e) => { e.preventDefault(); createAdminCoupon({
                       code: adminCouponForm.code, name: adminCouponForm.name, discount_type: adminCouponForm.discount_type,
                       discount_value: adminCouponForm.discount_value, is_active: !!adminCouponForm.is_active,
-                    }).then(() => { setAdminCouponMessage("Coupon created."); setAdminCouponForm({ code: "", name: "", discount_type: "percentage", discount_value: "10", is_active: true }); loadAdminCoupons(); }).catch((err) => setAdminCouponMessage(err.message)); }}>
+                      minimum_order_amount: adminCouponForm.minimum_order_amount || "0",
+                      maximum_discount_amount: adminCouponForm.maximum_discount_amount || null,
+                      start_at: adminCouponForm.start_at ? new Date(adminCouponForm.start_at).toISOString() : null,
+                      end_at: adminCouponForm.end_at ? new Date(adminCouponForm.end_at).toISOString() : null,
+                      usage_limit: adminCouponForm.usage_limit ? Number(adminCouponForm.usage_limit) : null,
+                      usage_limit_per_user: adminCouponForm.usage_limit_per_user ? Number(adminCouponForm.usage_limit_per_user) : null,
+                    }).then(() => { setAdminCouponMessage("Coupon created."); setAdminCouponForm({ code: "", name: "", discount_type: "percentage", discount_value: "10", is_active: true, minimum_order_amount: "", maximum_discount_amount: "", start_at: "", end_at: "", usage_limit: "", usage_limit_per_user: "" }); loadAdminCoupons(); }).catch((err) => setAdminCouponMessage(err.message)); }}>
                       <label>Code<input value={adminCouponForm.code} onChange={(e) => setAdminCouponForm((p) => ({ ...p, code: e.target.value }))} /></label>
                       <label>Name<input value={adminCouponForm.name} onChange={(e) => setAdminCouponForm((p) => ({ ...p, name: e.target.value }))} /></label>
                       <label>Type<select value={adminCouponForm.discount_type} onChange={(e) => setAdminCouponForm((p) => ({ ...p, discount_type: e.target.value }))}><option value="percentage">Percentage</option><option value="fixed_amount">Fixed</option></select></label>
                       <label>Value<input type="number" value={adminCouponForm.discount_value} onChange={(e) => setAdminCouponForm((p) => ({ ...p, discount_value: e.target.value }))} /></label>
+                      <label>Min order (optional)<input type="number" min="0" value={adminCouponForm.minimum_order_amount} onChange={(e) => setAdminCouponForm((p) => ({ ...p, minimum_order_amount: e.target.value }))} /></label>
+                      <label>Max discount (optional)<input type="number" min="0" value={adminCouponForm.maximum_discount_amount} onChange={(e) => setAdminCouponForm((p) => ({ ...p, maximum_discount_amount: e.target.value }))} /></label>
+                      <label>Starts (optional)<input type="datetime-local" value={adminCouponForm.start_at} onChange={(e) => setAdminCouponForm((p) => ({ ...p, start_at: e.target.value }))} /></label>
+                      <label>Expires (optional)<input type="datetime-local" value={adminCouponForm.end_at} onChange={(e) => setAdminCouponForm((p) => ({ ...p, end_at: e.target.value }))} /></label>
+                      <label>Total uses limit (optional)<input type="number" min="1" value={adminCouponForm.usage_limit} onChange={(e) => setAdminCouponForm((p) => ({ ...p, usage_limit: e.target.value }))} /></label>
+                      <label>Uses per customer (optional)<input type="number" min="1" value={adminCouponForm.usage_limit_per_user} onChange={(e) => setAdminCouponForm((p) => ({ ...p, usage_limit_per_user: e.target.value }))} /></label>
                       <label><input type="checkbox" checked={!!adminCouponForm.is_active} onChange={(e) => setAdminCouponForm((p) => ({ ...p, is_active: e.target.checked }))} /> Active</label>
                       <button type="submit" className="btn primary small">Create coupon</button>
                     </form>
-                    <div className="table-wrap"><table className="report-table"><thead><tr><th>Code</th><th>Type</th><th>Value</th><th>Used</th><th>Active</th><th></th></tr></thead><tbody>
+                    <div className="table-wrap"><table className="report-table"><thead><tr><th>Code</th><th>Type</th><th>Value</th><th>Used</th><th>Expires</th><th>Active</th><th></th></tr></thead><tbody>
                       {adminCoupons.map((c) => (
-                        <tr key={c.id}><td>{c.code}</td><td>{c.discount_type}</td><td>{c.discount_value}</td><td>{c.total_used}</td><td>{c.is_active ? "Yes" : "No"}</td>
+                        <tr key={c.id}><td>{c.code}</td><td>{c.discount_type}</td><td>{c.discount_value}</td><td>{c.total_used}{c.usage_limit ? ` / ${c.usage_limit}` : ""}</td><td>{c.end_at ? new Date(c.end_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "-"}</td><td>{c.is_active ? "Yes" : "No"}</td>
                           <td><button type="button" className="btn secondary small" onClick={() => updateAdminCoupon(c.id, { is_active: !c.is_active }).then(() => loadAdminCoupons())}>{c.is_active ? "Disable" : "Enable"}</button></td>
                         </tr>
                       ))}
@@ -457,6 +472,8 @@ function AdminDashboardPanel({
                   </div>
                 )}
     
+                {!adminReportsView && !adminDeliveryView && adminSection === "site" && <AdminSiteContentPanel />}
+
                 {!adminReportsView && !adminDeliveryView && adminSection === "settings" && (
                   <div className="admin-reports-page">
                     <div className="report-topbar"><div><span className="eyebrow">SETTINGS</span><h3>Business & integrations</h3></div></div>
@@ -664,7 +681,7 @@ function AdminDashboardPanel({
                       ))}
                     </div>
                   </div>
-                ) : (adminSection === "products" || (!["dashboard","orders","payments","refunds","inventory","coupons","customers","employees","reviews","notifications","settings"].includes(adminSection))) ? (
+                ) : (adminSection === "products" || (!["dashboard","orders","payments","refunds","inventory","coupons","customers","employees","reviews","notifications","site","settings"].includes(adminSection))) ? (
                   <>
                     <form className="admin-form add-cake-form" onSubmit={submitCakeForm}>
                       <div className="admin-form-head">
@@ -733,6 +750,23 @@ function AdminDashboardPanel({
                       <label>
                         Image URL
                         <input value={cakeForm.image} onChange={e => setCakeForm(prev => ({ ...prev, image: e.target.value }))} placeholder="https://..." />
+                      </label>
+                      <label>
+                        Or upload image (JPEG, PNG or WebP, max 5 MB)
+                        <input
+                          key={cakeForm.imageFile ? "has-file" : "no-file"}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={e => {
+                            const file = e.target.files?.[0] || null;
+                            if (file && file.size > 5 * 1024 * 1024) {
+                              e.target.value = "";
+                              return;
+                            }
+                            setCakeForm(prev => ({ ...prev, imageFile: file }));
+                          }}
+                        />
+                        {cakeForm.imageFile ? <small>{cakeForm.imageFile.name} will be uploaded on save.</small> : null}
                       </label>
                       {adminMessage && <span className="admin-error">{adminMessage}</span>}
                       <button type="submit" className="btn primary full">{editingCakeId != null ? "Save Changes" : "Add Cake"}</button>

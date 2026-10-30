@@ -1,4 +1,25 @@
+import { useEffect, useState } from "react";
 import { CalendarDays, CakeSlice, Check, Heart, Leaf, MessageCircle, ShieldCheck, Sparkles } from "lucide-react";
+import { fetchSiteGallery, fetchSiteTestimonials } from "../services/authService";
+
+/** Admin-managed rows from the API; keeps the built-in defaults when the API is empty or unreachable. */
+function useManagedList(fetcher, mapRow, fallback) {
+  const [rows, setRows] = useState(fallback);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetcher({ signal: controller.signal })
+      .then((data) => {
+        const mapped = (Array.isArray(data) ? data : []).map(mapRow).filter(Boolean);
+        if (mapped.length) setRows(mapped);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [fetcher, mapRow]);
+  return rows;
+}
+
+const mapTestimonial = (row) => (row?.name && row?.text ? [row.name, row.text, row.tag || "", row.id] : null);
+const mapGalleryItem = (row) => (row?.image_url ? { src: row.image_url, alt: row.alt_text || row.caption || "pinkbakes cake", caption: row.caption || "", id: row.id } : null);
 
 const BENEFITS = [
   [CakeSlice, "Freshly Baked", "Every Day"],
@@ -35,12 +56,13 @@ export function BenefitStrip() {
 }
 
 export function CustomerReviews() {
+  const reviews = useManagedList(fetchSiteTestimonials, mapTestimonial, CUSTOMER_REVIEWS);
   return (
     <section className="reviews section">
       <div className="section-head center"><span className="eyebrow">KIND WORDS FROM OUR CUSTOMERS</span><h2>What Our Customers Say</h2></div>
       <div className="review-grid">
-        {CUSTOMER_REVIEWS.map(([name, text, tag]) => (
-          <div className="review" key={name}>
+        {reviews.map(([name, text, tag, id]) => (
+          <div className="review" key={id || name}>
             <div className="avatar">{name[0]}</div><p>"{text}"</p><div className="stars">*****</div><b>{name}</b><small>{tag}</small>
           </div>
         ))}
@@ -50,6 +72,7 @@ export function CustomerReviews() {
 }
 
 export function CelebrationGallery({ whatsappLinkNumber }) {
+  const galleryItems = useManagedList(fetchSiteGallery, mapGalleryItem, GALLERY_ITEMS);
   return (
     <section className="gallery section" id="gallery">
       <div className="section-head">
@@ -70,8 +93,8 @@ export function CelebrationGallery({ whatsappLinkNumber }) {
         </button>
       </div>
       <div className="gallery-grid">
-        {GALLERY_ITEMS.map((item) => (
-          <figure className="gallery-item" key={item.src}>
+        {galleryItems.map((item) => (
+          <figure className="gallery-item" key={item.id || item.src}>
             <img src={item.src} alt={item.alt} loading="lazy" width="600" height="600" />
             <figcaption className="gallery-caption">{item.caption}</figcaption>
           </figure>

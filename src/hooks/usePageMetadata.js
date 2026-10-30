@@ -114,7 +114,7 @@ export default function usePageMetadata({
       description: "pinkbakes - handcrafted cakes for birthdays, anniversaries, weddings, and custom celebrations.",
       canonical: "/",
       robots: "index,follow",
-      image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1200&q=85",
+      image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1200&h=630&q=80",
       jsonLd: [
         buildOrganizationJsonLd({ email: CONTACT_EMAIL, telephone: WHATSAPP_TELEPHONE }),
         buildWebSiteJsonLd(),

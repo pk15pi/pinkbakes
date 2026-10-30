@@ -13,7 +13,16 @@ function HeroSection({ scrollTo, openCheckout }) {
         </div>
       </div>
       <div className="hero-image">
-        <img src="https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1600&q=90" alt="Premium chocolate cake from pinkbakes" width="1600" height="1200" fetchpriority="high" />
+        <img
+          src="https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1280&q=75"
+          srcSet="https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=480&q=70 480w, https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=768&q=72 768w, https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1024&q=75 1024w, https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=1280&q=75 1280w"
+          sizes="(max-width: 900px) 100vw, 50vw"
+          alt="Premium chocolate cake from pinkbakes"
+          width="1600"
+          height="1200"
+          fetchPriority="high"
+          decoding="async"
+        />
         <div className="hero-note">Life is<br/><em>sweeter</em><br/>with cake</div>
       </div>
     </section>

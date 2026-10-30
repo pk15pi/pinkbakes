@@ -62,11 +62,11 @@ function AdminDialogs({
                   <form className="admin-form" onSubmit={handleAdminLogin}>
                     <label>
                       Admin username
-                      <input value={adminCredentials.username} onChange={e => setAdminCredentials(prev => ({ ...prev, username: e.target.value }))} placeholder="pinkbake" />
+                      <input value={adminCredentials.username} onChange={e => setAdminCredentials(prev => ({ ...prev, username: e.target.value }))} placeholder="Username" autoComplete="username" />
                     </label>
                     <label>
                       Password
-                      <input type="password" value={adminCredentials.password} onChange={e => setAdminCredentials(prev => ({ ...prev, password: e.target.value }))} placeholder="pinkbake" />
+                      <input type="password" value={adminCredentials.password} onChange={e => setAdminCredentials(prev => ({ ...prev, password: e.target.value }))} placeholder="Password" autoComplete="current-password" />
                     </label>
                     {adminNotifications.length > 0 && (
                       <div className="cart-summary" style={{ marginBottom: 12 }}>
